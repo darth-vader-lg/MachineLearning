@@ -86,7 +86,7 @@ namespace TestChoice
                feetPredictor = null;
             }
             // Crea il contesto
-            mlContext = mlContext != null && !ModifierKeys.HasFlag(Keys.Shift) ? mlContext : new MLContext(seed: 0);
+            mlContext = new MLContext(seed: 0);
             // Dizionario di contatori occorrenze numero / cluster
             var idCounters = new Dictionary<string, long[]>();
             // Verifica se un modello e' gia' esistente
@@ -113,8 +113,9 @@ namespace TestChoice
                   AccelerationMemoryBudgetMb = 4096,
                   InitializationAlgorithm = KMeansTrainer.InitializationAlgorithm.KMeansYinyang,
                   NumberOfClusters = numbers.Count,
-                  NumberOfThreads = 4,
+                  NumberOfThreads = 1,
                   FeatureColumnName = "Features",
+                  OptimizationTolerance = 1E-7f,
                   MaximumNumberOfIterations = 10000,
                });
                // Crea la pipeline di training
@@ -125,7 +126,7 @@ namespace TestChoice
                //using (var fileStream = new FileStream(feetModelPath, FileMode.Create, FileAccess.Write, FileShare.Write))
                //   mlContext.Model.Save(model, dataView.Schema, fileStream);
                // Crea il previsore
-               feetPredictor = feetPredictor != null && !ModifierKeys.HasFlag(Keys.Shift) ? feetPredictor : mlContext.Model.CreatePredictionEngine<FeetData, FeetPrediction>(model);
+               feetPredictor = mlContext.Model.CreatePredictionEngine<FeetData, FeetPrediction>(model);
                // Cursore per spazzolare tutti i dati e creare le corrispondenze cluster / numero
                var cursor = dataView.GetRowCursor(
                   new[]
