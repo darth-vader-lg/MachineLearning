@@ -1,11 +1,11 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Trainers;
-using Microsoft.ML.Transforms;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -51,6 +51,10 @@ namespace TestChoice
       /// Modello di apprendimento
       /// </summary>
       private ITransformer model;
+      /// <summary>
+      /// Azione di plotting
+      /// </summary>
+      private Action<PaintEventArgs> plot;
       #endregion
       #region Methods
       /// <summary>
@@ -79,12 +83,9 @@ namespace TestChoice
       private void buttonTrainFeet_Click(object sender, EventArgs e)
       {
          try {
-            // Annulla tutto se il precedente set di previsioni riguardava i fiori
-            if (irisPredictor != null) {
-               mlContext = null;
-               irisPredictor = null;
-               feetPredictor = null;
-            }
+            // Annulla tutto se il precedente set di previsioni non riguardava i piedi
+            if (irisPredictor == null)
+               ResetML();
             // Crea il contesto
             mlContext = new MLContext(seed: 0);
             // Dizionario di contatori occorrenze numero / cluster
@@ -127,6 +128,19 @@ namespace TestChoice
                //   mlContext.Model.Save(model, dataView.Schema, fileStream);
                // Crea il previsore
                feetPredictor = mlContext.Model.CreatePredictionEngine<FeetData, FeetPrediction>(model);
+               // Ottiene i centroidi
+               var centroids = default(VBuffer<float>[]);
+               ((TransformerChain<ClusteringPredictionTransformer<KMeansModelParameters>>)model).LastTransformer.Model.GetClusterCentroids(ref centroids, out int k);
+               // Estrae dal VBuffer pre semplicita'
+               var cleanCentroids = Enumerable.Range(1, feetClusterToNumber.Length).ToDictionary(x => (uint)x, x =>
+               {
+                  var values = centroids[x - 1].GetValues().ToArray();
+                  return values;
+               });
+               // Elenco di punti e limiti
+               var points = new Dictionary<uint, List<(double X, double Y)>>();
+               var xLim = (Min: double.MaxValue, Max: -double.MaxValue);
+               var yLim = (Min: double.MaxValue, Max: -double.MaxValue);
                // Cursore per spazzolare tutti i dati e creare le corrispondenze cluster / numero
                var cursor = dataView.GetRowCursor(
                   new[]
@@ -148,16 +162,40 @@ namespace TestChoice
                   var p = feetPredictor.Predict(new FeetData { Number = number.ToString(), Length = length, Instep = instep });
                   // Incrementa il contatore di cluster relativo al numero specificato nella riga
                   idCounters[number.ToString()][p.PredictedClusterId - 1]++;
+                  // Aggiunge il punto per il plotting
+                  var weightedCentroid = cleanCentroids[p.PredictedClusterId].Zip(p.Distances, (x, y) => x * y);
+                  var point = (X: weightedCentroid.Take(weightedCentroid.Count() / 2).Sum(), Y: weightedCentroid.Skip(weightedCentroid.Count() / 2).Sum());
+                  if (!points.ContainsKey(p.PredictedClusterId))
+                     points[p.PredictedClusterId] = new List<(double X, double Y)>();
+                  points[p.PredictedClusterId].Add(point);
+                  // Aggiorna i limiti di plotting
+                  xLim.Min = Math.Min(xLim.Min, point.X);
+                  xLim.Max = Math.Max(xLim.Max, point.X);
+                  yLim.Min = Math.Min(yLim.Min, point.Y);
+                  yLim.Max = Math.Max(yLim.Max, point.Y);
                }
                // Crea l'associazione inversa iterando su ogni numero e scegliendo l'indice del cluster che contiene piu' occorrenze
                foreach (var item in idCounters) {
                   var ix = 0;
                   feetClusterToNumber[item.Value.Select(val => new { count = val, ix = ix++ }).OrderByDescending(val => val.count).First().ix] = item.Key;
                }
+               // Azione di plot
+               plot = new Action<PaintEventArgs>(pe =>
+               {
+                  var colors = new[] { Color.Black, Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Lime, Color.Cyan };
+                  var brushes = colors.Select(c => new SolidBrush(c)).ToArray();
+                  var xFact = panelPlot.ClientSize.Width / (xLim.Max - xLim.Min);
+                  var yFact = panelPlot.ClientSize.Height / (yLim.Max - yLim.Min);
+                  foreach (var c in points) {
+                     foreach (var p in c.Value)
+                        pe.Graphics.FillEllipse(brushes[(c.Key - 1) % brushes.Length], (float)((p.X - xLim.Min) * xFact), (float)((p.Y - yLim.Min) * yFact), 5f, 5f);
+                  }
+               });
             }
             // Previsione di test
             var prediction = feetPredictor.Predict(new FeetData { Number = "36.5", Length = 227f, Instep = 222f});
             labelPrediction.Text = $"Number: {feetClusterToNumber[prediction.PredictedClusterId - 1]}" + $" Distances: {string.Join(" ", prediction.Distances)}";
+            panelPlot.Invalidate();
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -172,11 +210,9 @@ namespace TestChoice
       private void buttonTrainIris_Click(object sender, EventArgs e)
       {
          try {
-            if (feetPredictor != null) {
-               mlContext = null;
-               feetPredictor = null;
-               irisPredictor = null;
-            }
+            // Annulla tutto se il precedente set di previsioni non riguardava i fiori
+            if (irisPredictor == null)
+               ResetML();
             mlContext = mlContext != null && !ModifierKeys.HasFlag(Keys.Shift) ? mlContext : new MLContext(seed: 0);
             if (File.Exists(irisModelPath) && !ModifierKeys.HasFlag(Keys.Shift))
                model = mlContext.Model.Load(irisModelPath, out _);
@@ -187,10 +223,10 @@ namespace TestChoice
                var pipeline =
                   mlContext.Transforms.
                   Concatenate(featuresColumnName, "SepalLength", "SepalWidth", "PetalLength", "PetalWidth").
-                  Append(mlContext.Clustering.Trainers.KMeans(new Microsoft.ML.Trainers.KMeansTrainer.Options()
+                  Append(mlContext.Clustering.Trainers.KMeans(new KMeansTrainer.Options()
                   {
                      AccelerationMemoryBudgetMb = 4096,
-                     InitializationAlgorithm = Microsoft.ML.Trainers.KMeansTrainer.InitializationAlgorithm.KMeansYinyang,
+                     InitializationAlgorithm = KMeansTrainer.InitializationAlgorithm.KMeansYinyang,
                      NumberOfClusters = 3,
                      NumberOfThreads = 4,
                      FeatureColumnName = featuresColumnName,
@@ -217,14 +253,51 @@ namespace TestChoice
          }
       }
       /// <summary>
-      /// Evento timer di plotting
+      /// Evento di paint del grafico
       /// </summary>
       /// <param name="sender"></param>
       /// <param name="e"></param>
       [SuppressMessage("Style", "IDE1006:Stili di denominazione")]
-      private void timerPlot_Tick(object sender, EventArgs e)
+      private void panelPlot_Paint(object sender, PaintEventArgs e)
       {
-
+         try {
+            // Chiama l'azione di plotting
+            plot?.Invoke(e);
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Resize del pannello del plot
+      /// </summary>
+      /// <param name="sender"></param>
+      /// <param name="e"></param>
+      [SuppressMessage("Style", "IDE1006:Stili di denominazione")]
+      private void panelPlot_Resize(object sender, EventArgs e)
+      {
+         try {
+            if (sender is Control control)
+               control.Invalidate();
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Resetta il machine learning
+      /// </summary>
+      private void ResetML()
+      {
+         try {
+            mlContext = null;
+            feetPredictor = null;
+            irisPredictor = null;
+            plot = null;
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
       }
       #endregion
    }

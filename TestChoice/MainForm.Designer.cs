@@ -28,12 +28,10 @@ namespace TestChoice
       /// </summary>
       private void InitializeComponent()
       {
-         this.components = new System.ComponentModel.Container();
          this.buttonTrainIris = new System.Windows.Forms.Button();
          this.labelPrediction = new System.Windows.Forms.Label();
          this.panelPlot = new System.Windows.Forms.Panel();
          this.buttonPlot = new System.Windows.Forms.Button();
-         this.timerPlot = new System.Windows.Forms.Timer(this.components);
          this.buttonTrainFeet = new System.Windows.Forms.Button();
          this.SuspendLayout();
          // 
@@ -65,6 +63,8 @@ namespace TestChoice
          this.panelPlot.Name = "panelPlot";
          this.panelPlot.Size = new System.Drawing.Size(706, 556);
          this.panelPlot.TabIndex = 4;
+         this.panelPlot.Paint += new System.Windows.Forms.PaintEventHandler(this.panelPlot_Paint);
+         this.panelPlot.Resize += new System.EventHandler(this.panelPlot_Resize);
          // 
          // buttonPlot
          // 
@@ -76,10 +76,6 @@ namespace TestChoice
          this.buttonPlot.UseVisualStyleBackColor = true;
          this.buttonPlot.Click += new System.EventHandler(this.buttonPlot_Click);
          // 
-         // timerPlot
-         // 
-         this.timerPlot.Tick += new System.EventHandler(this.timerPlot_Tick);
-         // 
          // buttonTrainFeet
          // 
          this.buttonTrainFeet.Location = new System.Drawing.Point(94, 13);
@@ -90,7 +86,7 @@ namespace TestChoice
          this.buttonTrainFeet.UseVisualStyleBackColor = true;
          this.buttonTrainFeet.Click += new System.EventHandler(this.buttonTrainFeet_Click);
          // 
-         // Form1
+         // MainForm
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -100,7 +96,7 @@ namespace TestChoice
          this.Controls.Add(this.panelPlot);
          this.Controls.Add(this.labelPrediction);
          this.Controls.Add(this.buttonTrainIris);
-         this.Name = "Form1";
+         this.Name = "MainForm";
          this.Text = "Form1";
          this.ResumeLayout(false);
          this.PerformLayout();
@@ -113,7 +109,6 @@ namespace TestChoice
       private System.Windows.Forms.Label labelPrediction;
       private System.Windows.Forms.Panel panelPlot;
       private System.Windows.Forms.Button buttonPlot;
-      private System.Windows.Forms.Timer timerPlot;
       private System.Windows.Forms.Button buttonTrainFeet;
    }
 }
