@@ -56,6 +56,26 @@
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.ML.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.ML.1.5.2\lib\netstandard2.0\Microsoft.ML.Core.dll</HintPath>
@@ -132,11 +152,29 @@
     <Compile Include="FeetData.cs" />
     <Compile Include="IrisPrediction.cs" />
     <Compile Include="IrisData.cs" />
+    <Compile Include="PageFeetKMeans.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="PageFeetKMeans.Designer.cs">
+      <DependentUpon>PageFeetKMeans.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PageIrisKMeans.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="PageIrisKMeans.Designer.cs">
+      <DependentUpon>PageIrisKMeans.cs</DependentUpon>
+    </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestIrisData.cs" />
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PageFeetKMeans.resx">
+      <DependentUpon>PageFeetKMeans.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PageIrisKMeans.resx">
+      <DependentUpon>PageIrisKMeans.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -150,6 +188,9 @@
     <Content Include="Data\feet.data">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="..\.editorconfig">
+      <Link>.editorconfig</Link>
+    </None>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

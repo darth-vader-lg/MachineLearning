@@ -28,88 +28,99 @@ namespace TestChoice
       /// </summary>
       private void InitializeComponent()
       {
-         this.buttonTrainIris = new System.Windows.Forms.Button();
          this.labelPrediction = new System.Windows.Forms.Label();
-         this.panelPlot = new System.Windows.Forms.Panel();
-         this.buttonPlot = new System.Windows.Forms.Button();
-         this.buttonTrainFeet = new System.Windows.Forms.Button();
+         this.tabControlMain = new System.Windows.Forms.TabControl();
+         this.tabPageFeetKMeans = new System.Windows.Forms.TabPage();
+         this.tabPageIrisKMeans = new System.Windows.Forms.TabPage();
+         this.pageFeetKMeans1 = new TestChoice.PageFeetKMeans();
+         this.pageIrisKMeans1 = new TestChoice.PageIrisKMeans();
+         this.tabControlMain.SuspendLayout();
+         this.tabPageFeetKMeans.SuspendLayout();
+         this.tabPageIrisKMeans.SuspendLayout();
          this.SuspendLayout();
-         // 
-         // buttonTrainIris
-         // 
-         this.buttonTrainIris.Location = new System.Drawing.Point(13, 13);
-         this.buttonTrainIris.Name = "buttonTrainIris";
-         this.buttonTrainIris.Size = new System.Drawing.Size(75, 23);
-         this.buttonTrainIris.TabIndex = 0;
-         this.buttonTrainIris.Text = "Train iris";
-         this.buttonTrainIris.UseVisualStyleBackColor = true;
-         this.buttonTrainIris.Click += new System.EventHandler(this.buttonTrainIris_Click);
          // 
          // labelPrediction
          // 
          this.labelPrediction.AutoSize = true;
-         this.labelPrediction.Location = new System.Drawing.Point(12, 39);
+         this.labelPrediction.Location = new System.Drawing.Point(373, 18);
          this.labelPrediction.Name = "labelPrediction";
          this.labelPrediction.Size = new System.Drawing.Size(16, 13);
          this.labelPrediction.TabIndex = 3;
          this.labelPrediction.Text = "...";
          // 
-         // panelPlot
+         // tabControlMain
          // 
-         this.panelPlot.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-         this.panelPlot.Location = new System.Drawing.Point(13, 55);
-         this.panelPlot.Name = "panelPlot";
-         this.panelPlot.Size = new System.Drawing.Size(706, 556);
-         this.panelPlot.TabIndex = 4;
-         this.panelPlot.Paint += new System.Windows.Forms.PaintEventHandler(this.panelPlot_Paint);
-         this.panelPlot.Resize += new System.EventHandler(this.panelPlot_Resize);
+         this.tabControlMain.Controls.Add(this.tabPageFeetKMeans);
+         this.tabControlMain.Controls.Add(this.tabPageIrisKMeans);
+         this.tabControlMain.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.tabControlMain.Location = new System.Drawing.Point(0, 0);
+         this.tabControlMain.Name = "tabControlMain";
+         this.tabControlMain.SelectedIndex = 0;
+         this.tabControlMain.Size = new System.Drawing.Size(1049, 737);
+         this.tabControlMain.TabIndex = 5;
          // 
-         // buttonPlot
+         // tabPageFeetKMeans
          // 
-         this.buttonPlot.Location = new System.Drawing.Point(215, 13);
-         this.buttonPlot.Name = "buttonPlot";
-         this.buttonPlot.Size = new System.Drawing.Size(75, 23);
-         this.buttonPlot.TabIndex = 2;
-         this.buttonPlot.Text = "Plot";
-         this.buttonPlot.UseVisualStyleBackColor = true;
-         this.buttonPlot.Click += new System.EventHandler(this.buttonPlot_Click);
+         this.tabPageFeetKMeans.Controls.Add(this.pageFeetKMeans1);
+         this.tabPageFeetKMeans.Location = new System.Drawing.Point(4, 22);
+         this.tabPageFeetKMeans.Name = "tabPageFeetKMeans";
+         this.tabPageFeetKMeans.Padding = new System.Windows.Forms.Padding(3);
+         this.tabPageFeetKMeans.Size = new System.Drawing.Size(1041, 711);
+         this.tabPageFeetKMeans.TabIndex = 0;
+         this.tabPageFeetKMeans.Text = "Feet K-Means";
+         this.tabPageFeetKMeans.UseVisualStyleBackColor = true;
          // 
-         // buttonTrainFeet
+         // tabPageIrisKMeans
          // 
-         this.buttonTrainFeet.Location = new System.Drawing.Point(94, 13);
-         this.buttonTrainFeet.Name = "buttonTrainFeet";
-         this.buttonTrainFeet.Size = new System.Drawing.Size(75, 23);
-         this.buttonTrainFeet.TabIndex = 1;
-         this.buttonTrainFeet.Text = "Train feet";
-         this.buttonTrainFeet.UseVisualStyleBackColor = true;
-         this.buttonTrainFeet.Click += new System.EventHandler(this.buttonTrainFeet_Click);
+         this.tabPageIrisKMeans.Controls.Add(this.pageIrisKMeans1);
+         this.tabPageIrisKMeans.Location = new System.Drawing.Point(4, 22);
+         this.tabPageIrisKMeans.Name = "tabPageIrisKMeans";
+         this.tabPageIrisKMeans.Padding = new System.Windows.Forms.Padding(3);
+         this.tabPageIrisKMeans.Size = new System.Drawing.Size(1041, 711);
+         this.tabPageIrisKMeans.TabIndex = 1;
+         this.tabPageIrisKMeans.Text = "Iris K-Means";
+         this.tabPageIrisKMeans.UseVisualStyleBackColor = true;
+         // 
+         // pageFeetKMeans1
+         // 
+         this.pageFeetKMeans1.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageFeetKMeans1.Location = new System.Drawing.Point(3, 3);
+         this.pageFeetKMeans1.Name = "pageFeetKMeans1";
+         this.pageFeetKMeans1.Size = new System.Drawing.Size(1035, 705);
+         this.pageFeetKMeans1.TabIndex = 0;
+         // 
+         // pageIrisKMeans1
+         // 
+         this.pageIrisKMeans1.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageIrisKMeans1.Location = new System.Drawing.Point(3, 3);
+         this.pageIrisKMeans1.Name = "pageIrisKMeans1";
+         this.pageIrisKMeans1.Size = new System.Drawing.Size(1035, 705);
+         this.pageIrisKMeans1.TabIndex = 0;
          // 
          // MainForm
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-         this.ClientSize = new System.Drawing.Size(731, 623);
-         this.Controls.Add(this.buttonTrainFeet);
-         this.Controls.Add(this.buttonPlot);
-         this.Controls.Add(this.panelPlot);
+         this.ClientSize = new System.Drawing.Size(1049, 737);
+         this.Controls.Add(this.tabControlMain);
          this.Controls.Add(this.labelPrediction);
-         this.Controls.Add(this.buttonTrainIris);
          this.Name = "MainForm";
          this.Text = "Form1";
+         this.tabControlMain.ResumeLayout(false);
+         this.tabPageFeetKMeans.ResumeLayout(false);
+         this.tabPageIrisKMeans.ResumeLayout(false);
          this.ResumeLayout(false);
          this.PerformLayout();
 
       }
 
       #endregion
-
-      private System.Windows.Forms.Button buttonTrainIris;
       private System.Windows.Forms.Label labelPrediction;
-      private System.Windows.Forms.Panel panelPlot;
-      private System.Windows.Forms.Button buttonPlot;
-      private System.Windows.Forms.Button buttonTrainFeet;
+      private System.Windows.Forms.TabControl tabControlMain;
+      private System.Windows.Forms.TabPage tabPageFeetKMeans;
+      private System.Windows.Forms.TabPage tabPageIrisKMeans;
+      private PageFeetKMeans pageFeetKMeans1;
+      private PageIrisKMeans pageIrisKMeans1;
    }
 }
 
