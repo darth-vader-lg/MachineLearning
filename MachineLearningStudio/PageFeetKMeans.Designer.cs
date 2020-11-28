@@ -30,8 +30,14 @@ namespace TestChoice
       {
          this.tableLayoutPanelMain = new System.Windows.Forms.TableLayoutPanel();
          this.panelControls = new System.Windows.Forms.Panel();
-         this.panelPlot = new System.Windows.Forms.Panel();
+         this.labelNumberResult = new System.Windows.Forms.Label();
+         this.textBoxInstep = new System.Windows.Forms.TextBox();
+         this.labelNumber = new System.Windows.Forms.Label();
+         this.labelInstep = new System.Windows.Forms.Label();
+         this.textBoxLength = new System.Windows.Forms.TextBox();
+         this.labelLength = new System.Windows.Forms.Label();
          this.buttonTrain = new System.Windows.Forms.Button();
+         this.panelPlot = new System.Windows.Forms.Panel();
          this.tableLayoutPanelMain.SuspendLayout();
          this.panelControls.SuspendLayout();
          this.SuspendLayout();
@@ -55,32 +61,90 @@ namespace TestChoice
          // 
          this.panelControls.AutoSize = true;
          this.panelControls.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+         this.panelControls.Controls.Add(this.labelNumberResult);
+         this.panelControls.Controls.Add(this.textBoxInstep);
+         this.panelControls.Controls.Add(this.labelNumber);
+         this.panelControls.Controls.Add(this.labelInstep);
+         this.panelControls.Controls.Add(this.textBoxLength);
+         this.panelControls.Controls.Add(this.labelLength);
          this.panelControls.Controls.Add(this.buttonTrain);
          this.panelControls.Dock = System.Windows.Forms.DockStyle.Fill;
          this.panelControls.Location = new System.Drawing.Point(3, 3);
          this.panelControls.Name = "panelControls";
-         this.panelControls.Size = new System.Drawing.Size(590, 29);
+         this.panelControls.Size = new System.Drawing.Size(590, 43);
          this.panelControls.TabIndex = 0;
          // 
-         // panelPlot
+         // labelNumberResult
          // 
-         this.panelPlot.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.panelPlot.Location = new System.Drawing.Point(3, 38);
-         this.panelPlot.Name = "panelPlot";
-         this.panelPlot.Size = new System.Drawing.Size(590, 432);
-         this.panelPlot.TabIndex = 1;
-         this.panelPlot.Paint += new System.Windows.Forms.PaintEventHandler(this.panelPlot_Paint);
-         this.panelPlot.Resize += new System.EventHandler(this.panelPlot_Resize);
+         this.labelNumberResult.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+         this.labelNumberResult.Location = new System.Drawing.Point(300, 20);
+         this.labelNumberResult.Name = "labelNumberResult";
+         this.labelNumberResult.Size = new System.Drawing.Size(45, 20);
+         this.labelNumberResult.TabIndex = 6;
+         this.labelNumberResult.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+         // 
+         // textBoxInstep
+         // 
+         this.textBoxInstep.Location = new System.Drawing.Point(194, 20);
+         this.textBoxInstep.Name = "textBoxInstep";
+         this.textBoxInstep.Size = new System.Drawing.Size(100, 20);
+         this.textBoxInstep.TabIndex = 4;
+         this.textBoxInstep.TextChanged += new System.EventHandler(this.textBoxInstep_TextChanged);
+         // 
+         // labelNumber
+         // 
+         this.labelNumber.AutoSize = true;
+         this.labelNumber.Location = new System.Drawing.Point(297, 3);
+         this.labelNumber.Name = "labelNumber";
+         this.labelNumber.Size = new System.Drawing.Size(44, 13);
+         this.labelNumber.TabIndex = 5;
+         this.labelNumber.Text = "Number";
+         // 
+         // labelInstep
+         // 
+         this.labelInstep.AutoSize = true;
+         this.labelInstep.Location = new System.Drawing.Point(191, 3);
+         this.labelInstep.Name = "labelInstep";
+         this.labelInstep.Size = new System.Drawing.Size(36, 13);
+         this.labelInstep.TabIndex = 3;
+         this.labelInstep.Text = "Instep";
+         // 
+         // textBoxLength
+         // 
+         this.textBoxLength.Location = new System.Drawing.Point(88, 20);
+         this.textBoxLength.Name = "textBoxLength";
+         this.textBoxLength.Size = new System.Drawing.Size(100, 20);
+         this.textBoxLength.TabIndex = 2;
+         this.textBoxLength.TextChanged += new System.EventHandler(this.textBoxLength_TextChanged);
+         // 
+         // labelLength
+         // 
+         this.labelLength.AutoSize = true;
+         this.labelLength.Location = new System.Drawing.Point(85, 3);
+         this.labelLength.Name = "labelLength";
+         this.labelLength.Size = new System.Drawing.Size(40, 13);
+         this.labelLength.TabIndex = 1;
+         this.labelLength.Text = "Length";
          // 
          // buttonTrain
          // 
          this.buttonTrain.Location = new System.Drawing.Point(3, 3);
          this.buttonTrain.Name = "buttonTrain";
-         this.buttonTrain.Size = new System.Drawing.Size(75, 23);
-         this.buttonTrain.TabIndex = 2;
+         this.buttonTrain.Size = new System.Drawing.Size(75, 37);
+         this.buttonTrain.TabIndex = 0;
          this.buttonTrain.Text = "Train";
          this.buttonTrain.UseVisualStyleBackColor = true;
          this.buttonTrain.Click += new System.EventHandler(this.buttonTrain_Click);
+         // 
+         // panelPlot
+         // 
+         this.panelPlot.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.panelPlot.Location = new System.Drawing.Point(3, 52);
+         this.panelPlot.Name = "panelPlot";
+         this.panelPlot.Size = new System.Drawing.Size(590, 418);
+         this.panelPlot.TabIndex = 0;
+         this.panelPlot.Paint += new System.Windows.Forms.PaintEventHandler(this.panelPlot_Paint);
+         this.panelPlot.Resize += new System.EventHandler(this.panelPlot_Resize);
          // 
          // PageFeetKMeans
          // 
@@ -92,6 +156,7 @@ namespace TestChoice
          this.tableLayoutPanelMain.ResumeLayout(false);
          this.tableLayoutPanelMain.PerformLayout();
          this.panelControls.ResumeLayout(false);
+         this.panelControls.PerformLayout();
          this.ResumeLayout(false);
 
       }
@@ -102,5 +167,11 @@ namespace TestChoice
       private System.Windows.Forms.Panel panelControls;
       private System.Windows.Forms.Panel panelPlot;
       private System.Windows.Forms.Button buttonTrain;
+      private System.Windows.Forms.Label labelNumberResult;
+      private System.Windows.Forms.TextBox textBoxInstep;
+      private System.Windows.Forms.Label labelNumber;
+      private System.Windows.Forms.Label labelInstep;
+      private System.Windows.Forms.TextBox textBoxLength;
+      private System.Windows.Forms.Label labelLength;
    }
 }
