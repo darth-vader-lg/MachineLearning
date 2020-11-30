@@ -38,6 +38,8 @@ namespace TestChoice
          this.labelLength = new System.Windows.Forms.Label();
          this.buttonTrain = new System.Windows.Forms.Button();
          this.panelPlot = new System.Windows.Forms.Panel();
+         this.labelDataSetName = new System.Windows.Forms.Label();
+         this.textBoxDataSetName = new System.Windows.Forms.TextBox();
          this.tableLayoutPanelMain.SuspendLayout();
          this.panelControls.SuspendLayout();
          this.SuspendLayout();
@@ -61,10 +63,12 @@ namespace TestChoice
          // 
          this.panelControls.AutoSize = true;
          this.panelControls.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+         this.panelControls.Controls.Add(this.labelDataSetName);
          this.panelControls.Controls.Add(this.labelNumberResult);
          this.panelControls.Controls.Add(this.textBoxInstep);
          this.panelControls.Controls.Add(this.labelNumber);
          this.panelControls.Controls.Add(this.labelInstep);
+         this.panelControls.Controls.Add(this.textBoxDataSetName);
          this.panelControls.Controls.Add(this.textBoxLength);
          this.panelControls.Controls.Add(this.labelLength);
          this.panelControls.Controls.Add(this.buttonTrain);
@@ -77,53 +81,53 @@ namespace TestChoice
          // labelNumberResult
          // 
          this.labelNumberResult.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-         this.labelNumberResult.Location = new System.Drawing.Point(300, 20);
+         this.labelNumberResult.Location = new System.Drawing.Point(406, 20);
          this.labelNumberResult.Name = "labelNumberResult";
          this.labelNumberResult.Size = new System.Drawing.Size(45, 20);
-         this.labelNumberResult.TabIndex = 6;
+         this.labelNumberResult.TabIndex = 8;
          this.labelNumberResult.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
          // 
          // textBoxInstep
          // 
-         this.textBoxInstep.Location = new System.Drawing.Point(194, 20);
+         this.textBoxInstep.Location = new System.Drawing.Point(300, 20);
          this.textBoxInstep.Name = "textBoxInstep";
          this.textBoxInstep.Size = new System.Drawing.Size(100, 20);
-         this.textBoxInstep.TabIndex = 4;
+         this.textBoxInstep.TabIndex = 6;
          this.textBoxInstep.TextChanged += new System.EventHandler(this.textBoxInstep_TextChanged);
          // 
          // labelNumber
          // 
          this.labelNumber.AutoSize = true;
-         this.labelNumber.Location = new System.Drawing.Point(297, 3);
+         this.labelNumber.Location = new System.Drawing.Point(403, 3);
          this.labelNumber.Name = "labelNumber";
          this.labelNumber.Size = new System.Drawing.Size(44, 13);
-         this.labelNumber.TabIndex = 5;
+         this.labelNumber.TabIndex = 7;
          this.labelNumber.Text = "Number";
          // 
          // labelInstep
          // 
          this.labelInstep.AutoSize = true;
-         this.labelInstep.Location = new System.Drawing.Point(191, 3);
+         this.labelInstep.Location = new System.Drawing.Point(297, 3);
          this.labelInstep.Name = "labelInstep";
          this.labelInstep.Size = new System.Drawing.Size(36, 13);
-         this.labelInstep.TabIndex = 3;
+         this.labelInstep.TabIndex = 5;
          this.labelInstep.Text = "Instep";
          // 
          // textBoxLength
          // 
-         this.textBoxLength.Location = new System.Drawing.Point(88, 20);
+         this.textBoxLength.Location = new System.Drawing.Point(194, 20);
          this.textBoxLength.Name = "textBoxLength";
          this.textBoxLength.Size = new System.Drawing.Size(100, 20);
-         this.textBoxLength.TabIndex = 2;
+         this.textBoxLength.TabIndex = 4;
          this.textBoxLength.TextChanged += new System.EventHandler(this.textBoxLength_TextChanged);
          // 
          // labelLength
          // 
          this.labelLength.AutoSize = true;
-         this.labelLength.Location = new System.Drawing.Point(85, 3);
+         this.labelLength.Location = new System.Drawing.Point(191, 3);
          this.labelLength.Name = "labelLength";
          this.labelLength.Size = new System.Drawing.Size(40, 13);
-         this.labelLength.TabIndex = 1;
+         this.labelLength.TabIndex = 3;
          this.labelLength.Text = "Length";
          // 
          // buttonTrain
@@ -145,6 +149,23 @@ namespace TestChoice
          this.panelPlot.TabIndex = 0;
          this.panelPlot.Paint += new System.Windows.Forms.PaintEventHandler(this.panelPlot_Paint);
          this.panelPlot.Resize += new System.EventHandler(this.panelPlot_Resize);
+         // 
+         // labelDataSetName
+         // 
+         this.labelDataSetName.AutoSize = true;
+         this.labelDataSetName.Location = new System.Drawing.Point(85, 3);
+         this.labelDataSetName.Name = "labelDataSetName";
+         this.labelDataSetName.Size = new System.Drawing.Size(47, 13);
+         this.labelDataSetName.TabIndex = 1;
+         this.labelDataSetName.Text = "Data set";
+         // 
+         // textBoxDataSetName
+         // 
+         this.textBoxDataSetName.Location = new System.Drawing.Point(88, 20);
+         this.textBoxDataSetName.Name = "textBoxDataSetName";
+         this.textBoxDataSetName.Size = new System.Drawing.Size(100, 20);
+         this.textBoxDataSetName.TabIndex = 2;
+         this.textBoxDataSetName.TextChanged += new System.EventHandler(this.textBoxDataSetName_TextChanged);
          // 
          // PageFeetKMeans
          // 
@@ -173,5 +194,7 @@ namespace TestChoice
       private System.Windows.Forms.Label labelInstep;
       private System.Windows.Forms.TextBox textBoxLength;
       private System.Windows.Forms.Label labelLength;
+      private System.Windows.Forms.Label labelDataSetName;
+      private System.Windows.Forms.TextBox textBoxDataSetName;
    }
 }
