@@ -333,7 +333,7 @@ namespace TestChoice
                {
                   mlContext = null;
                }
-               catch (Exception exc) {
+               catch (Exception) {
                   mlContext = null;
                   throw;
                }
