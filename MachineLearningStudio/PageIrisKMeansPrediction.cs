@@ -1,6 +1,6 @@
 ﻿using Microsoft.ML.Data;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    public class PageIrisKMeansPrediction
    {

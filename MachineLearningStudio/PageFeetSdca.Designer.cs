@@ -1,5 +1,5 @@
 ﻿
-namespace TestChoice
+namespace MachineLearningStudio
 {
    partial class PageFeetSdca
    {

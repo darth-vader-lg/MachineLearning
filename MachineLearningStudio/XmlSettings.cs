@@ -8,7 +8,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using System.Xml.XPath;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    /// <summary>
    /// base per impostazioni in formato XML

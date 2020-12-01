@@ -1,6 +1,6 @@
 ﻿using System.Windows.Forms;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    /// <summary>
    /// Form principale

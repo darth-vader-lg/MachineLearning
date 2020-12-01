@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    /// <summary>
    /// Impostazioni applicazione

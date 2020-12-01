@@ -1,5 +1,5 @@
 ﻿
-namespace TestChoice
+namespace MachineLearningStudio
 {
    partial class MainForm
    {
@@ -31,11 +31,11 @@ namespace TestChoice
          this.labelPrediction = new System.Windows.Forms.Label();
          this.tabControlMain = new System.Windows.Forms.TabControl();
          this.tabPageFeetKMeans = new System.Windows.Forms.TabPage();
-         this.pageFeetKMeans1 = new TestChoice.PageFeetKMeans();
+         this.pageFeetKMeans1 = new MachineLearningStudio.PageFeetKMeans();
          this.tabPageIrisKMeans = new System.Windows.Forms.TabPage();
-         this.pageIrisKMeans1 = new TestChoice.PageIrisKMeans();
+         this.pageIrisKMeans1 = new MachineLearningStudio.PageIrisKMeans();
          this.tabPageFeetSdca = new System.Windows.Forms.TabPage();
-         this.pageFeetSdca1 = new TestChoice.PageFeetSdca();
+         this.pageFeetSdca1 = new MachineLearningStudio.PageFeetSdca();
          this.tabControlMain.SuspendLayout();
          this.tabPageFeetKMeans.SuspendLayout();
          this.tabPageIrisKMeans.SuspendLayout();

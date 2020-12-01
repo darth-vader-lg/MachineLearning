@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    /// <summary>
    /// Pagina di test algoritmo K-Means per la clusterizzazione dei piedi

@@ -1,4 +1,4 @@
-﻿namespace TestChoice
+﻿namespace MachineLearningStudio
 {
    internal static class TestIrisData
    {

@@ -13,7 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    /// <summary>
    /// Pagina di test algoritmo Sdca per la previsione dei piedi

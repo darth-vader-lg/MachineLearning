@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    /// <summary>
    /// Programma

@@ -1,6 +1,6 @@
 ﻿using Microsoft.ML.Data;
 
-namespace TestChoice
+namespace MachineLearningStudio
 {
    /// <summary>
    /// Risultato del test algoritmo di previsione piedi Sdca
