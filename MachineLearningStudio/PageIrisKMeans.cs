@@ -26,7 +26,7 @@ namespace TestChoice
       /// <summary>
       /// Previsore di fiori
       /// </summary>
-      private PredictionEngine<IrisData, IrisPrediction> irisPredictor;
+      private PredictionEngine<PageIrisKMeansData, PageIrisKMeansPrediction> irisPredictor;
       /// <summary>
       /// Contesto ML
       /// </summary>
@@ -61,7 +61,7 @@ namespace TestChoice
          try {
             // Annulla tutto se il precedente set di previsioni non riguardava i fiori
             mlContext = new MLContext(seed: 0);
-            var dataView = mlContext.Data.LoadFromTextFile<IrisData>(irisDataPath, hasHeader: false, separatorChar: ',');
+            var dataView = mlContext.Data.LoadFromTextFile<PageIrisKMeansData>(irisDataPath, hasHeader: false, separatorChar: ',');
             var featuresColumnName = "Features";
             var km = mlContext.Clustering.Trainers.KMeans(featuresColumnName, numberOfClusters: 3);
             var pipeline =
@@ -86,7 +86,7 @@ namespace TestChoice
                   mlContext.Model.Save(model, dataView.Schema, fileStream);
             }
             //
-            irisPredictor = irisPredictor != null && !ModifierKeys.HasFlag(Keys.Shift) ? irisPredictor : mlContext.Model.CreatePredictionEngine<IrisData, IrisPrediction>(model);
+            irisPredictor = irisPredictor != null && !ModifierKeys.HasFlag(Keys.Shift) ? irisPredictor : mlContext.Model.CreatePredictionEngine<PageIrisKMeansData, PageIrisKMeansPrediction>(model);
             var cols = irisPredictor.OutputSchema.ToArray();
             var prediction = irisPredictor.Predict(TestIrisData.Setosa);
             var prediction2 = irisPredictor.Predict(TestIrisData.Versicolor);

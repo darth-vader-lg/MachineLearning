@@ -18,7 +18,7 @@ namespace TestChoice
    /// <summary>
    /// Pagina di test algoritmo K-Means per la clusterizzazione dei piedi
    /// </summary>
-   public partial class PageFeetKMeans : UserControl
+   internal partial class PageFeetKMeans : UserControl
    {
       #region Fields
       /// <summary>
@@ -52,7 +52,7 @@ namespace TestChoice
       /// <summary>
       /// Path del modello di autoapprendimento dei piedi
       /// </summary>
-      private static readonly string modelPath = Path.Combine(Environment.CurrentDirectory, "Data", "FeedClusteringModel.zip");
+      private static readonly string modelPath = Path.Combine(Environment.CurrentDirectory, "Data", "FeedKMeans.zip");
       /// <summary>
       /// Punti per il plotting
       /// </summary>
@@ -60,7 +60,7 @@ namespace TestChoice
       /// <summary>
       /// Previsore di piedi
       /// </summary>
-      private PredictionEngine<FeetData, FeetPrediction> predictor;
+      private PredictionEngine<PageFeetKMeansData, PageFeetKMeansPrediction> predictor;
       /// <summary>
       /// Task di previsione
       /// </summary>
@@ -136,9 +136,9 @@ namespace TestChoice
          // Metodo base
          try {
             base.OnLoad(e);
-            textBoxDataSetName.Text = Program.Settings.PageFeetKMeans.DataSetName?.Trim();
-            textBoxInstep.Text = Program.Settings.PageFeetKMeans.Instep.Trim();
-            textBoxLength.Text = Program.Settings.PageFeetKMeans.Length.Trim();
+            textBoxDataSetName.Text = Settings.Default.PageFeetKMeans.DataSetName?.Trim();
+            textBoxInstep.Text = Settings.Default.PageFeetKMeans.Instep.Trim();
+            textBoxLength.Text = Settings.Default.PageFeetKMeans.Length.Trim();
             initialized = true;
          }
          catch (Exception exc) {
@@ -208,7 +208,7 @@ namespace TestChoice
                   var dataView = default(IDataView);
                   if (string.IsNullOrWhiteSpace(dataSetPath) || !File.Exists(dataSetPath)) {
                      // Crea i dati
-                     var data = new List<FeetData>();
+                     var data = new List<PageFeetKMeansData>();
                      var table = new[] {
                         new { Number = "34.5", LengthMin = 208, LengthMax = 211, InstepMin = 206, InstepMax = 223 },
                         new { Number = "35", LengthMin = 212, LengthMax = 215, InstepMin = 208, InstepMax = 225 },
@@ -233,7 +233,7 @@ namespace TestChoice
                      foreach (var item in table) {
                         for (var length = item.LengthMin; length <= item.LengthMax; length++) {
                            for (var instep = item.InstepMin; instep <= item.InstepMax; instep++)
-                              data.Add(new FeetData { Number = item.Number, Instep = instep, Length = length });
+                              data.Add(new PageFeetKMeansData { Number = item.Number, Instep = instep, Length = length });
                         }
                      }
                      // Set di dati
@@ -242,17 +242,17 @@ namespace TestChoice
                      //   mlContext.Data.SaveAsText(dataView, stream, ',', false, false);
                   }
                   else
-                     dataView = mlContext.Data.LoadFromTextFile<FeetData>(dataSetPath, hasHeader: false, separatorChar: ',');
+                     dataView = mlContext.Data.LoadFromTextFile<PageFeetKMeansData>(dataSetPath, hasHeader: false, separatorChar: ',');
                   cancel.ThrowIfCancellationRequested();
                   // Numeri presenti nel set
-                  var numbers = new HashSet<string>(from v in dataView.GetColumn<string>(nameof(FeetData.Number)) select v.Trim());
+                  var numbers = new HashSet<string>(from v in dataView.GetColumn<string>(nameof(PageFeetKMeansData.Number)) select v.Trim());
                   // Inizializzazione dizionario numeri / cluster
                   foreach (var n in numbers)
                      idCounters[n] = new long[numbers.Count];
                   // Elenco di associazioni cluster / numero
                   clusterToNumber = new string[numbers.Count];
                   // Crea colonna dati per il training
-                  var dataCols = mlContext.Transforms.Concatenate("Features", nameof(FeetData.Length), nameof(FeetData.Instep));
+                  var dataCols = mlContext.Transforms.Concatenate("Features", nameof(PageFeetKMeansData.Length), nameof(PageFeetKMeansData.Instep));
                   // Crea il trainer di tipo KMeans
                   var trainer = mlContext.Clustering.Trainers.KMeans(new KMeansTrainer.Options()
                   {
@@ -275,7 +275,7 @@ namespace TestChoice
                         mlContext.Model.Save(model, dataView.Schema, fileStream);
                   }
                   // Crea il previsore
-                  predictor = mlContext.Model.CreatePredictionEngine<FeetData, FeetPrediction>(model);
+                  predictor = mlContext.Model.CreatePredictionEngine<PageFeetKMeansData, PageFeetKMeansPrediction>(model);
                   cancel.ThrowIfCancellationRequested();
                   // Ottiene i centroidi
                   var centroids = default(VBuffer<float>[]);
@@ -293,9 +293,9 @@ namespace TestChoice
                   // Cursore per spazzolare tutti i dati e creare le corrispondenze cluster / numero
                   var cursor = dataView.GetRowCursor(
                      new[] {
-                        dataView.Schema[nameof(FeetData.Number)],
-                        dataView.Schema[nameof(FeetData.Length)],
-                        dataView.Schema[nameof(FeetData.Instep)]
+                        dataView.Schema[nameof(PageFeetKMeansData.Number)],
+                        dataView.Schema[nameof(PageFeetKMeansData.Length)],
+                        dataView.Schema[nameof(PageFeetKMeansData.Instep)]
                      });
                   // Spazzola tutti i dati effettuando le previsioni e incrementando i contatori relativi al cluster trovato per ciascun elemento
                   while (cursor.MoveNext()) {
@@ -303,11 +303,11 @@ namespace TestChoice
                      var number = default(ReadOnlyMemory<char>);
                      var length = 0f;
                      var instep = 0f;
-                     cursor.GetGetter<ReadOnlyMemory<char>>(dataView.Schema[nameof(FeetData.Number)]).Invoke(ref number);
+                     cursor.GetGetter<ReadOnlyMemory<char>>(dataView.Schema[nameof(PageFeetKMeansData.Number)]).Invoke(ref number);
                      cursor.GetGetter<float>(dataView.Schema["Length"]).Invoke(ref length);
                      cursor.GetGetter<float>(dataView.Schema["Instep"]).Invoke(ref instep);
                      // Effettua la previsione utilizzando i dati di riga
-                     var p = predictor.Predict(new FeetData { Number = number.ToString(), Length = length, Instep = instep });
+                     var p = predictor.Predict(new PageFeetKMeansData { Number = number.ToString(), Length = length, Instep = instep });
                      // Incrementa il contatore di cluster relativo al numero specificato nella riga
                      idCounters[number.ToString()][p.PredictedClusterId - 1]++;
                      // Aggiunge il punto per il plotting
@@ -344,7 +344,7 @@ namespace TestChoice
             cancel.ThrowIfCancellationRequested();
             if (!float.IsNaN(length) && !float.IsNaN(instep)) {
                // Aggiorna la previsione
-               var prediction = predictor.Predict(new FeetData { Instep = instep, Length = length });
+               var prediction = predictor.Predict(new PageFeetKMeansData { Instep = instep, Length = length });
                labelNumberResult.Text = clusterToNumber[prediction.PredictedClusterId - 1];
             }
             else
@@ -374,9 +374,9 @@ namespace TestChoice
             else {
                tb.BackColor = textBoxBackColor;
                dataSetName = tb.Text.Trim();
-               if (dataSetName != Program.Settings.PageFeetKMeans.DataSetName) {
-                  Program.Settings.PageFeetKMeans.DataSetName = dataSetName;
-                  Program.Settings.Save();
+               if (dataSetName != Settings.Default.PageFeetKMeans.DataSetName) {
+                  Settings.Default.PageFeetKMeans.DataSetName = dataSetName;
+                  Settings.Default.Save();
                }
             }
             mlContext = null;
@@ -403,9 +403,9 @@ namespace TestChoice
             }
             else {
                tb.BackColor = textBoxBackColor;
-               if (text != Program.Settings.PageFeetKMeans.Instep) {
-                  Program.Settings.PageFeetKMeans.Instep = text;
-                  Program.Settings.Save();
+               if (text != Settings.Default.PageFeetKMeans.Instep) {
+                  Settings.Default.PageFeetKMeans.Instep = text;
+                  Settings.Default.Save();
                }
             }
             MakePrediction();
@@ -431,9 +431,9 @@ namespace TestChoice
             }
             else {
                tb.BackColor = textBoxBackColor;
-               if (text != Program.Settings.PageFeetKMeans.Length) {
-                  Program.Settings.PageFeetKMeans.Length = text;
-                  Program.Settings.Save();
+               if (text != Settings.Default.PageFeetKMeans.Length) {
+                  Settings.Default.PageFeetKMeans.Length = text;
+                  Settings.Default.Save();
                }
             }
             MakePrediction();
@@ -448,15 +448,14 @@ namespace TestChoice
    /// <summary>
    /// Impostazioni della pagina
    /// </summary>
-   [Serializable]
-   internal partial class Settings : XmlSettings
+   public partial class Settings
    {
       #region class PageFeetKMeansSettings
       /// <summary>
       /// Impostazione della pagina
       /// </summary>
       [Serializable]
-      internal class PageFeetKMeansSettings
+      public class PageFeetKMeansSettings
       {
          #region Properties
          /// <summary>

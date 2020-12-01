@@ -2,7 +2,10 @@
 
 namespace TestChoice
 {
-   public class FeetPrediction
+   /// <summary>
+   /// Dati di test algoritmo K-Means per la clusterizzazione dei piedi
+   /// </summary>
+   public class PageFeetKMeansPrediction
    {
       [ColumnName("PredictedLabel")]
       public uint PredictedClusterId;

@@ -2,10 +2,13 @@
 
 namespace TestChoice
 {
-   public class FeetData
+   /// <summary>
+   /// Dati di test algoritmo di previsione piedi Sdca
+   /// </summary>
+   public class PageFeetSdcaData
    {
       [LoadColumn(0)]
-      public string Number;
+      public float Number;
       [LoadColumn(1)]
       public float Length;
       [LoadColumn(2)]

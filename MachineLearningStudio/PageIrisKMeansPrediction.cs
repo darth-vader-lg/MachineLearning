@@ -2,7 +2,7 @@
 
 namespace TestChoice
 {
-   public class IrisPrediction
+   public class PageIrisKMeansPrediction
    {
       [ColumnName("PredictedLabel")]
       public uint PredictedClusterId;

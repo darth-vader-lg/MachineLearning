@@ -7,7 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MachineLearningStudio", "Ma
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B8E42C08-5E7F-48E6-99E2-ACA41C84881A}"
 	ProjectSection(SolutionItems) = preProject
-		.editorconfig = .editorconfig
 		c# - ML.NET plotting K-means clustering results- - Stack Overflow.url = c# - ML.NET plotting K-means clustering results- - Stack Overflow.url
 	EndProjectSection
 EndProject

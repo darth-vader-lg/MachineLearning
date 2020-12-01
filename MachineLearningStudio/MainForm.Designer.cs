@@ -31,12 +31,15 @@ namespace TestChoice
          this.labelPrediction = new System.Windows.Forms.Label();
          this.tabControlMain = new System.Windows.Forms.TabControl();
          this.tabPageFeetKMeans = new System.Windows.Forms.TabPage();
-         this.tabPageIrisKMeans = new System.Windows.Forms.TabPage();
          this.pageFeetKMeans1 = new TestChoice.PageFeetKMeans();
+         this.tabPageIrisKMeans = new System.Windows.Forms.TabPage();
          this.pageIrisKMeans1 = new TestChoice.PageIrisKMeans();
+         this.tabPageFeetSdca = new System.Windows.Forms.TabPage();
+         this.pageFeetSdca1 = new TestChoice.PageFeetSdca();
          this.tabControlMain.SuspendLayout();
          this.tabPageFeetKMeans.SuspendLayout();
          this.tabPageIrisKMeans.SuspendLayout();
+         this.tabPageFeetSdca.SuspendLayout();
          this.SuspendLayout();
          // 
          // labelPrediction
@@ -50,6 +53,7 @@ namespace TestChoice
          // 
          // tabControlMain
          // 
+         this.tabControlMain.Controls.Add(this.tabPageFeetSdca);
          this.tabControlMain.Controls.Add(this.tabPageFeetKMeans);
          this.tabControlMain.Controls.Add(this.tabPageIrisKMeans);
          this.tabControlMain.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -70,6 +74,14 @@ namespace TestChoice
          this.tabPageFeetKMeans.Text = "Feet K-Means";
          this.tabPageFeetKMeans.UseVisualStyleBackColor = true;
          // 
+         // pageFeetKMeans1
+         // 
+         this.pageFeetKMeans1.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageFeetKMeans1.Location = new System.Drawing.Point(3, 3);
+         this.pageFeetKMeans1.Name = "pageFeetKMeans1";
+         this.pageFeetKMeans1.Size = new System.Drawing.Size(1035, 705);
+         this.pageFeetKMeans1.TabIndex = 0;
+         // 
          // tabPageIrisKMeans
          // 
          this.tabPageIrisKMeans.Controls.Add(this.pageIrisKMeans1);
@@ -81,14 +93,6 @@ namespace TestChoice
          this.tabPageIrisKMeans.Text = "Iris K-Means";
          this.tabPageIrisKMeans.UseVisualStyleBackColor = true;
          // 
-         // pageFeetKMeans1
-         // 
-         this.pageFeetKMeans1.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.pageFeetKMeans1.Location = new System.Drawing.Point(3, 3);
-         this.pageFeetKMeans1.Name = "pageFeetKMeans1";
-         this.pageFeetKMeans1.Size = new System.Drawing.Size(1035, 705);
-         this.pageFeetKMeans1.TabIndex = 0;
-         // 
          // pageIrisKMeans1
          // 
          this.pageIrisKMeans1.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -96,6 +100,24 @@ namespace TestChoice
          this.pageIrisKMeans1.Name = "pageIrisKMeans1";
          this.pageIrisKMeans1.Size = new System.Drawing.Size(1035, 705);
          this.pageIrisKMeans1.TabIndex = 0;
+         // 
+         // tabPageFeetSdca
+         // 
+         this.tabPageFeetSdca.Controls.Add(this.pageFeetSdca1);
+         this.tabPageFeetSdca.Location = new System.Drawing.Point(4, 22);
+         this.tabPageFeetSdca.Name = "tabPageFeetSdca";
+         this.tabPageFeetSdca.Size = new System.Drawing.Size(1041, 711);
+         this.tabPageFeetSdca.TabIndex = 2;
+         this.tabPageFeetSdca.Text = "Feed Sdca";
+         this.tabPageFeetSdca.UseVisualStyleBackColor = true;
+         // 
+         // pageFeetSdca1
+         // 
+         this.pageFeetSdca1.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageFeetSdca1.Location = new System.Drawing.Point(0, 0);
+         this.pageFeetSdca1.Name = "pageFeetSdca1";
+         this.pageFeetSdca1.Size = new System.Drawing.Size(1041, 711);
+         this.pageFeetSdca1.TabIndex = 0;
          // 
          // MainForm
          // 
@@ -109,6 +131,7 @@ namespace TestChoice
          this.tabControlMain.ResumeLayout(false);
          this.tabPageFeetKMeans.ResumeLayout(false);
          this.tabPageIrisKMeans.ResumeLayout(false);
+         this.tabPageFeetSdca.ResumeLayout(false);
          this.ResumeLayout(false);
          this.PerformLayout();
 
@@ -121,6 +144,8 @@ namespace TestChoice
       private System.Windows.Forms.TabPage tabPageIrisKMeans;
       private PageFeetKMeans pageFeetKMeans1;
       private PageIrisKMeans pageIrisKMeans1;
+      private System.Windows.Forms.TabPage tabPageFeetSdca;
+      private PageFeetSdca pageFeetSdca1;
    }
 }
 

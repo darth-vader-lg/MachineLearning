@@ -2,7 +2,7 @@
 
 namespace TestChoice
 {
-   public class IrisData
+   public class PageIrisKMeansData
    {
       [LoadColumn(0)]
       public float SepalLength;
