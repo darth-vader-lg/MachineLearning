@@ -143,12 +143,14 @@ namespace MachineLearningStudio
             await Task.Run(async () =>
             {
                try {
-                  var sb = new StringBuilder();
+                  cancel.ThrowIfCancellationRequested();
                   // Verifica che non sia gia' stato calcolato il modello
                   if (mlContext != null)
                      return;
                   // Crea il contesto
                   mlContext = new MLContext(seed: 1);
+                  // Visualizzatore elaborazione
+                  var sb = new StringBuilder();
                   // Dati
                   var dataView = default(IDataView);
                   if (string.IsNullOrWhiteSpace(dataSetPath) || !File.Exists(dataSetPath)) {
@@ -193,12 +195,14 @@ namespace MachineLearningStudio
                         allowSparse: false);
                   }
                   // Data process configuration with pipeline data transformations 
+                  cancel.ThrowIfCancellationRequested();
                   var dataProcessPipeline =
                      mlContext.Transforms.Categorical.OneHotHashEncoding(new[] { new InputOutputColumnPair(nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Length)) }).
                      Append(mlContext.Transforms.Concatenate("Features", new[] { nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Instep) })).
                      Append(mlContext.Transforms.NormalizeMinMax("Features", "Features")).
                      AppendCacheCheckpoint(mlContext);
                   // Set the training algorithm 
+                  cancel.ThrowIfCancellationRequested();
                   var trainer = mlContext.Regression.Trainers.Sdca(
                      new SdcaRegressionTrainer.Options() 
                      { 
@@ -211,13 +215,17 @@ namespace MachineLearningStudio
                         FeatureColumnName = "Features"
                      });
                   var trainingPipeline = dataProcessPipeline.Append(trainer);
+                  cancel.ThrowIfCancellationRequested();
                   sb.AppendLine("=============== Training  model ===============");
                   var text = sb.ToString();
                   await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
                   model = await Task.Run(() => trainingPipeline.Fit(dataView));
                   sb.AppendLine("=============== End of training process ===============");
+                  text = sb.ToString();
+                  await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
                   // Salva il modello
                   if (SaveModel) {
+                     cancel.ThrowIfCancellationRequested();
                      sb.AppendLine("================== Saving the model ===================");
                      text = sb.ToString();
                      await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
@@ -230,6 +238,7 @@ namespace MachineLearningStudio
                   sb.AppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
                   text = sb.ToString();
                   await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
+                  cancel.ThrowIfCancellationRequested();
                   var crossValidationResults = await Task.Run(() => mlContext.Regression.CrossValidate(dataView, trainingPipeline, numberOfFolds: 5, labelColumnName: nameof(PageFeetSdcaData.Number)));
                   var L1 = crossValidationResults.Select(r => r.Metrics.MeanAbsoluteError);
                   var L2 = crossValidationResults.Select(r => r.Metrics.MeanSquaredError);
@@ -247,6 +256,7 @@ namespace MachineLearningStudio
                   sb.AppendLine($"*************************************************************************************************************");
                   text = sb.ToString();
                   await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
+                  cancel.ThrowIfCancellationRequested();
                   predictor = mlContext.Model.CreatePredictionEngine<PageFeetSdcaData, PageFeetSdcaPrediction>(model);
                }
                catch (OperationCanceledException)
