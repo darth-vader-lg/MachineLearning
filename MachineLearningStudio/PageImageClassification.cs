@@ -227,6 +227,9 @@ namespace MachineLearningStudio
                      cancel.ThrowIfCancellationRequested();
                      await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
                      var crossValidationResults = mlContext.MulticlassClassification.CrossValidate(dataView, trainingPipeline, numberOfFolds: 5, labelColumnName: nameof(PageImageClassificationData.Label));
+                     model = (from result in crossValidationResults
+                              orderby result.Metrics.LogLoss
+                              select result.Model).First();
                      var metricsInMultipleFolds = crossValidationResults.Select(r => r.Metrics);
                      var microAccuracyValues = metricsInMultipleFolds.Select(m => m.MicroAccuracy);
                      var microAccuracyAverage = microAccuracyValues.Average();
