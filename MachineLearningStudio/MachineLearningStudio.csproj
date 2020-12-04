@@ -216,6 +216,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="TestIrisData.cs" />
+    <Compile Include="ML.cs" />
     <Compile Include="XmlSettings.cs" />
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
@@ -416,6 +417,12 @@
     <Content Include="Data\iris.data">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MachineLearningStudioML.Model\MachineLearningStudioML.Model.csproj">
+      <Project>{11F866C9-F09A-4FBB-99CD-B39415419567}</Project>
+      <Name>MachineLearningStudioML.Model</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
