@@ -91,14 +91,7 @@ namespace MachineLearningStudio
             Trace.WriteLine(exc);
          }
       }
-      /// <summary>
-      /// Funzione di congelamento degli update di una window
-      /// </summary>
-      /// <param name="hWndLock"></param>
-      /// <returns></returns>
-      [System.Runtime.InteropServices.DllImport("user32.dll")]
-      public static extern bool LockWindowUpdate(IntPtr hWndLock);
-      /// <summary>
+       /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
       private async void MakePrediction()
@@ -145,7 +138,6 @@ namespace MachineLearningStudio
          try {
             cancel.ThrowIfCancellationRequested();
             var dataSetPath = dataSetName != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
-            var ui = TaskScheduler.FromCurrentSynchronizationContext();
             await Task.Run(() =>
             {
                try {
@@ -167,11 +159,7 @@ namespace MachineLearningStudio
                               textBoxOutput.AppendText(log.Text);
                               textBoxOutput.Select(textBoxOutput.TextLength, 0);
                               textBoxOutput.ScrollToCaret();
-                           //LockWindowUpdate(textBoxOutput.Handle);
-                           //textBoxOutput.Text = logText;
-                           //LockWindowUpdate(IntPtr.Zero);
-                           //textBoxOutput.ScrollToCaret();
-                        }
+                           }
                            catch (Exception) { }
                         }), e);
                      }
