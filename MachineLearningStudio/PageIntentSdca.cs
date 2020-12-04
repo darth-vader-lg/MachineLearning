@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using Microsoft.ML.Trainers;
 using System;
@@ -84,6 +85,115 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Evento di termine selezione item di una combo box
+      /// </summary>
+      /// <param name="sender"></param>
+      /// <param name="e"></param>
+      private void comboBoxIntent_SelectionChangeCommitted(object sender, EventArgs e)
+      {
+         try {
+            // Verifiche iniziali
+            if (dataSetName == null || !(sender is ComboBox cb))
+               return;
+            // Path del set di dati
+            var dataSetPath = dataSetName != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
+            // Verifica esistenza
+            if (!File.Exists(dataSetPath))
+               return;
+            // Contenuto del set di dati
+            var dataSetBytes = File.ReadAllBytes(dataSetPath);
+            // Directory inizialie di ricerca a ritroso del path della sorgente dei dati
+            var dataSourceDir = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "..\\"));
+            var dataSourcePath = default(string);
+            // Ricerca verso la radice il file originale dei dati per la sincronizzazione (solo se e' uguale a quello attuale
+            while (Directory.Exists(dataSourceDir) && dataSourcePath == default) {
+               var path = Path.Combine(dataSourceDir, "Data", dataSetName);
+               if (File.Exists(path)) {
+                  var dataSourceBytes = File.ReadAllBytes(path);
+                  if (dataSourceBytes.SequenceEqual(dataSetBytes)) {
+                     dataSourcePath = path;
+                     break;
+                  }
+               }
+               dataSourceDir = Path.GetFullPath(Path.Combine(dataSourceDir, "..\\"));
+            }
+            // Legge le linee di dati
+            var lines = new List<(string Intent, string Sentence)>();
+            using (var reader = new StreamReader(new MemoryStream(dataSetBytes))) {
+               for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+                  var tokens = line.Split('|');
+                  lines.Add((Intent: tokens[0].Trim(), Sentence: tokens[1].Trim()));
+               }
+            }
+            // Sentenza impostata
+            var sentence = textBoxSentence.Text.Trim();
+            // Intenzione selezionata
+            var intent = cb.SelectedItem.ToString();
+            // Verifica se richiesta nuova intenzione
+            if (intent == "[New...]") {
+               var textBox = new TextBox
+               {
+                  Size = new Size(200, 32),
+                  Dock = DockStyle.Fill
+               };
+               var inputForm = new Form
+               {
+                  AutoSize = true,
+                  AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                  FormBorderStyle = FormBorderStyle.None,
+                  Location = PointToScreen(new Point(comboBoxIntent.Left + comboBoxIntent.Width - textBox.Size.Width, comboBoxIntent.Top + comboBoxIntent.Height)),
+                  MinimumSize = textBox.Size,
+                  Size = textBox.Size,
+                  StartPosition = FormStartPosition.Manual,
+               };
+               inputForm.Controls.Add(textBox);
+               //inputForm.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+               textBox.KeyDown += (_sender, _e) =>
+               {
+                  switch (_e.KeyCode) {
+                     case Keys.Enter: inputForm.DialogResult = DialogResult.OK; break;
+                     case Keys.Escape: inputForm.DialogResult = DialogResult.Cancel; break;
+                  }
+               };
+               if (inputForm.ShowDialog(this) != DialogResult.OK)
+                  return;
+               intent = textBox.Text.Trim();
+               if (string.IsNullOrWhiteSpace(intent))
+                  return;
+            }
+            // Cerca l'indice della sentenza nel file
+            var index = lines.FindIndex(item => item.Sentence == sentence);
+            // Aggiunge o aggiorna la linea con la nuova intenzione programmata
+            var modified = false;
+            if (index > -1) {
+               if (lines[index].Intent != intent) {
+                  lines[index] = (Intent: cb.SelectedItem.ToString(), Sentence: sentence);
+                  modified = true;
+               }
+            }
+            else {
+               lines.Add((Intent: intent, Sentence: sentence));
+               modified = true;
+            }
+            if (modified) {
+               // Aggiorna il file di dati
+               using (var writer = new StreamWriter(dataSetPath)) {
+                  foreach (var (Intent, Sentence) in lines)
+                     writer.WriteLine($"{Intent}|{Sentence}");
+               }
+               // Aggiorna l'eventuale file da cui proviene il set di dati
+               if (dataSourcePath != default)
+                  File.Copy(dataSetPath, dataSourcePath, true);
+               ml = null;
+               predictor = null;
+               MakePrediction();
+            }
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         } 
+      }
+      /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
       private async void MakePrediction()
@@ -127,8 +237,11 @@ namespace MachineLearningStudio
       {
          try {
             cancel.ThrowIfCancellationRequested();
+            if (ml == null)
+               textBoxOutput.Clear();
             var dataSetPath = dataSetName != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
             var sentence = textBoxSentence.Text;
+            var intents = default(HashSet<string>);
             await Task.Run(() =>
             {
                try {
@@ -145,7 +258,7 @@ namespace MachineLearningStudio
                   ml.LogMessage += (sender, e) =>
                   {
                      try {
-                        if (e.Kind < ChannelMessageKind.Info)
+                        if (e.Kind < ChannelMessageKind.Info || cancel.IsCancellationRequested)
                            return;
                         textBoxOutput.BeginInvoke(new Action<MLLogMessageEventArgs>(log =>
                         {
@@ -166,6 +279,8 @@ namespace MachineLearningStudio
                         separatorChar: '|',
                         allowQuoting: true,
                         allowSparse: false);
+                  // Elenco delle intenzioni
+                  intents = new HashSet<string>(from v in dataView.GetColumn<string>(nameof(PageIntentSdcaData.Intent)) select v.Trim());
                   // Data process configuration with pipeline data transformations 
                   cancel.ThrowIfCancellationRequested();
                   var dataProcessPipeline =
@@ -213,18 +328,26 @@ namespace MachineLearningStudio
                }
             });
             cancel.ThrowIfCancellationRequested();
+            if (intents != default) {
+               comboBoxIntent.Items.Clear();
+               var intentsList = new List<string>(intents);
+               intentsList.Sort();
+               comboBoxIntent.Items.Add("[New...]");
+               intentsList.ForEach(intent => comboBoxIntent.Items.Add(intent));
+            }
             if (predictor != null) {
                // Aggiorna la previsione
                var prediction = predictor.Predict(new PageIntentSdcaData { Sentence = sentence });
-               labelIntentResult.Text = $"{prediction.Intent}";
+               var intentIx = new List<string>(from object item in comboBoxIntent.Items select item.ToString()).FindIndex(item => item == prediction.Intent);
+               comboBoxIntent.SelectedIndex = intentIx;
             }
             else
-               labelIntentResult.Text = "";
+               comboBoxIntent.SelectedIndex = -1;
          }
          catch (OperationCanceledException) { }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            labelIntentResult.Text = "???";
+            comboBoxIntent.SelectedIndex = -1;
          }
       }
       /// <summary>

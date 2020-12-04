@@ -31,13 +31,13 @@ namespace MachineLearningStudio
          this.tableLayoutPanelMain = new System.Windows.Forms.TableLayoutPanel();
          this.panelControls = new System.Windows.Forms.Panel();
          this.labelDataSetName = new System.Windows.Forms.Label();
-         this.labelIntentResult = new System.Windows.Forms.Label();
          this.labelIntent = new System.Windows.Forms.Label();
          this.textBoxDataSetName = new System.Windows.Forms.TextBox();
          this.textBoxSentence = new System.Windows.Forms.TextBox();
          this.labelSentence = new System.Windows.Forms.Label();
          this.buttonTrain = new System.Windows.Forms.Button();
          this.textBoxOutput = new System.Windows.Forms.TextBox();
+         this.comboBoxIntent = new System.Windows.Forms.ComboBox();
          this.tableLayoutPanelMain.SuspendLayout();
          this.panelControls.SuspendLayout();
          this.SuspendLayout();
@@ -61,8 +61,8 @@ namespace MachineLearningStudio
          // 
          this.panelControls.AutoSize = true;
          this.panelControls.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+         this.panelControls.Controls.Add(this.comboBoxIntent);
          this.panelControls.Controls.Add(this.labelDataSetName);
-         this.panelControls.Controls.Add(this.labelIntentResult);
          this.panelControls.Controls.Add(this.labelIntent);
          this.panelControls.Controls.Add(this.textBoxDataSetName);
          this.panelControls.Controls.Add(this.textBoxSentence);
@@ -83,21 +83,11 @@ namespace MachineLearningStudio
          this.labelDataSetName.TabIndex = 1;
          this.labelDataSetName.Text = "Data set";
          // 
-         // labelIntentResult
-         // 
-         this.labelIntentResult.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-         this.labelIntentResult.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-         this.labelIntentResult.Location = new System.Drawing.Point(499, 20);
-         this.labelIntentResult.Name = "labelIntentResult";
-         this.labelIntentResult.Size = new System.Drawing.Size(88, 20);
-         this.labelIntentResult.TabIndex = 8;
-         this.labelIntentResult.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-         // 
          // labelIntent
          // 
          this.labelIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
          this.labelIntent.AutoSize = true;
-         this.labelIntent.Location = new System.Drawing.Point(496, 3);
+         this.labelIntent.Location = new System.Drawing.Point(456, 3);
          this.labelIntent.Name = "labelIntent";
          this.labelIntent.Size = new System.Drawing.Size(34, 13);
          this.labelIntent.TabIndex = 7;
@@ -117,7 +107,7 @@ namespace MachineLearningStudio
             | System.Windows.Forms.AnchorStyles.Right)));
          this.textBoxSentence.Location = new System.Drawing.Point(194, 20);
          this.textBoxSentence.Name = "textBoxSentence";
-         this.textBoxSentence.Size = new System.Drawing.Size(299, 20);
+         this.textBoxSentence.Size = new System.Drawing.Size(259, 20);
          this.textBoxSentence.TabIndex = 4;
          this.textBoxSentence.TextChanged += new System.EventHandler(this.textBoxSentence_TextChanged);
          // 
@@ -151,6 +141,17 @@ namespace MachineLearningStudio
          this.textBoxOutput.Size = new System.Drawing.Size(590, 418);
          this.textBoxOutput.TabIndex = 1;
          // 
+         // comboBoxIntent
+         // 
+         this.comboBoxIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.comboBoxIntent.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+         this.comboBoxIntent.FormattingEnabled = true;
+         this.comboBoxIntent.Location = new System.Drawing.Point(459, 19);
+         this.comboBoxIntent.Name = "comboBoxIntent";
+         this.comboBoxIntent.Size = new System.Drawing.Size(124, 21);
+         this.comboBoxIntent.TabIndex = 8;
+         this.comboBoxIntent.SelectionChangeCommitted += new System.EventHandler(this.comboBoxIntent_SelectionChangeCommitted);
+         // 
          // PageIntentSdca
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -171,12 +172,12 @@ namespace MachineLearningStudio
       private System.Windows.Forms.TableLayoutPanel tableLayoutPanelMain;
       private System.Windows.Forms.Panel panelControls;
       private System.Windows.Forms.Button buttonTrain;
-      private System.Windows.Forms.Label labelIntentResult;
       private System.Windows.Forms.Label labelIntent;
       private System.Windows.Forms.TextBox textBoxSentence;
       private System.Windows.Forms.Label labelSentence;
       private System.Windows.Forms.Label labelDataSetName;
       private System.Windows.Forms.TextBox textBoxDataSetName;
       private System.Windows.Forms.TextBox textBoxOutput;
+      private System.Windows.Forms.ComboBox comboBoxIntent;
    }
 }

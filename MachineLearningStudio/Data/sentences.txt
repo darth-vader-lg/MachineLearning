@@ -1,4 +1,4 @@
-﻿OpenWindow|Apri la finestra
+OpenWindow|Apri la finestra
 OpenWindow|Apri le finestre
 OpenWindow|Aprire la finestra
 OpenWindow|Aprire le finestre
@@ -18,3 +18,8 @@ CloseDoor|Chiudi le porte
 CloseDoor|Chiudere la porta
 CloseDoor|Chiudere le porte
 CloseDoor|Porta chiusa
+OpenWindow|apri la persiana
+SwitchOffLight|Spegni la luce
+SwitchOnLight|Accendi la luce
+LowerTemperature|Abbassa il termostato
+HigherTemperature|Alza il termostato
