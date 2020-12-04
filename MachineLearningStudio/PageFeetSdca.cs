@@ -3,12 +3,10 @@ using Microsoft.ML.Trainers;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -40,7 +38,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Contesto ML
       /// </summary>
-      private MLContext mlContext;
+      private ML ml;
       /// <summary>
       /// Modello di apprendimento
       /// </summary>
@@ -93,6 +91,13 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Funzione di congelamento degli update di una window
+      /// </summary>
+      /// <param name="hWndLock"></param>
+      /// <returns></returns>
+      [System.Runtime.InteropServices.DllImport("user32.dll")]
+      public static extern bool LockWindowUpdate(IntPtr hWndLock);
+      /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
       private async void MakePrediction()
@@ -140,17 +145,25 @@ namespace MachineLearningStudio
             cancel.ThrowIfCancellationRequested();
             var dataSetPath = dataSetName != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
             var ui = TaskScheduler.FromCurrentSynchronizationContext();
-            await Task.Run(async () =>
+            await Task.Run(() =>
             {
                try {
                   cancel.ThrowIfCancellationRequested();
                   // Verifica che non sia gia' stato calcolato il modello
-                  if (mlContext != null)
+                  if (ml != null)
                      return;
                   // Crea il contesto
-                  mlContext = new MLContext(seed: 1);
-                  // Visualizzatore elaborazione
-                  var sb = new StringBuilder();
+                  ml = new ML(seed: 1);
+                  ml.LogChanged += (sender, e) => textBoxOutput.Invoke(new Action<string>(logText =>
+                  {
+                     try {
+                        LockWindowUpdate(textBoxOutput.Handle);
+                        textBoxOutput.Text = logText;
+                        LockWindowUpdate(IntPtr.Zero);
+                        textBoxOutput.ScrollToCaret();
+                     }
+                     catch (Exception) { }
+                  }), ml.Log);
                   // Dati
                   var dataView = default(IDataView);
                   if (string.IsNullOrWhiteSpace(dataSetPath) || !File.Exists(dataSetPath)) {
@@ -184,10 +197,10 @@ namespace MachineLearningStudio
                         }
                      }
                      // Set di dati
-                     dataView = mlContext.Data.LoadFromEnumerable(data);
+                     dataView = ml.Context.Data.LoadFromEnumerable(data);
                   }
                   else {
-                     dataView = mlContext.Data.LoadFromTextFile<PageFeetSdcaData>(
+                     dataView = ml.Context.Data.LoadFromTextFile<PageFeetSdcaData>(
                         path: dataSetPath,
                         hasHeader: false,
                         separatorChar: ',',
@@ -197,13 +210,13 @@ namespace MachineLearningStudio
                   // Data process configuration with pipeline data transformations 
                   cancel.ThrowIfCancellationRequested();
                   var dataProcessPipeline =
-                     mlContext.Transforms.Categorical.OneHotHashEncoding(new[] { new InputOutputColumnPair(nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Length)) }).
-                     Append(mlContext.Transforms.Concatenate("Features", new[] { nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Instep) })).
-                     Append(mlContext.Transforms.NormalizeMinMax("Features", "Features")).
-                     AppendCacheCheckpoint(mlContext);
+                     ml.Context.Transforms.Categorical.OneHotHashEncoding(new[] { new InputOutputColumnPair(nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Length)) }).
+                     Append(ml.Context.Transforms.Concatenate("Features", new[] { nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Instep) })).
+                     Append(ml.Context.Transforms.NormalizeMinMax("Features", "Features")).
+                     AppendCacheCheckpoint(ml.Context);
                   // Set the training algorithm 
                   cancel.ThrowIfCancellationRequested();
-                  var trainer = mlContext.Regression.Trainers.Sdca(
+                  var trainer = ml.Context.Regression.Trainers.Sdca(
                      new SdcaRegressionTrainer.Options() 
                      { 
                         L2Regularization = 1E-07f,
@@ -214,57 +227,25 @@ namespace MachineLearningStudio
                         LabelColumnName = nameof(PageFeetSdcaData.Number),
                         FeatureColumnName = "Features"
                      });
+                  // Train the model
                   var trainingPipeline = dataProcessPipeline.Append(trainer);
                   cancel.ThrowIfCancellationRequested();
-                  sb.AppendLine("=============== Training  model ===============");
-                  var text = sb.ToString();
-                  await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                  model = await Task.Run(() => trainingPipeline.Fit(dataView));
-                  sb.AppendLine("=============== End of training process ===============");
-                  text = sb.ToString();
-                  await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
+                  model = ml.EvaluateRegression(dataView, trainingPipeline, nameof(PageFeetSdcaData.Number));
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();
-                     sb.AppendLine("================== Saving the model ===================");
-                     text = sb.ToString();
-                     await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                     using (var fileStream = new FileStream(modelPath, FileMode.Create, FileAccess.Write, FileShare.Write))
-                        mlContext.Model.Save(model, dataView.Schema, fileStream);
-                     sb.AppendLine("==================== Model saved ======================");
-                     text = sb.ToString();
-                     await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
+                     ml.SaveModel(dataView.Schema, model, modelPath);
                   }
-                  sb.AppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
-                  text = sb.ToString();
-                  await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
                   cancel.ThrowIfCancellationRequested();
-                  var crossValidationResults = await Task.Run(() => mlContext.Regression.CrossValidate(dataView, trainingPipeline, numberOfFolds: 5, labelColumnName: nameof(PageFeetSdcaData.Number)));
-                  var L1 = crossValidationResults.Select(r => r.Metrics.MeanAbsoluteError);
-                  var L2 = crossValidationResults.Select(r => r.Metrics.MeanSquaredError);
-                  var RMS = crossValidationResults.Select(r => r.Metrics.RootMeanSquaredError);
-                  var lossFunction = crossValidationResults.Select(r => r.Metrics.LossFunction);
-                  var R2 = crossValidationResults.Select(r => r.Metrics.RSquared);
-                  sb.AppendLine($"*************************************************************************************************************");
-                  sb.AppendLine($"*       Metrics for Regression model      ");
-                  sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-                  sb.AppendLine($"*       Average L1 Loss:       {L1.Average():0.###} ");
-                  sb.AppendLine($"*       Average L2 Loss:       {L2.Average():0.###}  ");
-                  sb.AppendLine($"*       Average RMS:           {RMS.Average():0.###}  ");
-                  sb.AppendLine($"*       Average Loss Function: {lossFunction.Average():0.###}  ");
-                  sb.AppendLine($"*       Average R-squared:     {R2.Average():0.###}  ");
-                  sb.AppendLine($"*************************************************************************************************************");
-                  text = sb.ToString();
-                  await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                  cancel.ThrowIfCancellationRequested();
-                  predictor = mlContext.Model.CreatePredictionEngine<PageFeetSdcaData, PageFeetSdcaPrediction>(model);
+                  // Crea il generatore di previsioni
+                  predictor = ml.Context.Model.CreatePredictionEngine<PageFeetSdcaData, PageFeetSdcaPrediction>(model);
                }
                catch (OperationCanceledException)
                {
-                  mlContext = null;
+                  ml = null;
                }
                catch (Exception) {
-                  mlContext = null;
+                  ml = null;
                   throw;
                }
             });
@@ -272,7 +253,7 @@ namespace MachineLearningStudio
             if (!float.IsNaN(length) && !float.IsNaN(instep)) {
                // Aggiorna la previsione
                var prediction = predictor.Predict(new PageFeetSdcaData { Instep = instep, Length = length });
-               labelNumberResult.Text = $"{prediction.Number}";
+               labelNumberResult.Text = $"{prediction.Number:0.#}";
             }
             else
                labelNumberResult.Text = "";
@@ -306,7 +287,7 @@ namespace MachineLearningStudio
                   Settings.Default.Save();
                }
             }
-            mlContext = null;
+            ml = null;
             MakePrediction();
          }
          catch (Exception exc) {
