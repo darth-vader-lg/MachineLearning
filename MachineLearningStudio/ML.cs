@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -27,13 +28,13 @@ namespace MachineLearningStudio
       /// <summary>
       /// Log
       /// </summary>
-      public string Log { get; private set; }
+      public string Log { get { lock (logBuilder) return logBuilder.ToString(); } }
       #endregion
       #region Events and delegates
       /// <summary>
-      /// Evento di variazione log
+      /// Evento messaggio di log
       /// </summary>
-      public event EventHandler LogChanged;
+      public event MLLogEventHandler LogMessage;
       #endregion
       #region Methods
       /// <summary>
@@ -75,8 +76,7 @@ namespace MachineLearningStudio
       private void Context_Log(object sender, LoggingEventArgs e)
       {
          try {
-            if (e.Kind != Microsoft.ML.Runtime.ChannelMessageKind.Trace)
-               LogAppendLine(e.Message);
+            LogAppendLine(e.Message, e.Kind);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -126,16 +126,28 @@ namespace MachineLearningStudio
       /// Funzione di aggiunta al log
       /// </summary>
       /// <param name="text">Testo da stampare</param>
-      public void LogAppend(string text)
+      /// <param name="kind">Tipo di messaggio</param>
+      public void LogAppend(string text, ChannelMessageKind kind = ChannelMessageKind.Info)
       {
          try {
             if (string.IsNullOrEmpty(text))
                return;
-            lock (logBuilder) {
+            lock (logBuilder)
                logBuilder.Append(text);
-               Log = logBuilder.ToString();
-            }
-            OnLogChanged(EventArgs.Empty);
+            OnLogMessage(new MLLogMessageEventArgs(text, kind));
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Funzione di logging dei messaggi
+      /// </summary>
+      /// <param name="mLLogMessageEventArgs">Argomenti del log</param>
+      protected virtual void OnLogMessage(MLLogMessageEventArgs e)
+      {
+         try {
+            LogMessage?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -145,23 +157,10 @@ namespace MachineLearningStudio
       /// Funzione di aggiunta linea al log
       /// </summary>
       /// <param name="text">Testo da stampare</param>
-      public void LogAppendLine(string text)
+      /// <param name="kind">Tipo di messaggio</param>
+      public void LogAppendLine(string text, ChannelMessageKind kind = ChannelMessageKind.Info)
       {
-         LogAppend((text ?? "") + Environment.NewLine);
-      }
-      /// <summary>
-      /// Funzione di variazione log
-      /// </summary>
-      /// <param name="e">Argomenti dell'evento</param>
-      protected virtual void OnLogChanged(EventArgs e)
-      {
-         try {
-            // Genera l'evento
-            LogChanged?.Invoke(this, e);
-         }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
+         LogAppend((text ?? "") + Environment.NewLine, kind);
       }
       /// <summary>
       /// Stampa la metrica media di un modello a classificazione multipla

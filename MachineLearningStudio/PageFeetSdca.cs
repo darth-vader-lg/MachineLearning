@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Runtime;
 using Microsoft.ML.Trainers;
 using System;
 using System.Collections.Generic;
@@ -154,16 +155,28 @@ namespace MachineLearningStudio
                      return;
                   // Crea il contesto
                   ml = new ML(seed: 1);
-                  ml.LogChanged += (sender, e) => textBoxOutput.Invoke(new Action<string>(logText =>
+                  // Connette il log
+                  ml.LogMessage += (sender, e) =>
                   {
                      try {
-                        LockWindowUpdate(textBoxOutput.Handle);
-                        textBoxOutput.Text = logText;
-                        LockWindowUpdate(IntPtr.Zero);
-                        textBoxOutput.ScrollToCaret();
+                        if (e.Kind < ChannelMessageKind.Info)
+                           return;
+                        textBoxOutput.BeginInvoke(new Action<MLLogMessageEventArgs>(log =>
+                        {
+                           try {
+                              textBoxOutput.AppendText(log.Text);
+                              textBoxOutput.Select(textBoxOutput.TextLength, 0);
+                              textBoxOutput.ScrollToCaret();
+                           //LockWindowUpdate(textBoxOutput.Handle);
+                           //textBoxOutput.Text = logText;
+                           //LockWindowUpdate(IntPtr.Zero);
+                           //textBoxOutput.ScrollToCaret();
+                        }
+                           catch (Exception) { }
+                        }), e);
                      }
                      catch (Exception) { }
-                  }), ml.Log);
+                  };
                   // Dati
                   var dataView = default(IDataView);
                   if (string.IsNullOrWhiteSpace(dataSetPath) || !File.Exists(dataSetPath)) {
