@@ -434,12 +434,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\MachineLearningStudioML.Model\MachineLearningStudioML.Model.csproj">
-      <Project>{CDD582D3-8FB4-4117-8098-98450BD34786}</Project>
-      <Name>MachineLearningStudioML.Model</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
