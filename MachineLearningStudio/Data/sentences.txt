@@ -1,0 +1,20 @@
+﻿OpenWindow|Apri la finestra
+OpenWindow|Apri le finestre
+OpenWindow|Aprire la finestra
+OpenWindow|Aprire le finestre
+OpenWindow|Finestra aperta
+CloseWindow|Chiudi la finestra
+CloseWindow|Chiudi le finestre
+CloseWindow|Chiudere la finestra
+CloseWindow|Chiudere le finestre
+CloseWindow|Finestra chiusa
+OpenDoor|Apri la porta
+OpenDoor|Apri le porte
+OpenDoor|Aprire la porta
+OpenDoor|Aprire le porte
+OpenDoor|Porta aperta
+CloseDoor|Chiudi la porta
+CloseDoor|Chiudi le porte
+CloseDoor|Chiudere la porta
+CloseDoor|Chiudere le porte
+CloseDoor|Porta chiusa

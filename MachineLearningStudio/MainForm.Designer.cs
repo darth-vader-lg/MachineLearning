@@ -38,11 +38,14 @@ namespace MachineLearningStudio
          this.pageIrisKMeans1 = new MachineLearningStudio.PageIrisKMeans();
          this.tabPageImageClassification = new System.Windows.Forms.TabPage();
          this.pageImageClassification1 = new MachineLearningStudio.PageImageClassification();
+         this.tabPageIntentSdca = new System.Windows.Forms.TabPage();
+         this.pageIntentSdca1 = new MachineLearningStudio.PageIntentSdca();
          this.tabControlMain.SuspendLayout();
          this.tabPageFeetSdca.SuspendLayout();
          this.tabPageFeetKMeans.SuspendLayout();
          this.tabPageIrisKMeans.SuspendLayout();
          this.tabPageImageClassification.SuspendLayout();
+         this.tabPageIntentSdca.SuspendLayout();
          this.SuspendLayout();
          // 
          // labelPrediction
@@ -60,6 +63,7 @@ namespace MachineLearningStudio
          this.tabControlMain.Controls.Add(this.tabPageFeetKMeans);
          this.tabControlMain.Controls.Add(this.tabPageIrisKMeans);
          this.tabControlMain.Controls.Add(this.tabPageImageClassification);
+         this.tabControlMain.Controls.Add(this.tabPageIntentSdca);
          this.tabControlMain.Dock = System.Windows.Forms.DockStyle.Fill;
          this.tabControlMain.Location = new System.Drawing.Point(0, 0);
          this.tabControlMain.Name = "tabControlMain";
@@ -141,6 +145,24 @@ namespace MachineLearningStudio
          this.pageImageClassification1.Size = new System.Drawing.Size(1041, 711);
          this.pageImageClassification1.TabIndex = 0;
          // 
+         // tabPageIntentSdca
+         // 
+         this.tabPageIntentSdca.Controls.Add(this.pageIntentSdca1);
+         this.tabPageIntentSdca.Location = new System.Drawing.Point(4, 22);
+         this.tabPageIntentSdca.Name = "tabPageIntentSdca";
+         this.tabPageIntentSdca.Size = new System.Drawing.Size(1041, 711);
+         this.tabPageIntentSdca.TabIndex = 4;
+         this.tabPageIntentSdca.Text = "Intent Sdca";
+         this.tabPageIntentSdca.UseVisualStyleBackColor = true;
+         // 
+         // pageIntentSdca1
+         // 
+         this.pageIntentSdca1.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageIntentSdca1.Location = new System.Drawing.Point(0, 0);
+         this.pageIntentSdca1.Name = "pageIntentSdca1";
+         this.pageIntentSdca1.Size = new System.Drawing.Size(1041, 711);
+         this.pageIntentSdca1.TabIndex = 0;
+         // 
          // MainForm
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -155,6 +177,7 @@ namespace MachineLearningStudio
          this.tabPageFeetKMeans.ResumeLayout(false);
          this.tabPageIrisKMeans.ResumeLayout(false);
          this.tabPageImageClassification.ResumeLayout(false);
+         this.tabPageIntentSdca.ResumeLayout(false);
          this.ResumeLayout(false);
          this.PerformLayout();
 
@@ -171,6 +194,8 @@ namespace MachineLearningStudio
       private PageFeetSdca pageFeetSdca1;
       private System.Windows.Forms.TabPage tabPageImageClassification;
       private PageImageClassification pageImageClassification1;
+      private System.Windows.Forms.TabPage tabPageIntentSdca;
+      private PageIntentSdca pageIntentSdca1;
    }
 }
 
