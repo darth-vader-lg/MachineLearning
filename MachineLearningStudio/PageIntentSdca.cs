@@ -30,6 +30,10 @@ namespace MachineLearningStudio
       /// </summary>
       private bool initialized;
       /// <summary>
+      /// Array di intenzioni conosciute
+      /// </summary>
+      private string[] intents;
+      /// <summary>
       /// Contesto ML
       /// </summary>
       private ML ml;
@@ -37,10 +41,6 @@ namespace MachineLearningStudio
       /// Modello di apprendimento
       /// </summary>
       private ITransformer model;
-      /// <summary>
-      /// Path del modello di autoapprendimento dei piedi
-      /// </summary>
-      private static readonly string modelPath = Path.Combine(Environment.CurrentDirectory, "Data", "IntentSdca.zip");
       /// <summary>
       /// Previsore di piedi
       /// </summary>
@@ -58,8 +58,8 @@ namespace MachineLearningStudio
       /// <summary>
       /// Abilitazione al salvataggio del modello di training
       /// </summary>
-      [Category("Behavior"), DefaultValue(false)]
-      public bool SaveModel { get; set; }
+      [Category("Behavior"), DefaultValue(true)]
+      public bool SaveModel { get; set; } = true;
       #endregion
       #region Methods
       /// <summary>
@@ -78,6 +78,9 @@ namespace MachineLearningStudio
       private void buttonTrain_Click(object sender, EventArgs e)
       {
          try {
+            // Forza il training
+            ml = null;
+            predictor = null;
             MakePrediction();
          }
          catch (Exception exc) {
@@ -175,6 +178,7 @@ namespace MachineLearningStudio
                lines.Add((Intent: intent, Sentence: sentence));
                modified = true;
             }
+            // Verifica se i dati sono modificati
             if (modified) {
                // Aggiorna il file di dati
                using (var writer = new StreamWriter(dataSetPath)) {
@@ -236,21 +240,32 @@ namespace MachineLearningStudio
       private async Task TaskPrediction(CancellationToken cancel)
       {
          try {
+            // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
             if (ml == null)
                textBoxOutput.Clear();
-            var dataSetPath = dataSetName != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
+            // Path del set di dati in chiaro
+            var dataSetPath = !string.IsNullOrWhiteSpace(dataSetName) ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
+            // Path del modello
+            var modelPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "Model.zip") : null;
+            // Sentenza attuale
             var sentence = textBoxSentence.Text;
-            var intents = default(HashSet<string>);
+            // Flag di rigenerazione elementi del combo box
+            var rebuildCombo = false;
+            // Task di costruzione del modello
             await Task.Run(() =>
             {
                try {
                   cancel.ThrowIfCancellationRequested();
                   // Verifica che non sia gia' stato calcolato il modello
-                  if (ml != null)
+                  if (ml != null || (dataSetPath == null && modelPath == null))
                      return;
-                  // Verifica che il set di dati sia valido
-                  if (string.IsNullOrWhiteSpace(dataSetPath) || !File.Exists(dataSetPath))
+                  // Abilitazione al caricamento del modello preesistente
+                  var loadModel = SaveModel && File.Exists(modelPath);
+                  // Abilitazione al caricamento di dati
+                  var loadData = File.Exists(dataSetPath);
+                  // Verifica le condizioni di caricamento possibile
+                  if (!loadModel && !loadData)
                      return;
                   // Crea il contesto
                   ml = new ML(seed: 1);
@@ -258,7 +273,7 @@ namespace MachineLearningStudio
                   ml.LogMessage += (sender, e) =>
                   {
                      try {
-                        if (e.Kind < ChannelMessageKind.Info || cancel.IsCancellationRequested)
+                        if (e.Kind < ChannelMessageKind.Info)
                            return;
                         textBoxOutput.BeginInvoke(new Action<MLLogMessageEventArgs>(log =>
                         {
@@ -272,49 +287,69 @@ namespace MachineLearningStudio
                      }
                      catch (Exception) { }
                   };
-                  // Dati
-                  var dataView = ml.Context.Data.LoadFromTextFile<PageIntentSdcaData>(
+                  // Verifica se deve caricare un modello preesistente
+                  if (loadModel) {
+                     try {
+                        // Carica il modello
+                        model = ml.Context.Model.Load(modelPath, out var inputSchema);
+                        // Disabilita il caricamento dei dati in chiaro
+                        loadData = false;
+                     }
+                     catch (Exception) {  }
+                  }
+                  // Verifica se deve caricare dai dati
+                  if (loadData) {
+                     // Dati
+                     var dataView = ml.Context.Data.LoadFromTextFile<PageIntentSdcaData>(
                         path: dataSetPath,
                         hasHeader: false,
                         separatorChar: '|',
                         allowQuoting: true,
                         allowSparse: false);
-                  // Elenco delle intenzioni
-                  intents = new HashSet<string>(from v in dataView.GetColumn<string>(nameof(PageIntentSdcaData.Intent)) select v.Trim());
-                  // Data process configuration with pipeline data transformations 
-                  cancel.ThrowIfCancellationRequested();
-                  var dataProcessPipeline =
-                     ml.Context.Transforms.Conversion.MapValueToKey(nameof(PageIntentSdcaData.Intent), nameof(PageIntentSdcaData.Intent)).
-                     Append(ml.Context.Transforms.Text.FeaturizeText($"{nameof(PageIntentSdcaData.Sentence)}_tf", nameof(PageIntentSdcaData.Sentence))).
-                     Append(ml.Context.Transforms.CopyColumns("Features", $"{nameof(PageIntentSdcaData.Sentence)}_tf")).
-                     Append(ml.Context.Transforms.NormalizeMinMax("Features", "Features")).
-                     AppendCacheCheckpoint(ml.Context);
-                  // Set the training algorithm 
-                  cancel.ThrowIfCancellationRequested();
-                  var trainer = ml.Context.MulticlassClassification.Trainers.SdcaMaximumEntropy(
-                     new SdcaMaximumEntropyMulticlassTrainer.Options
-                     {
-                        L2Regularization = 1E-06f,
-                        L1Regularization = 0.25f,
-                        ConvergenceTolerance = 0.1f,
-                        MaximumNumberOfIterations = 100,
-                        Shuffle = false,
-                        BiasLearningRate = 0f,
-                        LabelColumnName = nameof(PageIntentSdcaData.Intent),
-                        FeatureColumnName = "Features"
-                     }).Append(ml.Context.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
-                  // Train the model
-                  var trainingPipeline = dataProcessPipeline.Append(trainer);
-                  cancel.ThrowIfCancellationRequested();
-                  model = ml.EvaluateMulticlassClassification(dataView, trainingPipeline, nameof(PageIntentSdcaData.Intent));
-                  // Salva il modello
-                  if (SaveModel) {
+                     // Pipeline di trasformazione dei dati
                      cancel.ThrowIfCancellationRequested();
-                     ml.SaveModel(dataView.Schema, model, modelPath);
+                     var dataProcessPipeline =
+                        ml.Context.Transforms.Conversion.MapValueToKey(nameof(PageIntentSdcaData.Intent), nameof(PageIntentSdcaData.Intent)).
+                        Append(ml.Context.Transforms.Text.FeaturizeText($"{nameof(PageIntentSdcaData.Sentence)}_tf", nameof(PageIntentSdcaData.Sentence))).
+                        Append(ml.Context.Transforms.CopyColumns("Features", $"{nameof(PageIntentSdcaData.Sentence)}_tf")).
+                        Append(ml.Context.Transforms.NormalizeMinMax("Features", "Features")).
+                        AppendCacheCheckpoint(ml.Context);
+                     // Algoritmo di training
+                     cancel.ThrowIfCancellationRequested();
+                     var trainer = ml.Context.MulticlassClassification.Trainers.SdcaMaximumEntropy(
+                        new SdcaMaximumEntropyMulticlassTrainer.Options
+                        {
+                           L2Regularization = 1E-06f,
+                           L1Regularization = 0.25f,
+                           ConvergenceTolerance = 0.1f,
+                           MaximumNumberOfIterations = 100,
+                           Shuffle = false,
+                           BiasLearningRate = 0f,
+                           LabelColumnName = nameof(PageIntentSdcaData.Intent),
+                           FeatureColumnName = "Features",
+                           NumberOfThreads = Environment.ProcessorCount,
+                        }).Append(ml.Context.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
+                     // Pipeline completa di training
+                     var trainingPipeline = dataProcessPipeline.Append(trainer);
+                     // Effettua la miglior valutazione del modello
+                     cancel.ThrowIfCancellationRequested();
+                     model = ml.EvaluateMulticlassClassification(dataView, trainingPipeline, nameof(PageIntentSdcaData.Intent));
+                     // Salva il modello
+                     if (SaveModel) {
+                        cancel.ThrowIfCancellationRequested();
+                        ml.SaveModel(dataView.Schema, model, Path.ChangeExtension(dataSetPath, "Model.zip"));
+                     }
                   }
-                  cancel.ThrowIfCancellationRequested();
                   // Crea il generatore di previsioni
+                  cancel.ThrowIfCancellationRequested();
                   predictor = ml.Context.Model.CreatePredictionEngine<PageIntentSdcaData, PageIntentSdcaPrediction>(model);
+                  // Estrae l'elenco di previsioni possibili
+                  var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
+                  predictor.OutputSchema.GetColumnOrNull("Score").Value.Annotations.GetValue("SlotNames", ref slotNames);
+                  // Riempe l'array di intenti
+                  intents = slotNames.GetValues().ToArray().Select(item => item.ToString()).ToArray();
+                  // Forza la rigenerazione del contenuto della combo box
+                  rebuildCombo = true;
                }
                catch (OperationCanceledException)
                {
@@ -327,19 +362,37 @@ namespace MachineLearningStudio
                   throw;
                }
             });
+            // Ricreazione del contenuto della combo box delle previsioni
             cancel.ThrowIfCancellationRequested();
-            if (intents != default) {
+            if (rebuildCombo && intents != default) {
+               // Cancella contenuto
                comboBoxIntent.Items.Clear();
+               // Aggiunge il primo oggetto per l'aggiunta di previsioni
+               comboBoxIntent.Items.Add("[New...]");
+               // Aggiunge la lista di previsioni ordinata alfabeticamente
                var intentsList = new List<string>(intents);
                intentsList.Sort();
-               comboBoxIntent.Items.Add("[New...]");
                intentsList.ForEach(intent => comboBoxIntent.Items.Add(intent));
             }
+            // Verifica se esiste un gestore di previsioni
             if (predictor != null) {
                // Aggiorna la previsione
                var prediction = predictor.Predict(new PageIntentSdcaData { Sentence = sentence });
+               // Seleziona la previsione nella combo box
                var intentIx = new List<string>(from object item in comboBoxIntent.Items select item.ToString()).FindIndex(item => item == prediction.Intent);
                comboBoxIntent.SelectedIndex = intentIx;
+               // Stampa i punteggi ordinati nel log
+               var scores = (from ix in Enumerable.Range(0, intents.Length)
+                             let score = new
+                             {
+                                Intent = intents[ix],
+                                Score = prediction.Score[ix]
+                             }
+                             orderby score.Score descending
+                             select score).ToList();
+               ml.LogAppendLine("==========");
+               ml.LogAppendLine(sentence);
+               scores.ForEach(item => ml.LogAppendLine($"{item.Intent}: ({(int)(item.Score * 100f)})"));
             }
             else
                comboBoxIntent.SelectedIndex = -1;
@@ -358,21 +411,28 @@ namespace MachineLearningStudio
       private void textBoxDataSetName_TextChanged(object sender, EventArgs e)
       {
          try {
+            // Combo box generatore evento
             if (!(sender is TextBox tb))
                return;
+            // Path del set di dati
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
+            // Verifica se file non esistente
             if (!File.Exists(path)) {
+               // Visualizza l'errore
                dataSetName = null;
                tb.BackColor = Color.Red;
             }
             else {
+               // Aggiorna il set di dati
                tb.BackColor = textBoxBackColor;
                dataSetName = tb.Text.Trim();
+               // Salva nei settings lo stato
                if (dataSetName != Settings.Default.PageIntentSdca.DataSetName) {
                   Settings.Default.PageIntentSdca.DataSetName = dataSetName;
                   Settings.Default.Save();
                }
             }
+            // Avvia una ricostruzione del modello
             ml = null;
             predictor = null;
             MakePrediction();
@@ -389,6 +449,7 @@ namespace MachineLearningStudio
       private void textBoxSentence_TextChanged(object sender, EventArgs e)
       {
          try {
+            // Lancia una previsione
             MakePrediction();
          }
          catch (Exception exc) {
