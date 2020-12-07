@@ -247,7 +247,7 @@ namespace MachineLearningStudio
             // Path del set di dati in chiaro
             var dataSetPath = !string.IsNullOrWhiteSpace(dataSetName) ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
             // Path del modello
-            var modelPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "Model.zip") : null;
+            var modelPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model.zip") : null;
             // Sentenza attuale
             var sentence = textBoxSentence.Text;
             // Flag di rigenerazione elementi del combo box
@@ -291,7 +291,7 @@ namespace MachineLearningStudio
                   if (loadModel) {
                      try {
                         // Carica il modello
-                        model = ml.Context.Model.Load(modelPath, out var inputSchema);
+                        model = ml.LoadModel(modelPath, out var _);
                         // Disabilita il caricamento dei dati in chiaro
                         loadData = false;
                      }
@@ -328,16 +328,18 @@ namespace MachineLearningStudio
                            LabelColumnName = nameof(PageIntentSdcaData.Intent),
                            FeatureColumnName = "Features",
                            NumberOfThreads = Environment.ProcessorCount,
-                        }).Append(ml.Context.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
+                        });
                      // Pipeline completa di training
-                     var trainingPipeline = dataProcessPipeline.Append(trainer);
+                     var trainingPipeline =
+                        dataProcessPipeline.Append(trainer).
+                        Append(ml.Context.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
                      // Effettua la miglior valutazione del modello
                      cancel.ThrowIfCancellationRequested();
-                     model = ml.EvaluateMulticlassClassification(dataView, trainingPipeline, nameof(PageIntentSdcaData.Intent));
+                     model = ml.Context.MulticlassClassification.CrossValidate(ml, dataView, trainingPipeline, 5, nameof(PageIntentSdcaData.Intent));
                      // Salva il modello
                      if (SaveModel) {
                         cancel.ThrowIfCancellationRequested();
-                        ml.SaveModel(dataView.Schema, model, Path.ChangeExtension(dataSetPath, "Model.zip"));
+                        ml.SaveModel(model, dataView.Schema, Path.ChangeExtension(dataSetPath, "model.zip"));
                      }
                   }
                   // Crea il generatore di previsioni

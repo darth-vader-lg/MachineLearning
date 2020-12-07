@@ -47,28 +47,6 @@ namespace MachineLearningStudio
          Context.Log += Context_Log;
       }
       /// <summary>
-      /// Calcola l'intervallo di fiducia 95%
-      /// </summary>
-      /// <param name="values">Set di valori</param>
-      /// <returns>L'intervallo di fiducia 95%</returns>
-      protected double CalculateConfidenceInterval95(IEnumerable<double> values)
-      {
-         var confidenceInterval95 = 1.96 * CalculateStandardDeviation(values) / Math.Sqrt((values.Count() - 1));
-         return confidenceInterval95;
-      }
-      /// <summary>
-      /// Calcola la deviazione standard di un set di valori
-      /// </summary>
-      /// <param name="values">Set di valori</param>
-      /// <returns>La deviazione standard</returns>
-      protected double CalculateStandardDeviation(IEnumerable<double> values)
-      {
-         var average = values.Average();
-         var sumOfSquaresOfDifferences = values.Select(val => (val - average) * (val - average)).Sum();
-         var standardDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (values.Count() - 1));
-         return standardDeviation;
-      }
-      /// <summary>
       /// Evento di log del contesto ML
       /// </summary>
       /// <param name="sender"></param>
@@ -83,43 +61,16 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
-      /// Valuta un modello a classificazione multipla
+      /// Carica un modello
       /// </summary>
-      /// <param name="trainingDataView">Dati</param>
-      /// <param name="trainingPipeline">Pipeline</param>
-      /// <param name="labelColumnName">Nome della colonna di previsione</param>
-      /// <param name="numberOfFolds">Numero di valutazioni</param>
-      /// <returns>Il modello migliore</returns>
-      public ITransformer EvaluateMulticlassClassification(IDataView trainingDataView, IEstimator<ITransformer> trainingPipeline, string labelColumnName, int numberOfFolds = 5)
+      /// <param name="path">Path del modello</param>
+      /// <param name="inputSchema">Schema di input</param>
+      /// <returns>Il modello</returns>
+      public ITransformer LoadModel(string path, out DataViewSchema inputSchema)
       {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
-         var crossValidationResults = Context.MulticlassClassification.CrossValidate(trainingDataView, trainingPipeline, numberOfFolds, labelColumnName);
-         PrintMulticlassClassificationFoldsAverageMetrics(crossValidationResults);
-         var result = (from fold in crossValidationResults
-                       orderby fold.Metrics.LogLoss
-                       select fold.Model).First();
-         return result;
-      }
-      /// <summary>
-      /// Valuta un modello a classificazione multipla
-      /// </summary>
-      /// <param name="trainingDataView">Dati</param>
-      /// <param name="trainingPipeline">Pipeline</param>
-      /// <param name="labelColumnName">Nome della colonna di previsione</param>
-      /// <param name="numberOfFolds">Numero di valutazioni</param>
-      /// <returns>Il modello migliore</returns>
-      public ITransformer EvaluateRegression(IDataView trainingDataView, IEstimator<ITransformer> trainingPipeline, string labelColumnName, int numberOfFolds = 5)
-      {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
-         var crossValidationResults = Context.Regression.CrossValidate(trainingDataView, trainingPipeline, numberOfFolds, labelColumnName);
-         PrintRegressionFoldsAverageMetrics(crossValidationResults);
-         var result = (from fold in crossValidationResults
-                       orderby fold.Metrics.LossFunction
-                       select fold.Model).First();
+         LogAppendLine($"============== Loading the model  ===============");
+         var result = Context.Model.Load(path, out inputSchema);
+         LogAppendLine($"The model is saved to {path}");
          return result;
       }
       /// <summary>
@@ -141,6 +92,15 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Funzione di aggiunta linea al log
+      /// </summary>
+      /// <param name="text">Testo da stampare</param>
+      /// <param name="kind">Tipo di messaggio</param>
+      public void LogAppendLine(string text, ChannelMessageKind kind = ChannelMessageKind.Info)
+      {
+         LogAppend((text ?? "") + Environment.NewLine, kind);
+      }
+      /// <summary>
       /// Funzione di logging dei messaggi
       /// </summary>
       /// <param name="mLLogMessageEventArgs">Argomenti del log</param>
@@ -154,19 +114,131 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
-      /// Funzione di aggiunta linea al log
+      /// Salva un modello
       /// </summary>
-      /// <param name="text">Testo da stampare</param>
-      /// <param name="kind">Tipo di messaggio</param>
-      public void LogAppendLine(string text, ChannelMessageKind kind = ChannelMessageKind.Info)
+      /// <param name="model">Modello</param>
+      /// <param name="schema">Schema dei dati</param>
+      /// <param name="path">Path di destinazione</param>
+      public void SaveModel(ITransformer model, DataViewSchema schema, string path)
       {
-         LogAppend((text ?? "") + Environment.NewLine, kind);
+         // Save/persist the trained model to a .ZIP file
+         LogAppendLine($"=============== Saving the model  ===============");
+         Context.Model.Save(model, schema, path);
+         LogAppendLine($"The model is saved to {path}");
+      }
+      /// <summary>
+      /// Funzione di training del modello
+      /// </summary>
+      /// <param name="trainingDataView">Dati di training</param>
+      /// <param name="trainingPipeline">Pipeline di training</param>
+      /// <returns></returns>
+      public ITransformer TrainModel(IDataView trainingDataView, IEstimator<ITransformer> trainingPipeline)
+      {
+         LogAppendLine("=============== Training  model ===============");
+         var model = trainingPipeline.Fit(trainingDataView);
+         LogAppendLine("=============== End of training process ===============");
+         return model;
+      }
+      #endregion
+   }
+
+   /// <summary>
+   /// Estensioni
+   /// </summary>
+   public static class Extension
+   {
+      #region Methods
+      /// <summary>
+      /// Calcola l'intervallo di fiducia 95%
+      /// </summary>
+      /// <param name="values">Set di valori</param>
+      /// <returns>L'intervallo di fiducia 95%</returns>
+      public static double CalculateConfidenceInterval95(IEnumerable<double> values)
+      {
+         var confidenceInterval95 = 1.96 * CalculateStandardDeviation(values) / Math.Sqrt((values.Count() - 1));
+         return confidenceInterval95;
+      }
+      /// <summary>
+      /// Calcola la deviazione standard di un set di valori
+      /// </summary>
+      /// <param name="values">Set di valori</param>
+      /// <returns>La deviazione standard</returns>
+      public static double CalculateStandardDeviation(IEnumerable<double> values)
+      {
+         var average = values.Average();
+         var sumOfSquaresOfDifferences = values.Select(val => (val - average) * (val - average)).Sum();
+         var standardDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (values.Count() - 1));
+         return standardDeviation;
+      }
+      /// <summary>
+      /// Valuta un modello a classificazione multipla
+      /// </summary>
+      /// <param name="catalog">Catalogo</param>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="estimator">Pipeline</param>
+      /// <param name="numberOfFolds">Numero di valutazioni</param>
+      /// <param name="labelColumnName">Nome della colonna di previsione</param>
+      /// <param name="samplingKeyColumnName">Nome colonna di campionamento</param>
+      /// <param name="seed">Seme generatore numeri casuali</param>
+      /// <returns>Il modello migliore</returns>
+      public static ITransformer CrossValidate(
+         this MulticlassClassificationCatalog catalog,
+         ML ml,
+         IDataView data,
+         IEstimator<ITransformer> estimator,
+         int numberOfFolds = 5,
+         string labelColumnName = "Label",
+         string samplingKeyColumnName = null,
+         int? seed = null)
+      {
+         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+         // in order to evaluate and get the model's accuracy metrics
+         ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+         var crossValidationResults = catalog.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
+         Print(ml, crossValidationResults);
+         var result = (from fold in crossValidationResults
+                       orderby fold.Metrics.LogLoss
+                       select fold.Model).First();
+         return result;
+      }
+      /// <summary>
+      /// Valuta un modello a regressione
+      /// </summary>
+      /// <param name="catalog">Catalogo</param>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="estimator">Pipeline</param>
+      /// <param name="numberOfFolds">Numero di valutazioni</param>
+      /// <param name="labelColumnName">Nome della colonna di previsione</param>
+      /// <param name="samplingKeyColumnName">Nome colonna di campionamento</param>
+      /// <param name="seed">Seme generatore numeri casuali</param>
+      /// <returns>Il modello migliore</returns>
+      public static ITransformer CrossValidate(
+         this RegressionCatalog catalog,
+         ML ml,
+         IDataView data,
+         IEstimator<ITransformer> estimator,
+         int numberOfFolds = 5,
+         string labelColumnName = "Label",
+         string samplingKeyColumnName = null,
+         int? seed = null)
+      {
+         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+         // in order to evaluate and get the model's accuracy metrics
+         ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+         var crossValidationResults = catalog.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
+         Print(ml, crossValidationResults);
+         var result = (from fold in crossValidationResults
+                       orderby fold.Metrics.LossFunction
+                       select fold.Model).First();
+         return result;
       }
       /// <summary>
       /// Stampa la metrica media di un modello a classificazione multipla
       /// </summary>
       /// <param name="crossValResults">Risultati di una validazione incrociata</param>
-      protected void PrintMulticlassClassificationFoldsAverageMetrics(IEnumerable<TrainCatalogBase.CrossValidationResult<MulticlassClassificationMetrics>> crossValResults)
+      public static void Print(ML ml, IEnumerable<TrainCatalogBase.CrossValidationResult<MulticlassClassificationMetrics>> crossValResults)
       {
          try {
             var metricsInMultipleFolds = crossValResults.Select(r => r.Metrics);
@@ -195,17 +267,17 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       Average LogLoss:          {logLossAverage:#.###}  - Standard deviation: ({logLossStdDeviation:#.###})  - Confidence Interval 95%: ({logLossConfidenceInterval95:#.###})");
             sb.AppendLine($"*       Average LogLossReduction: {logLossReductionAverage:#.###}  - Standard deviation: ({logLossReductionStdDeviation:#.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:#.###})");
             sb.AppendLine($"*************************************************************************************************************");
-            LogAppend(sb.ToString());
+            ml.LogAppend(sb.ToString());
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
       }
       /// <summary>
-      /// Stampa la metrica media di un modello a classificazione multipla
+      /// Stampa la metrica media di un modello di regressione
       /// </summary>
       /// <param name="crossValResults">Risultati di una validazione incrociata</param>
-      protected void PrintRegressionFoldsAverageMetrics(IEnumerable<TrainCatalogBase.CrossValidationResult<RegressionMetrics>> crossValResults)
+      private static void Print(ML ml, IEnumerable<TrainCatalogBase.CrossValidationResult<RegressionMetrics>> crossValResults)
       {
          try {
             var L1 = crossValResults.Select(r => r.Metrics.MeanAbsoluteError);
@@ -223,37 +295,11 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       Average Loss Function: {lossFunction.Average():0.###}  ");
             sb.AppendLine($"*       Average R-squared:     {R2.Average():0.###}  ");
             sb.AppendLine($"*************************************************************************************************************");
-            LogAppend(sb.ToString());
+            ml.LogAppend(sb.ToString());
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
-      }
-      /// <summary>
-      /// Salva un modello
-      /// </summary>
-      /// <param name="schema">Schema dei dati</param>
-      /// <param name="model">Modello</param>
-      /// <param name="path">Path di destinazione</param>
-      public void SaveModel(DataViewSchema schema, ITransformer model, string path)
-      {
-         // Save/persist the trained model to a .ZIP file
-         LogAppendLine($"=============== Saving the model  ===============");
-         Context.Model.Save(model, schema, path);
-         LogAppendLine($"The model is saved to {path}");
-      }
-      /// <summary>
-      /// Funzione di training del modello
-      /// </summary>
-      /// <param name="trainingDataView">Dati di training</param>
-      /// <param name="trainingPipeline">Pipeline di training</param>
-      /// <returns></returns>
-      public ITransformer TrainModel(IDataView trainingDataView, IEstimator<ITransformer> trainingPipeline)
-      {
-         LogAppendLine("=============== Training  model ===============");
-         var model = trainingPipeline.Fit(trainingDataView);
-         LogAppendLine("=============== End of training process ===============");
-         return model;
       }
       #endregion
    }

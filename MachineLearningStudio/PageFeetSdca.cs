@@ -231,11 +231,11 @@ namespace MachineLearningStudio
                   // Train the model
                   var trainingPipeline = dataProcessPipeline.Append(trainer);
                   cancel.ThrowIfCancellationRequested();
-                  model = ml.EvaluateRegression(dataView, trainingPipeline, nameof(PageFeetSdcaData.Number));
+                  model = ml.Context.Regression.CrossValidate(ml, dataView, trainingPipeline, 5, nameof(PageFeetSdcaData.Number));
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();
-                     ml.SaveModel(dataView.Schema, model, modelPath);
+                     ml.SaveModel(model, dataView.Schema, modelPath);
                   }
                   cancel.ThrowIfCancellationRequested();
                   // Crea il generatore di previsioni
