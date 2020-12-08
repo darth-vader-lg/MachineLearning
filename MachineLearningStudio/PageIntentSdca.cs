@@ -263,7 +263,7 @@ namespace MachineLearningStudio
                   if (ml != null || (dataSetPath == null && modelPath == null))
                      return;
                   // Abilitazione al caricamento del modello preesistente
-                  var loadModel = SaveModel && File.Exists(modelPath);
+                  var loadModel = SaveModel && File.Exists(modelPath) && (!File.Exists(dataSetPath) || File.GetLastWriteTime(dataSetPath) < File.GetLastWriteTime(modelPath));
                   // Abilitazione al caricamento di dati
                   var loadData = File.Exists(dataSetPath);
                   // Verifica le condizioni di caricamento possibile
