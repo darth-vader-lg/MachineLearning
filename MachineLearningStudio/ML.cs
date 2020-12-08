@@ -22,6 +22,10 @@ namespace MachineLearningStudio
       #endregion
       #region Properties
       /// <summary>
+      /// Trainers e tasks specifici dei problemi di classificazione binaria.
+      /// </summary>
+      public BinaryClassificationCatalog BinaryClassification { get; }
+      /// <summary>
       /// Trainers e tasks specifici dei problemi di clusterizzazione.
       /// </summary>
       public ClusteringCatalog Clustering { get; }
@@ -37,6 +41,10 @@ namespace MachineLearningStudio
       /// Trainers e tasks specifici dei problemi di classificazione multi classe.
       /// </summary>
       public MulticlassClassificationCatalog MulticlassClassification { get; }
+      /// <summary>
+      /// Trainers e tasks specifici dei problemi di ranking.
+      /// </summary>
+      public RankingCatalog Ranking { get; }
       /// <summary>
       /// Trainers e tasks specifici dei problemi di regressione.
       /// </summary>
@@ -57,8 +65,10 @@ namespace MachineLearningStudio
       {
          Context = new MLContext(seed);
          Context.Log += Context_Log;
+         BinaryClassification = new BinaryClassificationCatalog(this);
          Clustering = new ClusteringCatalog(this);
          MulticlassClassification = new MulticlassClassificationCatalog(this);
+         Ranking = new RankingCatalog(this);
          Regression = new RegressionCatalog(this);
       }
       /// <summary>
@@ -177,6 +187,239 @@ namespace MachineLearningStudio
          return model;
       }
       #endregion
+   }
+
+   /// <summary>
+   /// Catalogo classificazione binaria
+   /// </summary>
+   public partial class ML
+   {
+      public sealed class BinaryClassificationCatalog
+      {
+         #region Fields
+         /// <summary>
+         /// Owner
+         /// </summary>
+         private readonly ML ml;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// The list of calibrators
+         /// </summary>
+         public Microsoft.ML.BinaryClassificationCatalog.CalibratorsCatalog Calibrators => ml.Context.BinaryClassification.Calibrators;
+         /// <summary>
+         /// The list of trainers
+         /// </summary>
+         public Microsoft.ML.BinaryClassificationCatalog.BinaryClassificationTrainers Trainers => ml.Context.BinaryClassification.Trainers;
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="ml">Owner</param>
+         public BinaryClassificationCatalog(ML ml) => this.ml = ml;
+         /// <summary>
+         /// Method to modify the threshold to existing model and return modified model.
+         /// </summary>
+         /// <typeparam name="TModel">The type of the model parameters.</typeparam>
+         /// <param name="model">Existing model to modify threshold.</param>
+         /// <param name="threshold">New threshold.</param>
+         /// <returns>New model with modified threshold.</returns>
+         public BinaryPredictionTransformer<TModel> ChangeModelThreshold<TModel>(BinaryPredictionTransformer<TModel> model, float threshold) where TModel : class =>
+            ml.Context.BinaryClassification.ChangeModelThreshold(model, threshold);
+         /// <summary>
+         /// Run cross-validation over numberOfFolds folds of data, by fitting estimator,
+         /// and respecting samplingKeyColumnName if provided. Then evaluate each sub-model
+         /// against labelColumnName and return metrics.
+         /// </summary>
+         /// <param name="data">The data to run cross-validation on.</param>
+         /// <param name="estimator">The estimator to fit.</param>
+         /// <param name="numberOfFolds">Number of cross-validation folds.</param>
+         /// <param name="labelColumnName">Optional label column for evaluation (clustering tasks may not always have a label.</param>
+         /// <param name="samplingKeyColumnName">
+         /// Name of a column to use for grouping rows. If two examples share the same value
+         /// of the samplingKeyColumnName, they are guaranteed to appear in the same subset
+         /// (train or test). This can be used to ensure no label leakage from the train to
+         /// the test set. If null no row grouping will be performed.
+         /// </param>
+         /// <param name="seed">Seed for the random number generator used to select rows for cross-validation folds.</param>
+         /// <returns>The best model</returns>
+         public ITransformer CrossValidate(
+            IDataView data,
+            IEstimator<ITransformer> estimator,
+            int numberOfFolds = 5,
+            string labelColumnName = "Label",
+            string samplingKeyColumnName = null,
+            int? seed = null)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            var crossValidationResults = ml.Context.BinaryClassification.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
+            var accuracy = crossValidationResults.Select(r => r.Metrics.Accuracy);
+            var areaUnderPrecisionRecallCurve = crossValidationResults.Select(r => r.Metrics.AreaUnderPrecisionRecallCurve);
+            var areaUnderRocCurve = crossValidationResults.Select(r => r.Metrics.AreaUnderRocCurve);
+            var entropy = crossValidationResults.Select(r => r.Metrics.Entropy);
+            var F1Score = crossValidationResults.Select(r => r.Metrics.F1Score);
+            var logLoss = crossValidationResults.Select(r => r.Metrics.LogLoss);
+            var logLossReduction = crossValidationResults.Select(r => r.Metrics.LogLossReduction);
+            var negativePrecision = crossValidationResults.Select(r => r.Metrics.NegativePrecision);
+            var negativeRecall = crossValidationResults.Select(r => r.Metrics.NegativeRecall);
+            var positivePrecision = crossValidationResults.Select(r => r.Metrics.PositivePrecision);
+            var positiveRecall = crossValidationResults.Select(r => r.Metrics.PositiveRecall);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Binary classification model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       Average Accuracy:                      {accuracy.Average():0.###} ");
+            sb.AppendLine($"*       Average AreaUnderPrecisionRecallCurve: {areaUnderPrecisionRecallCurve.Average():0.###}  ");
+            sb.AppendLine($"*       Average AreaUnderRocCurve:             {areaUnderRocCurve.Average():0.###}  ");
+            sb.AppendLine($"*       Average Entropy:                       {entropy.Average():0.###}  ");
+            sb.AppendLine($"*       Average F1Score:                       {F1Score.Average():0.###}  ");
+            sb.AppendLine($"*       Average LogLoss:                       {logLoss.Average():0.###}  ");
+            sb.AppendLine($"*       Average LogLossReduction:              {logLossReduction.Average():0.###}  ");
+            sb.AppendLine($"*       Average NegativePrecision:             {negativePrecision.Average():0.###}  ");
+            sb.AppendLine($"*       Average NegativeRecall:                {negativeRecall.Average():0.###}  ");
+            sb.AppendLine($"*       Average PositivePrecision:             {positivePrecision.Average():0.###}  ");
+            sb.AppendLine($"*       Average PositiveRecall:                {positiveRecall.Average():0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            var result = (from fold in crossValidationResults
+                          orderby fold.Metrics.Accuracy descending
+                          select fold.Model).First();
+            return result;
+         }
+         /// <summary>
+         /// Run cross-validation over numberOfFolds folds of data, by fitting estimator,
+         /// and respecting samplingKeyColumnName if provided. Then evaluate each sub-model
+         /// against labelColumnName and return metrics.
+         /// </summary>
+         /// <param name="data">The data to run cross-validation on.</param>
+         /// <param name="estimator">The estimator to fit.</param>
+         /// <param name="numberOfFolds">Number of cross-validation folds.</param>
+         /// <param name="labelColumnName">Optional label column for evaluation (clustering tasks may not always have a label.</param>
+         /// <param name="samplingKeyColumnName">
+         /// Name of a column to use for grouping rows. If two examples share the same value
+         /// of the samplingKeyColumnName, they are guaranteed to appear in the same subset
+         /// (train or test). This can be used to ensure no label leakage from the train to
+         /// the test set. If null no row grouping will be performed.
+         /// </param>
+         /// <param name="seed">Seed for the random number generator used to select rows for cross-validation folds.</param>
+         /// <returns>The best model</returns>
+         public ITransformer CrossValidateNonCalibrated(
+            IDataView data,
+            IEstimator<ITransformer> estimator,
+            int numberOfFolds = 5,
+            string labelColumnName = "Label",
+            string samplingKeyColumnName = null,
+            int? seed = null)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            var crossValidationResults = ml.Context.BinaryClassification.CrossValidateNonCalibrated(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
+            var accuracy = crossValidationResults.Select(r => r.Metrics.Accuracy);
+            var areaUnderPrecisionRecallCurve = crossValidationResults.Select(r => r.Metrics.AreaUnderPrecisionRecallCurve);
+            var areaUnderRocCurve = crossValidationResults.Select(r => r.Metrics.AreaUnderRocCurve);
+            var F1Score = crossValidationResults.Select(r => r.Metrics.F1Score);
+            var negativePrecision = crossValidationResults.Select(r => r.Metrics.NegativePrecision);
+            var negativeRecall = crossValidationResults.Select(r => r.Metrics.NegativeRecall);
+            var positivePrecision = crossValidationResults.Select(r => r.Metrics.PositivePrecision);
+            var positiveRecall = crossValidationResults.Select(r => r.Metrics.PositiveRecall);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Binary classification model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       Average Accuracy:                      {accuracy.Average():0.###} ");
+            sb.AppendLine($"*       Average AreaUnderPrecisionRecallCurve: {areaUnderPrecisionRecallCurve.Average():0.###}  ");
+            sb.AppendLine($"*       Average AreaUnderRocCurve:             {areaUnderRocCurve.Average():0.###}  ");
+            sb.AppendLine($"*       Average F1Score:                       {F1Score.Average():0.###}  ");
+            sb.AppendLine($"*       Average NegativePrecision:             {negativePrecision.Average():0.###}  ");
+            sb.AppendLine($"*       Average NegativeRecall:                {negativeRecall.Average():0.###}  ");
+            sb.AppendLine($"*       Average PositivePrecision:             {positivePrecision.Average():0.###}  ");
+            sb.AppendLine($"*       Average PositiveRecall:                {positiveRecall.Average():0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            var result = (from fold in crossValidationResults
+                          orderby fold.Metrics.Accuracy descending
+                          select fold.Model).First();
+            return result;
+         }
+         /// <summary>
+         /// Evaluates scored multiclass classification data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <param name="probabilityColumnName">The name of the probability column in data, the calibrated version of scoreColumnName.</param>
+         /// <param name="predictedLabelColumnName">The name of the predicted label column in data.</param>
+         /// <returns>The evaluation results for these calibrated outputs.</returns>
+         public CalibratedBinaryClassificationMetrics Evaluate(
+            IDataView data,
+            string labelColumnName = "Label",
+            string scoreColumnName = "Score",
+            string probabilityColumnName = "Probability",
+            string predictedLabelColumnName = "PredictedLabel")
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            var metrics = ml.Context.BinaryClassification.Evaluate(data, labelColumnName, scoreColumnName, probabilityColumnName, predictedLabelColumnName);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Binary classification model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       Accuracy:                     {metrics.Accuracy:0.###} ");
+            sb.AppendLine($"*       AreaUnderPrecisionRecallCurve:{metrics.AreaUnderPrecisionRecallCurve:0.###}  ");
+            sb.AppendLine($"*       AreaUnderRocCurve:            {metrics.AreaUnderRocCurve:0.###}  ");
+            sb.AppendLine($"*       Entropy:                      {metrics.Entropy:0.###}  ");
+            sb.AppendLine($"*       F1Score:                      {metrics.F1Score:0.###}  ");
+            sb.AppendLine($"*       LogLoss:                      {metrics.LogLoss:0.###}  ");
+            sb.AppendLine($"*       LogLossReduction:             {metrics.LogLossReduction:0.###}  ");
+            sb.AppendLine($"*       NegativePrecision:            {metrics.NegativePrecision:0.###}  ");
+            sb.AppendLine($"*       NegativeRecall:               {metrics.NegativeRecall:0.###}  ");
+            sb.AppendLine($"*       PositivePrecision:            {metrics.PositivePrecision:0.###}  ");
+            sb.AppendLine($"*       PositiveRecall:               {metrics.PositiveRecall:0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            return metrics;
+         }
+         /// <summary>
+         /// Evaluates scored multiclass classification data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <param name="predictedLabelColumnName">The name of the predicted label column in data.</param>
+         /// <returns>The evaluation results for these calibrated outputs.</returns>
+         public BinaryClassificationMetrics EvaluateNonCalibrated(
+            IDataView data,
+            string labelColumnName = "Label",
+            string scoreColumnName = "Score",
+            string predictedLabelColumnName = "PredictedLabel")
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            var metrics = ml.Context.BinaryClassification.EvaluateNonCalibrated(data, labelColumnName, scoreColumnName, predictedLabelColumnName);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Binary classification model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       Accuracy:                     {metrics.Accuracy:0.###} ");
+            sb.AppendLine($"*       AreaUnderPrecisionRecallCurve:{metrics.AreaUnderPrecisionRecallCurve:0.###}  ");
+            sb.AppendLine($"*       AreaUnderRocCurve:            {metrics.AreaUnderRocCurve:0.###}  ");
+            sb.AppendLine($"*       F1Score:                      {metrics.F1Score:0.###}  ");
+            sb.AppendLine($"*       NegativePrecision:            {metrics.NegativePrecision:0.###}  ");
+            sb.AppendLine($"*       NegativeRecall:               {metrics.NegativeRecall:0.###}  ");
+            sb.AppendLine($"*       PositivePrecision:            {metrics.PositivePrecision:0.###}  ");
+            sb.AppendLine($"*       PositiveRecall:               {metrics.PositiveRecall:0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            return metrics;
+         }
+         #endregion
+      }
    }
 
    /// <summary>
@@ -313,7 +556,7 @@ namespace MachineLearningStudio
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="ml"></param>
+         /// <param name="ml">Owner</param>
          public MulticlassClassificationCatalog(ML ml) => this.ml = ml;
          /// <summary>
          /// Run cross-validation over numberOfFolds folds of data, by fitting estimator,
@@ -408,6 +651,148 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       MacroAccuracy:    {metrics.MacroAccuracy:0.###}");
             sb.AppendLine($"*       LogLoss:          {metrics.LogLoss:0.###}");
             sb.AppendLine($"*       LogLossReduction: {metrics.LogLossReduction:0.###}");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            return metrics;
+         }
+         #endregion
+      }
+   }
+
+   /// <summary>
+   /// Catalogo ranking
+   /// </summary>
+   public partial class ML
+   {
+      public sealed class RankingCatalog
+      {
+         #region Fields
+         /// <summary>
+         /// Owner
+         /// </summary>
+         private readonly ML ml;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// The list of trainers
+         /// </summary>
+         public Microsoft.ML.RankingCatalog.RankingTrainers Trainers => ml.Context.Ranking.Trainers;
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="ml">Owner</param>
+         public RankingCatalog(ML ml) => this.ml = ml;
+         /// <summary>
+         /// Run cross-validation over numberOfFolds folds of data, by fitting estimator,
+         /// and respecting samplingKeyColumnName if provided. Then evaluate each sub-model
+         /// against labelColumnName and return metrics.
+         /// </summary>
+         /// <param name="data">The data to run cross-validation on.</param>
+         /// <param name="estimator">The estimator to fit.</param>
+         /// <param name="numberOfFolds">Number of cross-validation folds.</param>
+         /// <param name="labelColumnName">The label column (for evaluation).</param>
+         /// <param name="rowGroupColumnName">
+         /// The name of the groupId column in data, which is used to group rows. This column
+         /// will automatically be used as SamplingKeyColumn when splitting the data for Cross
+         /// Validation, as this is required by the ranking algorithms If null no row grouping
+         /// will be performed.
+         /// </param>
+         /// <param name="seed">Seed for the random number generator used to select rows for cross-validation folds.</param>
+         /// <returns>The best model</returns>
+         public ITransformer CrossValidate(
+            IDataView data,
+            IEstimator<ITransformer> estimator,
+            int numberOfFolds = 5,
+            string labelColumnName = "Label",
+            string rowGroupColumnName = "GroupId",
+            int? seed = null)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            var crossValidationResults = ml.Context.Ranking.CrossValidate(data, estimator, numberOfFolds, labelColumnName, rowGroupColumnName, seed);
+            var discountedCumulativeGains = crossValidationResults.Select(r => DcgScore(r.Metrics.DiscountedCumulativeGains));
+            var normalizedDiscountedCumulativeGains = crossValidationResults.Select(r => DcgScore(r.Metrics.NormalizedDiscountedCumulativeGains));
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Ranking model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       Average DiscountedCumulativeGains:           {discountedCumulativeGains.Average():0.###} ");
+            sb.AppendLine($"*       Average NormalizedDiscountedCumulativeGains: {normalizedDiscountedCumulativeGains.Average():0.###} ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            var result = (from fold in crossValidationResults
+                          orderby DcgScore(fold.Metrics.NormalizedDiscountedCumulativeGains) descending
+                          select fold.Model).First();
+            return result;
+         }
+         /// <summary>
+         /// Funzione del calcolo dello score
+         /// </summary>
+         /// <param name="dcgs">Elenco di discounted cumulative gains</param>
+         /// <returns>Lo score</returns>
+         private static double DcgScore(IEnumerable<double> dcgs)
+         {
+            var i = 2.0;
+            var result = 0.0;
+            foreach (var dcg in dcgs)
+               result += dcg / Math.Log(i++);
+            return result;
+         }
+         /// <summary>
+         /// Evaluates scored multiclass classification data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="rowGroupColumnName">
+         /// The name of the groupId column in data, which is used to group rows. This column
+         /// will automatically be used as SamplingKeyColumn when splitting the data for Cross
+         /// Validation, as this is required by the ranking algorithms If null no row grouping
+         /// will be performed.
+         /// </param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <returns>The evaluation results for these calibrated outputs.</returns>
+         public RankingMetrics Evaluate(
+            IDataView data,
+            string labelColumnName = "Label",
+            string rowGroupColumnName = "GroupId",
+            string scoreColumnName = "Score") =>
+            Evaluate(data, null, labelColumnName, rowGroupColumnName, scoreColumnName);
+         /// <summary>
+         /// Evaluates scored multiclass classification data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="rowGroupColumnName">
+         /// The name of the groupId column in data, which is used to group rows. This column
+         /// will automatically be used as SamplingKeyColumn when splitting the data for Cross
+         /// Validation, as this is required by the ranking algorithms If null no row grouping
+         /// will be performed.
+         /// </param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <returns>The evaluation results for these calibrated outputs.</returns>
+         public RankingMetrics Evaluate(
+            IDataView data,
+            RankingEvaluatorOptions options,
+            string labelColumnName = "Label",
+            string rowGroupColumnName = "GroupId",
+            string scoreColumnName = "Score")
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            var metrics =
+               options != null ?
+               ml.Context.Ranking.Evaluate(data, options, labelColumnName, rowGroupColumnName, scoreColumnName) :
+               ml.Context.Ranking.Evaluate(data, labelColumnName, rowGroupColumnName, scoreColumnName);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Ranking model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       DCG Score:           {DcgScore(metrics.DiscountedCumulativeGains)}");
+            sb.AppendLine($"*       NDCG Score:          {DcgScore(metrics.NormalizedDiscountedCumulativeGains)}");
             sb.AppendLine($"*************************************************************************************************************");
             ml.LogAppend(sb.ToString());
             return metrics;
