@@ -292,8 +292,8 @@ namespace MachineLearningStudio
                   // Crea la pipeline di training
                   var pipeline = dataCols.Append(trainer);
                   // Crea il modello di training
-                  model = ml.Context.Clustering.CrossValidate(ml, dataView, pipeline, 5, null, null/*"Features"*/);
-                  ml.Context.Clustering.Evaluate(ml, model.Transform(dataView));
+                  model = ml.Clustering.CrossValidate(dataView, pipeline);
+                  ml.Clustering.Evaluate(model.Transform(dataView));
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();
@@ -364,7 +364,7 @@ namespace MachineLearningStudio
                   predictor = null;
                   throw;
                }
-            });
+            }, cancel);
             // Invalida il pannello per il plotting
             if (plot)
                panelPlot.Invalidate();
@@ -391,7 +391,7 @@ namespace MachineLearningStudio
       private void textBoxDataSetName_TextChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
             if (!File.Exists(path)) {
@@ -422,7 +422,7 @@ namespace MachineLearningStudio
       private void textBoxInstep_TextChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             var text = tb.Text.Trim();
             if (!float.TryParse(text, out instep)) {
@@ -450,7 +450,7 @@ namespace MachineLearningStudio
       private void textBoxLength_TextChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             var text = tb.Text.Trim();
             if (!float.TryParse(text, out length)) {

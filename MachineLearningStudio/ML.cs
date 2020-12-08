@@ -22,6 +22,10 @@ namespace MachineLearningStudio
       #endregion
       #region Properties
       /// <summary>
+      /// Trainers e tasks specifici dei problemi di clusterizzazione.
+      /// </summary>
+      public ClusteringCatalog Clustering { get; }
+      /// <summary>
       /// Contesto di machine learning
       /// </summary>
       public MLContext Context { get; }
@@ -29,6 +33,14 @@ namespace MachineLearningStudio
       /// Log
       /// </summary>
       public string Log { get { lock (logBuilder) return logBuilder.ToString(); } }
+      /// <summary>
+      /// Trainers e tasks specifici dei problemi di classificazione multi classe.
+      /// </summary>
+      public MulticlassClassificationCatalog MulticlassClassification { get; }
+      /// <summary>
+      /// Trainers e tasks specifici dei problemi di regressione.
+      /// </summary>
+      public RegressionCatalog Regression { get; }
       #endregion
       #region Events and delegates
       /// <summary>
@@ -45,6 +57,31 @@ namespace MachineLearningStudio
       {
          Context = new MLContext(seed);
          Context.Log += Context_Log;
+         Clustering = new ClusteringCatalog(this);
+         MulticlassClassification = new MulticlassClassificationCatalog(this);
+         Regression = new RegressionCatalog(this);
+      }
+      /// <summary>
+      /// Calcola l'intervallo di fiducia 95%
+      /// </summary>
+      /// <param name="values">Set di valori</param>
+      /// <returns>L'intervallo di fiducia 95%</returns>
+      protected static double CalculateConfidenceInterval95(IEnumerable<double> values)
+      {
+         var confidenceInterval95 = 1.96 * CalculateStandardDeviation(values) / Math.Sqrt((values.Count() - 1));
+         return confidenceInterval95;
+      }
+      /// <summary>
+      /// Calcola la deviazione standard di un set di valori
+      /// </summary>
+      /// <param name="values">Set di valori</param>
+      /// <returns>La deviazione standard</returns>
+      protected static double CalculateStandardDeviation(IEnumerable<double> values)
+      {
+         var average = values.Average();
+         var sumOfSquaresOfDifferences = values.Select(val => (val - average) * (val - average)).Sum();
+         var standardDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (values.Count() - 1));
+         return standardDeviation;
       }
       /// <summary>
       /// Evento di log del contesto ML
@@ -143,230 +180,64 @@ namespace MachineLearningStudio
    }
 
    /// <summary>
-   /// Estensioni
+   /// Catalogo clasterizzazione
    /// </summary>
-   public static class MLExtension
+   public partial class ML
    {
-      #region Methods
-      /// <summary>
-      /// Calcola l'intervallo di fiducia 95%
-      /// </summary>
-      /// <param name="values">Set di valori</param>
-      /// <returns>L'intervallo di fiducia 95%</returns>
-      public static double CalculateConfidenceInterval95(IEnumerable<double> values)
+      public sealed class ClusteringCatalog
       {
-         var confidenceInterval95 = 1.96 * CalculateStandardDeviation(values) / Math.Sqrt((values.Count() - 1));
-         return confidenceInterval95;
-      }
-      /// <summary>
-      /// Calcola la deviazione standard di un set di valori
-      /// </summary>
-      /// <param name="values">Set di valori</param>
-      /// <returns>La deviazione standard</returns>
-      public static double CalculateStandardDeviation(IEnumerable<double> values)
-      {
-         var average = values.Average();
-         var sumOfSquaresOfDifferences = values.Select(val => (val - average) * (val - average)).Sum();
-         var standardDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (values.Count() - 1));
-         return standardDeviation;
-      }
-      /// <summary>
-      /// Valutazione incrociata di un modello di clusterizzazione
-      /// </summary>
-      /// <param name="catalog">Catalogo</param>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">Dati</param>
-      /// <param name="estimator">Pipeline</param>
-      /// <param name="numberOfFolds">Numero di valutazioni</param>
-      /// <param name="labelColumnName">Nome della colonna di previsione</param>
-      /// <param name="samplingKeyColumnName">Nome colonna di campionamento</param>
-      /// <param name="seed">Seme generatore numeri casuali</param>
-      /// <returns>Il modello migliore</returns>
-      public static ITransformer CrossValidate(
-         this ClusteringCatalog catalog,
-         ML ml,
-         IDataView data,
-         IEstimator<ITransformer> estimator,
-         int numberOfFolds = 5,
-         string labelColumnName = null,
-         string featuresColumnName = null,
-         string samplingKeyColumnName = null,
-         int? seed = null)
-      {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
-         var crossValidationResults = catalog.CrossValidate(data, estimator, numberOfFolds, labelColumnName, featuresColumnName, samplingKeyColumnName, seed);
-         Print(ml, crossValidationResults);
-         var result = (from fold in crossValidationResults
-                       orderby fold.Metrics.AverageDistance descending
-                       select fold.Model).First();
-         return result;
-      }
-      /// <summary>
-      /// Valutazione incrociata di un modello a classificazione multipla
-      /// </summary>
-      /// <param name="catalog">Catalogo</param>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">Dati</param>
-      /// <param name="estimator">Pipeline</param>
-      /// <param name="numberOfFolds">Numero di valutazioni</param>
-      /// <param name="labelColumnName">Nome della colonna di previsione</param>
-      /// <param name="samplingKeyColumnName">Nome colonna di campionamento</param>
-      /// <param name="seed">Seme generatore numeri casuali</param>
-      /// <returns>Il modello migliore</returns>
-      public static ITransformer CrossValidate(
-         this MulticlassClassificationCatalog catalog,
-         ML ml,
-         IDataView data,
-         IEstimator<ITransformer> estimator,
-         int numberOfFolds = 5,
-         string labelColumnName = "Label",
-         string samplingKeyColumnName = null,
-         int? seed = null)
-      {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
-         var crossValidationResults = catalog.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
-         Print(ml, crossValidationResults);
-         var result = (from fold in crossValidationResults
-                       orderby fold.Metrics.LogLoss
-                       select fold.Model).First();
-         return result;
-      }
-      /// <summary>
-      /// Valutazione incrociata di un modello a regressione
-      /// </summary>
-      /// <param name="catalog">Catalogo</param>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">Dati</param>
-      /// <param name="estimator">Pipeline</param>
-      /// <param name="numberOfFolds">Numero di valutazioni</param>
-      /// <param name="labelColumnName">Nome della colonna di previsione</param>
-      /// <param name="samplingKeyColumnName">Nome colonna di campionamento</param>
-      /// <param name="seed">Seme generatore numeri casuali</param>
-      /// <returns>Il modello migliore</returns>
-      public static ITransformer CrossValidate(
-         this RegressionCatalog catalog,
-         ML ml,
-         IDataView data,
-         IEstimator<ITransformer> estimator,
-         int numberOfFolds = 5,
-         string labelColumnName = "Label",
-         string samplingKeyColumnName = null,
-         int? seed = null)
-      {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
-         var crossValidationResults = catalog.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
-         Print(ml, crossValidationResults);
-         var result = (from fold in crossValidationResults
-                       orderby fold.Metrics.LossFunction
-                       select fold.Model).First();
-         return result;
-      }
-      /// <summary>
-      /// Valuta un modello a clusterizzazione
-      /// </summary>
-      /// <param name="catalog">Catalogo</param>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">Dati</param>
-      /// <param name="labelColumnName">Nome della colonna della label</param>
-      /// <param name="scoreColumnName">Nome colonna del punteggio</param>
-      /// <param name="featuresColumnName">Nome colonna delle features</param>
-      public static void Evaluate(
-         this ClusteringCatalog catalog,
-         ML ml,
-         IDataView data,
-         string labelColumnName = null,
-         string scoreColumnName = "Score",
-         string featuresColumnName = null)
-      {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
-         var metrics = catalog.Evaluate(data, labelColumnName, scoreColumnName, featuresColumnName);
-         Print(ml, metrics);
-      }
-      /// <summary>
-      /// Valuta un modello a classificazione multipla
-      /// </summary>
-      /// <param name="catalog">Catalogo</param>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">Dati</param>
-      /// <param name="labelColumnName">Nome della colonna della label</param>
-      /// <param name="scoreColumnName">Nome colonna del punteggio</param>
-      /// <param name="predictedLabelColumnName">Nome colonna di previsione</param>
-      /// <param name="topKPredictionCount"></param>
-      public static void Evaluate(
-         this MulticlassClassificationCatalog catalog,
-         ML ml,
-         IDataView data,
-         string labelColumnName = "Label",
-         string scoreColumnName = "Score",
-         string predictedLabelColumnName = "Score",
-         int topKPredictionCount = 0)
-      {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
-         var metrics = catalog.Evaluate(data, labelColumnName, scoreColumnName, predictedLabelColumnName, topKPredictionCount);
-         Print(ml, metrics);
-      }
-      /// <summary>
-      /// Valuta un modello di regressione
-      /// </summary>
-      /// <param name="catalog">Catalogo</param>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">Dati</param>
-      /// <param name="labelColumnName">Nome della colonna della label</param>
-      /// <param name="scoreColumnName">Nome colonna del punteggio</param>
-      public static void Evaluate(
-         this RegressionCatalog catalog,
-         ML ml,
-         IDataView data,
-         string labelColumnName = "Label",
-         string scoreColumnName = "Score")
-      {
-         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
-         // in order to evaluate and get the model's accuracy metrics
-         ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
-         var metrics = catalog.Evaluate(data, labelColumnName, scoreColumnName);
-         Print(ml, metrics);
-      }
-      /// <summary>
-      /// Stampa la metrica media di un modello di clusterizzazione
-      /// </summary>
-      /// <param name="metrics">Risultati della metrica</param>
-      public static void Print(ML ml, ClusteringMetrics metrics)
-      {
-         try {
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Clustering model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       AverageDistance:              {metrics.AverageDistance:0.###} ");
-            sb.AppendLine($"*       DaviesBouldinIndex:           {metrics.DaviesBouldinIndex:0.###}  ");
-            sb.AppendLine($"*       NormalizedMutualInformation:  {metrics.NormalizedMutualInformation:0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
-         }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
-      }
-      /// <summary>
-      /// Stampa la metrica media di un modello di clusterizzazione
-      /// </summary>
-      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
-      private static void Print(ML ml, IEnumerable<TrainCatalogBase.CrossValidationResult<ClusteringMetrics>> crossValResults)
-      {
-         try {
-            var averageDistance = crossValResults.Select(r => r.Metrics.AverageDistance);
-            var daviesBouldinIndex = crossValResults.Select(r => r.Metrics.DaviesBouldinIndex);
-            var normalizedMutualInformation = crossValResults.Select(r => r.Metrics.NormalizedMutualInformation);
+         #region Fields
+         /// <summary>
+         /// Owner
+         /// </summary>
+         private readonly ML ml;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// The list of trainers
+         /// </summary>
+         public Microsoft.ML.ClusteringCatalog.ClusteringTrainers Trainers => ml.Context.Clustering.Trainers;
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="ml"></param>
+         public ClusteringCatalog(ML ml) => this.ml = ml;
+         /// <summary>
+         /// Run cross-validation over numberOfFolds folds of data, by fitting estimator,
+         /// and respecting samplingKeyColumnName if provided. Then evaluate each sub-model
+         /// against labelColumnName and return metrics.
+         /// </summary>
+         /// <param name="data">The data to run cross-validation on.</param>
+         /// <param name="estimator">The estimator to fit.</param>
+         /// <param name="numberOfFolds">Number of cross-validation folds.</param>
+         /// <param name="labelColumnName">Optional label column for evaluation (clustering tasks may not always have a label.</param>
+         /// <param name="featuresColumnName">Optional features column for evaluation (needed for calculating Dbi metric)</param>
+         /// <param name="samplingKeyColumnName">
+         /// Name of a column to use for grouping rows. If two examples share the same value
+         /// of the samplingKeyColumnName, they are guaranteed to appear in the same subset
+         /// (train or test). This can be used to ensure no label leakage from the train to
+         /// the test set. If null no row grouping will be performed.
+         /// </param>
+         /// <param name="seed">Seed for the random number generator used to select rows for cross-validation folds.</param>
+         /// <returns>The best model</returns>
+         public ITransformer CrossValidate(
+            IDataView data,
+            IEstimator<ITransformer> estimator,
+            int numberOfFolds = 5,
+            string labelColumnName = null,
+            string featuresColumnName = null,
+            string samplingKeyColumnName = null,
+            int? seed = null)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            var crossValidationResults = ml.Context.Clustering.CrossValidate(data, estimator, numberOfFolds, labelColumnName, featuresColumnName, samplingKeyColumnName, seed);
+            var averageDistance = crossValidationResults.Select(r => r.Metrics.AverageDistance);
+            var daviesBouldinIndex = crossValidationResults.Select(r => r.Metrics.DaviesBouldinIndex);
+            var normalizedMutualInformation = crossValidationResults.Select(r => r.Metrics.NormalizedMutualInformation);
             var sb = new StringBuilder();
             sb.AppendLine($"*************************************************************************************************************");
             sb.AppendLine($"*       Metrics for Clustering model      ");
@@ -376,19 +247,104 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       Average NormalizedMutualInformation: {normalizedMutualInformation.Average():0.###}  ");
             sb.AppendLine($"*************************************************************************************************************");
             ml.LogAppend(sb.ToString());
+            var result = (from fold in crossValidationResults
+                          orderby fold.Metrics.AverageDistance descending
+                          select fold.Model).First();
+            return result;
          }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
+         /// <summary>
+         /// Evaluates scored multiclass classification data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <param name="predictedLabelColumnName">The name of the predicted label column in data.</param>
+         /// <param name="topKPredictionCount">
+         /// If given a positive value, the Microsoft.ML.Data.MulticlassClassificationMetrics.TopKAccuracy
+         /// will be filled with the top-K accuracy, that is, the accuracy assuming we consider
+         /// an example with the correct class within the top-K values as being stored "correctly."
+         /// </param>
+         /// <returns>The evaluation results for these calibrated outputs.</returns>
+         public ClusteringMetrics Evaluate(
+            IDataView data,
+            string labelColumnName = null,
+            string scoreColumnName = "Score",
+            string featuresColumnName = null)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            var metrics = ml.Context.Clustering.Evaluate(data, labelColumnName, scoreColumnName, featuresColumnName);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Clustering model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       AverageDistance:              {metrics.AverageDistance:0.###} ");
+            sb.AppendLine($"*       DaviesBouldinIndex:           {metrics.DaviesBouldinIndex:0.###}  ");
+            sb.AppendLine($"*       NormalizedMutualInformation:  {metrics.NormalizedMutualInformation:0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            return metrics;
          }
+         #endregion
       }
-      /// <summary>
-      /// Stampa la metrica media di un modello a classificazione multipla
-      /// </summary>
-      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
-      public static void Print(ML ml, IEnumerable<TrainCatalogBase.CrossValidationResult<MulticlassClassificationMetrics>> crossValResults)
+   }
+
+   /// <summary>
+   /// Catalogo classificazione multi classe
+   /// </summary>
+   public partial class ML
+   {
+      public sealed class MulticlassClassificationCatalog
       {
-         try {
-            var metricsInMultipleFolds = crossValResults.Select(r => r.Metrics);
+         #region Fields
+         /// <summary>
+         /// Owner
+         /// </summary>
+         private readonly ML ml;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// The list of trainers.
+         /// </summary>
+         public Microsoft.ML.MulticlassClassificationCatalog.MulticlassClassificationTrainers Trainers => ml.Context.MulticlassClassification.Trainers;
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="ml"></param>
+         public MulticlassClassificationCatalog(ML ml) => this.ml = ml;
+         /// <summary>
+         /// Run cross-validation over numberOfFolds folds of data, by fitting estimator,
+         /// and respecting samplingKeyColumnName if provided. Then evaluate each sub-model
+         /// against labelColumnName and return metrics.
+         /// </summary>
+         /// <param name="data">The data to run cross-validation on.</param>
+         /// <param name="estimator">The estimator to fit.</param>
+         /// <param name="numberOfFolds">Number of cross-validation folds.</param>
+         /// <param name="labelColumnName">The label column (for evaluation).</param>
+         /// <param name="samplingKeyColumnName">
+         /// Name of a column to use for grouping rows. If two examples share the same value
+         /// of the samplingKeyColumnName, they are guaranteed to appear in the same subset
+         /// (train or test). This can be used to ensure no label leakage from the train to
+         /// the test set. If null no row grouping will be performed.
+         /// </param>
+         /// <param name="seed">Seed for the random number generator used to select rows for cross-validation folds.</param>
+         /// <returns>The best model</returns>
+         public ITransformer CrossValidate(
+            IDataView data,
+            IEstimator<ITransformer> estimator,
+            int numberOfFolds = 5,
+            string labelColumnName = "Label",
+            string samplingKeyColumnName = null,
+            int? seed = null)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            var crossValidationResults = ml.Context.MulticlassClassification.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
+            var metricsInMultipleFolds = crossValidationResults.Select(r => r.Metrics);
             var microAccuracyValues = metricsInMultipleFolds.Select(m => m.MicroAccuracy);
             var microAccuracyAverage = microAccuracyValues.Average();
             var microAccuraciesStdDeviation = CalculateStandardDeviation(microAccuracyValues);
@@ -415,23 +371,110 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       Average LogLossReduction: {logLossReductionAverage:0.###}  - Standard deviation: ({logLossReductionStdDeviation:0.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:0.###})");
             sb.AppendLine($"*************************************************************************************************************");
             ml.LogAppend(sb.ToString());
+            var result = (from fold in crossValidationResults
+                          orderby fold.Metrics.LogLoss
+                          select fold.Model).First();
+            return result;
          }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
+         /// <summary>
+         /// Evaluates scored multiclass classification data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <param name="predictedLabelColumnName">The name of the predicted label column in data.</param>
+         /// <param name="topKPredictionCount">
+         /// If given a positive value, the Microsoft.ML.Data.MulticlassClassificationMetrics.TopKAccuracy
+         /// will be filled with the top-K accuracy, that is, the accuracy assuming we consider
+         /// an example with the correct class within the top-K values as being stored "correctly."
+         /// </param>
+         /// <returns>The evaluation results for these calibrated outputs.</returns>
+         public MulticlassClassificationMetrics Evaluate(
+            IDataView data,
+            string labelColumnName = "Label",
+            string scoreColumnName = "Score",
+            string predictedLabelColumnName = "PredictedLabel",
+            int topKPredictionCount = 0)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            var metrics = ml.Context.MulticlassClassification.Evaluate(data, labelColumnName, scoreColumnName, predictedLabelColumnName, topKPredictionCount);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Multi-class Classification model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       MicroAccuracy:    {metrics.MicroAccuracy:0.###}");
+            sb.AppendLine($"*       MacroAccuracy:    {metrics.MacroAccuracy:0.###}");
+            sb.AppendLine($"*       LogLoss:          {metrics.LogLoss:0.###}");
+            sb.AppendLine($"*       LogLossReduction: {metrics.LogLossReduction:0.###}");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+            return metrics;
          }
+         #endregion
       }
-      /// <summary>
-      /// Stampa la metrica media di un modello di regressione
-      /// </summary>
-      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
-      private static void Print(ML ml, IEnumerable<TrainCatalogBase.CrossValidationResult<RegressionMetrics>> crossValResults)
+   }
+
+   /// <summary>
+   /// Catalogo regressione
+   /// </summary>
+   public partial class ML
+   {
+      public sealed class RegressionCatalog
       {
-         try {
-            var L1 = crossValResults.Select(r => r.Metrics.MeanAbsoluteError);
-            var L2 = crossValResults.Select(r => r.Metrics.MeanSquaredError);
-            var RMS = crossValResults.Select(r => r.Metrics.RootMeanSquaredError);
-            var lossFunction = crossValResults.Select(r => r.Metrics.LossFunction);
-            var R2 = crossValResults.Select(r => r.Metrics.RSquared);
+         #region Fields
+         /// <summary>
+         /// Owner
+         /// </summary>
+         private readonly ML ml;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// The list of trainers
+         /// </summary>
+         public Microsoft.ML.RegressionCatalog.RegressionTrainers Trainers => ml.Context.Regression.Trainers;
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="ml"></param>
+         public RegressionCatalog(ML ml) => this.ml = ml;
+         /// <summary>
+         /// Run cross-validation over numberOfFolds folds of data, by fitting estimator,
+         /// and respecting samplingKeyColumnName if provided. Then evaluate each sub-model
+         /// against labelColumnName and return metrics.
+         /// </summary>
+         /// <param name="data">The data to run cross-validation on.</param>
+         /// <param name="estimator">The estimator to fit.</param>
+         /// <param name="numberOfFolds">Number of cross-validation folds.</param>
+         /// <param name="labelColumnName">The label column (for evaluation).</param>
+         /// <param name="samplingKeyColumnName">
+         /// Name of a column to use for grouping rows. If two examples share the same value
+         /// of the samplingKeyColumnName, they are guaranteed to appear in the same subset
+         /// (train or test). This can be used to ensure no label leakage from the train to
+         /// the test set. If null no row grouping will be performed.
+         /// </param>
+         /// <param name="seed">Seed for the random number generator used to select rows for cross-validation folds.</param>
+         /// <returns>The best model</returns>
+         public ITransformer CrossValidate(
+            IDataView data,
+            IEstimator<ITransformer> estimator,
+            int numberOfFolds = 5,
+            string labelColumnName = "Label",
+            string samplingKeyColumnName = null,
+            int? seed = null)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            var crossValidationResults = ml.Context.Regression.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
+            var L1 = crossValidationResults.Select(r => r.Metrics.MeanAbsoluteError);
+            var L2 = crossValidationResults.Select(r => r.Metrics.MeanSquaredError);
+            var RMS = crossValidationResults.Select(r => r.Metrics.RootMeanSquaredError);
+            var lossFunction = crossValidationResults.Select(r => r.Metrics.LossFunction);
+            var R2 = crossValidationResults.Select(r => r.Metrics.RSquared);
             var sb = new StringBuilder();
             sb.AppendLine($"*************************************************************************************************************");
             sb.AppendLine($"*       Metrics for Regression model      ");
@@ -443,40 +486,33 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       Average R-squared:     {R2.Average():0.###}  ");
             sb.AppendLine($"*************************************************************************************************************");
             ml.LogAppend(sb.ToString());
+            var result = (from fold in crossValidationResults
+                          orderby fold.Metrics.LossFunction
+                          select fold.Model).First();
+            return result;
          }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
-      }
-      /// <summary>
-      /// Stampa la metrica media di un modello a classificazione multipla
-      /// </summary>
-      /// <param name="metrics">Risultati della metrica</param>
-      public static void Print(ML ml, MulticlassClassificationMetrics metrics)
-      {
-         try {
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Multi-class Classification model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       MicroAccuracy:    {metrics.MicroAccuracy:0.###}");
-            sb.AppendLine($"*       MacroAccuracy:    {metrics.MacroAccuracy:0.###}");
-            sb.AppendLine($"*       LogLoss:          {metrics.LogLoss:0.###}");
-            sb.AppendLine($"*       LogLossReduction: {metrics.LogLossReduction:0.###}");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
-         }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
-      }
-      /// <summary>
-      /// Stampa la metrica media di un modello di regressione
-      /// </summary>
-      /// <param name="metrics">Risultati della metrica</param>
-      public static void Print(ML ml, RegressionMetrics metrics)
-      {
-         try {
+         /// <summary>
+         /// Evaluates scored multiclass classification data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <param name="predictedLabelColumnName">The name of the predicted label column in data.</param>
+         /// <param name="topKPredictionCount">
+         /// If given a positive value, the Microsoft.ML.Data.MulticlassClassificationMetrics.TopKAccuracy
+         /// will be filled with the top-K accuracy, that is, the accuracy assuming we consider
+         /// an example with the correct class within the top-K values as being stored "correctly."
+         /// </param>
+         /// <returns>The evaluation results for these calibrated outputs.</returns>
+         public RegressionMetrics Evaluate(
+            IDataView data,
+            string labelColumnName = "Label",
+            string scoreColumnName = "Score")
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            var metrics = ml.Context.Regression.Evaluate(data, labelColumnName, scoreColumnName);
             var sb = new StringBuilder();
             sb.AppendLine($"*************************************************************************************************************");
             sb.AppendLine($"*       Metrics for Regression model      ");
@@ -488,11 +524,9 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       RSquared:            {metrics.RSquared:0.###}");
             sb.AppendLine($"*************************************************************************************************************");
             ml.LogAppend(sb.ToString());
+            return metrics;
          }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
+         #endregion
       }
-      #endregion
    }
 }

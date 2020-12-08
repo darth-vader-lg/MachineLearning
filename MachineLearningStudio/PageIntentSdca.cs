@@ -96,7 +96,7 @@ namespace MachineLearningStudio
       {
          try {
             // Verifiche iniziali
-            if (dataSetName == null || !(sender is ComboBox cb))
+            if (dataSetName == null || sender is not ComboBox cb)
                return;
             // Path del set di dati
             var dataSetPath = dataSetName != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
@@ -335,8 +335,8 @@ namespace MachineLearningStudio
                         Append(ml.Context.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
                      // Effettua la miglior valutazione del modello
                      cancel.ThrowIfCancellationRequested();
-                     model = ml.Context.MulticlassClassification.CrossValidate(ml, dataView, trainingPipeline, 5, nameof(PageIntentSdcaData.Intent));
-                     ml.Context.MulticlassClassification.Evaluate(ml, model.Transform(dataView), nameof(PageIntentSdcaData.Intent));
+                     model = ml.MulticlassClassification.CrossValidate( dataView, trainingPipeline, 5, nameof(PageIntentSdcaData.Intent));
+                     ml.MulticlassClassification.Evaluate(model.Transform(dataView), nameof(PageIntentSdcaData.Intent));
                      // Salva il modello
                      if (SaveModel) {
                         cancel.ThrowIfCancellationRequested();
@@ -364,7 +364,7 @@ namespace MachineLearningStudio
                   predictor = null;
                   throw;
                }
-            });
+            }, cancel);
             // Ricreazione del contenuto della combo box delle previsioni
             cancel.ThrowIfCancellationRequested();
             if (rebuildCombo && intents != default) {
@@ -415,7 +415,7 @@ namespace MachineLearningStudio
       {
          try {
             // Combo box generatore evento
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             // Path del set di dati
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());

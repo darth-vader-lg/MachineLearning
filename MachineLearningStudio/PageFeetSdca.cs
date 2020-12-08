@@ -231,8 +231,8 @@ namespace MachineLearningStudio
                   // Train the model
                   var trainingPipeline = dataProcessPipeline.Append(trainer);
                   cancel.ThrowIfCancellationRequested();
-                  model = ml.Context.Regression.CrossValidate(ml, dataView, trainingPipeline, 5, nameof(PageFeetSdcaData.Number));
-                  ml.Context.Regression.Evaluate(ml, dataView, nameof(PageFeetSdcaData.Number), nameof(PageFeetSdcaPrediction.Number));
+                  model = ml.Regression.CrossValidate( dataView, trainingPipeline, 5, nameof(PageFeetSdcaData.Number));
+                  ml.Regression.Evaluate(dataView, nameof(PageFeetSdcaData.Number), nameof(PageFeetSdcaPrediction.Number));
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();
@@ -250,7 +250,7 @@ namespace MachineLearningStudio
                   ml = null;
                   throw;
                }
-            });
+            }, cancel);
             cancel.ThrowIfCancellationRequested();
             if (!float.IsNaN(length) && !float.IsNaN(instep)) {
                // Aggiorna la previsione
@@ -274,7 +274,7 @@ namespace MachineLearningStudio
       private void textBoxDataSetName_TextChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
             if (!File.Exists(path)) {
@@ -304,7 +304,7 @@ namespace MachineLearningStudio
       private void textBoxInstep_TextChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             var text = tb.Text.Trim();
             if (!float.TryParse(text, out instep)) {
@@ -332,7 +332,7 @@ namespace MachineLearningStudio
       private void textBoxLength_TextChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             var text = tb.Text.Trim();
             if (!float.TryParse(text, out length)) {
