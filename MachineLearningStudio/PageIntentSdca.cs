@@ -273,15 +273,15 @@ namespace MachineLearningStudio
                   // Crea il contesto
                   ml = new ML(seed: 1);
                   // Connette il log
-                  ml.LogMessage += (sender, e) =>
+                  ml.Log += (sender, e) =>
                   {
                      try {
                         if (e.Kind < ChannelMessageKind.Info)
                            return;
-                        textBoxOutput.BeginInvoke(new Action<MLLogMessageEventArgs>(log =>
+                        textBoxOutput.BeginInvoke(new Action<LoggingEventArgs>(log =>
                         {
                            try {
-                              textBoxOutput.AppendText(log.Text);
+                              textBoxOutput.AppendText(log.Message + Environment.NewLine);
                               textBoxOutput.Select(textBoxOutput.TextLength, 0);
                               textBoxOutput.ScrollToCaret();
                            }
@@ -303,7 +303,7 @@ namespace MachineLearningStudio
                   // Verifica se deve caricare dai dati
                   if (loadData) {
                      // Dati
-                     var dataView = ml.Context.Data.LoadFromTextFile<PageIntentSdcaData>(
+                     var dataView = ml.Data.LoadFromTextFile<PageIntentSdcaData>(
                         path: dataSetPath,
                         hasHeader: false,
                         separatorChar: '|',
@@ -312,14 +312,14 @@ namespace MachineLearningStudio
                      // Pipeline di trasformazione dei dati
                      cancel.ThrowIfCancellationRequested();
                      var dataProcessPipeline =
-                        ml.Context.Transforms.Conversion.MapValueToKey(nameof(PageIntentSdcaData.Intent), nameof(PageIntentSdcaData.Intent)).
-                        Append(ml.Context.Transforms.Text.FeaturizeText($"{nameof(PageIntentSdcaData.Sentence)}_tf", nameof(PageIntentSdcaData.Sentence))).
-                        Append(ml.Context.Transforms.CopyColumns("Features", $"{nameof(PageIntentSdcaData.Sentence)}_tf")).
-                        Append(ml.Context.Transforms.NormalizeMinMax("Features", "Features")).
-                        AppendCacheCheckpoint(ml.Context);
+                        ml.Transforms.Conversion.MapValueToKey(nameof(PageIntentSdcaData.Intent), nameof(PageIntentSdcaData.Intent)).
+                        Append(ml.Transforms.Text.FeaturizeText($"{nameof(PageIntentSdcaData.Sentence)}_tf", nameof(PageIntentSdcaData.Sentence))).
+                        Append(ml.Transforms.CopyColumns("Features", $"{nameof(PageIntentSdcaData.Sentence)}_tf")).
+                        Append(ml.Transforms.NormalizeMinMax("Features", "Features")).
+                        AppendCacheCheckpoint(ml);
                      // Algoritmo di training
                      cancel.ThrowIfCancellationRequested();
-                     var trainer = ml.Context.MulticlassClassification.Trainers.SdcaMaximumEntropy(
+                     var trainer = ml.MulticlassClassification.Trainers.SdcaMaximumEntropy(
                         new SdcaMaximumEntropyMulticlassTrainer.Options
                         {
                            L2Regularization = 1E-06f,
@@ -335,7 +335,7 @@ namespace MachineLearningStudio
                      // Pipeline completa di training
                      var trainingPipeline =
                         dataProcessPipeline.Append(trainer).
-                        Append(ml.Context.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
+                        Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
                      // Effettua la miglior valutazione del modello
                      cancel.ThrowIfCancellationRequested();
                      model = ml.MulticlassClassification.CrossValidate( dataView, trainingPipeline, 5, nameof(PageIntentSdcaData.Intent));
@@ -348,7 +348,7 @@ namespace MachineLearningStudio
                   }
                   // Crea il generatore di previsioni
                   cancel.ThrowIfCancellationRequested();
-                  predictor = ml.Context.Model.CreatePredictionEngine<PageIntentSdcaData, PageIntentSdcaPrediction>(model);
+                  predictor = ml.Model.CreatePredictionEngine<PageIntentSdcaData, PageIntentSdcaPrediction>(model);
                   // Estrae l'elenco di previsioni possibili
                   var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
                   predictor.OutputSchema.GetColumnOrNull("Score").Value.Annotations.GetValue("SlotNames", ref slotNames);
@@ -396,9 +396,9 @@ namespace MachineLearningStudio
                              }
                              orderby score.Score descending
                              select score).ToList();
-               ml.LogAppendLine("==========");
-               ml.LogAppendLine(sentence);
-               scores.ForEach(item => ml.LogAppendLine($"{item.Intent}: ({(int)(item.Score * 100f)})"));
+               ml.LogMessage("==========");
+               ml.LogMessage(sentence);
+               scores.ForEach(item => ml.LogMessage($"{item.Intent}: ({(int)(item.Score * 100f)})"));
             }
             else
                comboBoxIntent.SelectedIndex = -1;

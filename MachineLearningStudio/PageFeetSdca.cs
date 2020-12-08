@@ -148,15 +148,15 @@ namespace MachineLearningStudio
                   // Crea il contesto
                   ml = new ML(seed: 1);
                   // Connette il log
-                  ml.LogMessage += (sender, e) =>
+                  ml.Log += (sender, e) =>
                   {
                      try {
                         if (e.Kind < ChannelMessageKind.Info)
                            return;
-                        textBoxOutput.BeginInvoke(new Action<MLLogMessageEventArgs>(log =>
+                        textBoxOutput.BeginInvoke(new Action<LoggingEventArgs>(log =>
                         {
                            try {
-                              textBoxOutput.AppendText(log.Text);
+                              textBoxOutput.AppendText(log.Message + Environment.NewLine);
                               textBoxOutput.Select(textBoxOutput.TextLength, 0);
                               textBoxOutput.ScrollToCaret();
                            }
@@ -198,10 +198,10 @@ namespace MachineLearningStudio
                         }
                      }
                      // Set di dati
-                     dataView = ml.Context.Data.LoadFromEnumerable(data);
+                     dataView = ml.Data.LoadFromEnumerable(data);
                   }
                   else {
-                     dataView = ml.Context.Data.LoadFromTextFile<PageFeetSdcaData>(
+                     dataView = ml.Data.LoadFromTextFile<PageFeetSdcaData>(
                         path: dataSetPath,
                         hasHeader: false,
                         separatorChar: ',',
@@ -211,13 +211,13 @@ namespace MachineLearningStudio
                   // Data process configuration with pipeline data transformations 
                   cancel.ThrowIfCancellationRequested();
                   var dataProcessPipeline =
-                     ml.Context.Transforms.Categorical.OneHotHashEncoding(new[] { new InputOutputColumnPair(nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Length)) }).
-                     Append(ml.Context.Transforms.Concatenate("Features", new[] { nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Instep) })).
-                     Append(ml.Context.Transforms.NormalizeMinMax("Features", "Features")).
-                     AppendCacheCheckpoint(ml.Context);
+                     ml.Transforms.Categorical.OneHotHashEncoding(new[] { new InputOutputColumnPair(nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Length)) }).
+                     Append(ml.Transforms.Concatenate("Features", new[] { nameof(PageFeetSdcaData.Length), nameof(PageFeetSdcaData.Instep) })).
+                     Append(ml.Transforms.NormalizeMinMax("Features", "Features")).
+                     AppendCacheCheckpoint(ml);
                   // Set the training algorithm 
                   cancel.ThrowIfCancellationRequested();
-                  var trainer = ml.Context.Regression.Trainers.Sdca(
+                  var trainer = ml.Regression.Trainers.Sdca(
                      new SdcaRegressionTrainer.Options() 
                      { 
                         L2Regularization = 1E-07f,
@@ -240,7 +240,7 @@ namespace MachineLearningStudio
                   }
                   cancel.ThrowIfCancellationRequested();
                   // Crea il generatore di previsioni
-                  predictor = ml.Context.Model.CreatePredictionEngine<PageFeetSdcaData, PageFeetSdcaPrediction>(model);
+                  predictor = ml.Model.CreatePredictionEngine<PageFeetSdcaData, PageFeetSdcaPrediction>(model);
                }
                catch (OperationCanceledException)
                {

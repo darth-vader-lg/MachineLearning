@@ -12,7 +12,7 @@ namespace MachineLearningStudio
    /// <summary>
    /// Classe di utilità generiche
    /// </summary>
-   public partial class ML
+   public partial class ML : IHostEnvironment, IChannelProvider, IExceptionContext, IProgressChannelProvider
    {
       #region Fields
       /// <summary>
@@ -22,6 +22,10 @@ namespace MachineLearningStudio
       #endregion
       #region Properties
       /// <summary>
+      /// Trainers e tasks specifici per i broblemi di rilevamento anomalie.
+      /// </summary>
+      public AnomalyDetectionCatalog AnomalyDetection { get; }
+      /// <summary>
       /// Trainers e tasks specifici dei problemi di classificazione binaria.
       /// </summary>
       public BinaryClassificationCatalog BinaryClassification { get; }
@@ -30,13 +34,33 @@ namespace MachineLearningStudio
       /// </summary>
       public ClusteringCatalog Clustering { get; }
       /// <summary>
+      /// Catalogo di componenti che sara' usato per il caricamento modelli
+      /// </summary>
+      public ComponentCatalog ComponentCatalog => Context.ComponentCatalog;
+      /// <summary>
+      /// Log completo
+      /// </summary>
+      public string CompleteLog { get { lock (logBuilder) return logBuilder.ToString(); } }
+      /// <summary>
       /// Contesto di machine learning
       /// </summary>
       public MLContext Context { get; }
       /// <summary>
-      /// Log
+      /// Caricamento e salvataggio dati
       /// </summary>
-      public string Log { get { lock (logBuilder) return logBuilder.ToString(); } }
+      public DataOperationsCatalog Data => Context.Data;
+      /// <summary>
+      /// Trainers e tasks specifici per problemi di previsione.
+      /// </summary>
+      public ForecastingCatalog Forecasting => Context.Forecasting;
+      /// <summary>
+      /// Una stringa descrivente il contesto stesso
+      /// </summary>
+      string IExceptionContext.ContextDescription => ((IExceptionContext)Context).ContextDescription;
+      /// <summary>
+      /// Operazioni con i modelli di training
+      /// </summary>
+      public ModelOperationsCatalog Model => Context.Model;
       /// <summary>
       /// Trainers e tasks specifici dei problemi di classificazione multi classe.
       /// </summary>
@@ -49,12 +73,16 @@ namespace MachineLearningStudio
       /// Trainers e tasks specifici dei problemi di regressione.
       /// </summary>
       public RegressionCatalog Regression { get; }
+      /// <summary>
+      /// Operazioni per il processo dei dati
+      /// </summary>
+      public TransformsCatalog Transforms => Context.Transforms;
       #endregion
       #region Events and delegates
       /// <summary>
       /// Evento messaggio di log
       /// </summary>
-      public event MLLogEventHandler LogMessage;
+      public event EventHandler<LoggingEventArgs> Log;
       #endregion
       #region Methods
       /// <summary>
@@ -65,6 +93,7 @@ namespace MachineLearningStudio
       {
          Context = new MLContext(seed);
          Context.Log += Context_Log;
+         AnomalyDetection = new AnomalyDetectionCatalog(this);
          BinaryClassification = new BinaryClassificationCatalog(this);
          Clustering = new ClusteringCatalog(this);
          MulticlassClassification = new MulticlassClassificationCatalog(this);
@@ -101,12 +130,34 @@ namespace MachineLearningStudio
       private void Context_Log(object sender, LoggingEventArgs e)
       {
          try {
-            LogAppendLine(e.Message, e.Kind);
+            lock (logBuilder)
+               logBuilder.Append(e.Message + Environment.NewLine);
+            OnLog(e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
       }
+      /// <summary>
+      /// Avvia un canale standard di messaggi
+      /// </summary>
+      IChannel IChannelProvider.Start(string name) => ((IChannelProvider)Context).Start(name);
+      /// <summary>
+      /// Avvia una pipe di informazione generica
+      /// </summary>
+      IPipe<TMessage> IChannelProvider.StartPipe<TMessage>(string name) => ((IChannelProvider)Context).StartPipe<TMessage>(name);
+      /// <summary>
+      /// Processa un eccezione
+      /// </summary>
+      TException IExceptionContext.Process<TException>(TException ex) => ((IExceptionContext)Context).Process(ex);
+      /// <summary>
+      /// Crea un host col il nome di registrazione fornito
+      /// </summary>
+      IHost IHostEnvironment.Register(string name, int? seed, bool? verbose) => ((IHostEnvironment)Context).Register(name, seed, verbose);
+      /// <summary>
+      /// Avvia un canale di progress per un nuome di una computazione
+      /// </summary>
+      IProgressChannel IProgressChannelProvider.StartProgressChannel(string name) => ((IProgressChannelProvider)Context).StartProgressChannel(name);
       /// <summary>
       /// Carica un modello
       /// </summary>
@@ -115,46 +166,38 @@ namespace MachineLearningStudio
       /// <returns>Il modello</returns>
       public ITransformer LoadModel(string path, out DataViewSchema inputSchema)
       {
-         LogAppendLine($"============== Loading the model  ===============");
+         LogMessage($"============== Loading the model  ===============");
          var result = Context.Model.Load(path, out inputSchema);
-         LogAppendLine($"The model is loaded from {path}");
+         LogMessage($"The model is loaded from {path}");
          return result;
       }
       /// <summary>
-      /// Funzione di aggiunta al log
+      /// Funzione di aggiunta messaggio al log
       /// </summary>
       /// <param name="text">Testo da stampare</param>
       /// <param name="kind">Tipo di messaggio</param>
-      public void LogAppend(string text, ChannelMessageKind kind = ChannelMessageKind.Info)
+      /// <param name="source">Sorgente del messaggio</param>
+      public void LogMessage(string text, ChannelMessageKind kind = ChannelMessageKind.Info, string source = null)
       {
          try {
             if (string.IsNullOrEmpty(text))
                return;
             lock (logBuilder)
-               logBuilder.Append(text);
-            OnLogMessage(new MLLogMessageEventArgs(text, kind));
+               logBuilder.AppendLine(text);
+            OnLog(new LoggingEventArgs(text, kind, source ?? $"{nameof(ML)}.{nameof(LogMessage)}"));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
       }
       /// <summary>
-      /// Funzione di aggiunta linea al log
-      /// </summary>
-      /// <param name="text">Testo da stampare</param>
-      /// <param name="kind">Tipo di messaggio</param>
-      public void LogAppendLine(string text, ChannelMessageKind kind = ChannelMessageKind.Info)
-      {
-         LogAppend((text ?? "") + Environment.NewLine, kind);
-      }
-      /// <summary>
       /// Funzione di logging dei messaggi
       /// </summary>
-      /// <param name="mLLogMessageEventArgs">Argomenti del log</param>
-      protected virtual void OnLogMessage(MLLogMessageEventArgs e)
+      /// <param name="e">Argomenti del log</param>
+      protected virtual void OnLog(LoggingEventArgs e)
       {
          try {
-            LogMessage?.Invoke(this, e);
+            Log?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -169,9 +212,9 @@ namespace MachineLearningStudio
       public void SaveModel(ITransformer model, DataViewSchema schema, string path)
       {
          // Save/persist the trained model to a .ZIP file
-         LogAppendLine($"=============== Saving the model  ===============");
+         LogMessage($"=============== Saving the model  ===============");
          Context.Model.Save(model, schema, path);
-         LogAppendLine($"The model is saved to {path}");
+         LogMessage($"The model is saved to {path}");
       }
       /// <summary>
       /// Funzione di training del modello
@@ -181,12 +224,78 @@ namespace MachineLearningStudio
       /// <returns></returns>
       public ITransformer TrainModel(IDataView trainingDataView, IEstimator<ITransformer> trainingPipeline)
       {
-         LogAppendLine("=============== Training  model ===============");
+         LogMessage("=============== Training  model ===============");
          var model = trainingPipeline.Fit(trainingDataView);
-         LogAppendLine("=============== End of training process ===============");
+         LogMessage("=============== End of training process ===============");
          return model;
       }
       #endregion
+   }
+
+   /// <summary>
+   /// Catalogo rilevazione anomalie
+   /// </summary>
+   public partial class ML
+   {
+      public sealed class AnomalyDetectionCatalog
+      {
+         #region Fields
+         /// <summary>
+         /// Owner
+         /// </summary>
+         private readonly ML ml;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// The list of trainers
+         /// </summary>
+         public Microsoft.ML.AnomalyDetectionCatalog.AnomalyDetectionTrainers Trainers => ml.Context.AnomalyDetection.Trainers;
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="ml">Owner</param>
+         public AnomalyDetectionCatalog(ML ml) => this.ml = ml;
+         /// <summary>
+         /// Method to modify the threshold to existing model and return modified model.
+         /// </summary>
+         /// <typeparam name="TModel">The type of the model parameters.</typeparam>
+         /// <param name="model">Existing model to modify threshold.</param>
+         /// <param name="threshold">New threshold.</param>
+         /// <returns>New model with modified threshold.</returns>
+         public AnomalyPredictionTransformer<TModel> ChangeModelThreshold<TModel>(AnomalyPredictionTransformer<TModel> model, float threshold) where TModel : class =>
+            ml.Context.AnomalyDetection.ChangeModelThreshold(model, threshold);
+         /// <summary>
+         /// Evaluates scored anomaly detection data.
+         /// </summary>
+         /// <param name="data">The scored data.</param>
+         /// <param name="labelColumnName">The name of the label column in data.</param>
+         /// <param name="scoreColumnName">The name of the score column in data.</param>
+         /// <param name="predictedLabelColumnName">The name of the predicted label column in data.</param>
+         /// <param name="falsePositiveCount">The number of false positives to compute the Microsoft.ML.Data.AnomalyDetectionMetrics.DetectionRateAtFalsePositiveCount metric.</param>
+         /// <returns>Evaluation results.</returns>
+         public AnomalyDetectionMetrics Evaluate(
+            IDataView data,
+            string labelColumnName = "Label",
+            string scoreColumnName = "Score",
+            string predictedLabelColumnName = "PredictedLabel",
+            int falsePositiveCount = 10)
+         {
+            // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+            // in order to evaluate and get the model's accuracy metrics
+            ml.LogMessage("================== Evaluating to get model's accuracy metrics ==================");
+            var metrics = ml.Context.AnomalyDetection.Evaluate(data, labelColumnName, scoreColumnName, predictedLabelColumnName, falsePositiveCount);
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Binary classification model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       AreaUnderRocCurve:                  {metrics.AreaUnderRocCurve:0.###} ");
+            ml.LogMessage($"*       DetectionRateAtFalsePositiveCount:  {metrics.DetectionRateAtFalsePositiveCount:0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
+            return metrics;
+         }
+         #endregion
+      }
    }
 
    /// <summary>
@@ -254,7 +363,7 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            ml.LogMessage("=============== Cross-validating to get model's accuracy metrics ===============");
             var crossValidationResults = ml.Context.BinaryClassification.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
             var accuracy = crossValidationResults.Select(r => r.Metrics.Accuracy);
             var areaUnderPrecisionRecallCurve = crossValidationResults.Select(r => r.Metrics.AreaUnderPrecisionRecallCurve);
@@ -267,23 +376,21 @@ namespace MachineLearningStudio
             var negativeRecall = crossValidationResults.Select(r => r.Metrics.NegativeRecall);
             var positivePrecision = crossValidationResults.Select(r => r.Metrics.PositivePrecision);
             var positiveRecall = crossValidationResults.Select(r => r.Metrics.PositiveRecall);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Binary classification model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Average Accuracy:                      {accuracy.Average():0.###} ");
-            sb.AppendLine($"*       Average AreaUnderPrecisionRecallCurve: {areaUnderPrecisionRecallCurve.Average():0.###}  ");
-            sb.AppendLine($"*       Average AreaUnderRocCurve:             {areaUnderRocCurve.Average():0.###}  ");
-            sb.AppendLine($"*       Average Entropy:                       {entropy.Average():0.###}  ");
-            sb.AppendLine($"*       Average F1Score:                       {F1Score.Average():0.###}  ");
-            sb.AppendLine($"*       Average LogLoss:                       {logLoss.Average():0.###}  ");
-            sb.AppendLine($"*       Average LogLossReduction:              {logLossReduction.Average():0.###}  ");
-            sb.AppendLine($"*       Average NegativePrecision:             {negativePrecision.Average():0.###}  ");
-            sb.AppendLine($"*       Average NegativeRecall:                {negativeRecall.Average():0.###}  ");
-            sb.AppendLine($"*       Average PositivePrecision:             {positivePrecision.Average():0.###}  ");
-            sb.AppendLine($"*       Average PositiveRecall:                {positiveRecall.Average():0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Binary classification model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Average Accuracy:                      {accuracy.Average():0.###} ");
+            ml.LogMessage($"*       Average AreaUnderPrecisionRecallCurve: {areaUnderPrecisionRecallCurve.Average():0.###}  ");
+            ml.LogMessage($"*       Average AreaUnderRocCurve:             {areaUnderRocCurve.Average():0.###}  ");
+            ml.LogMessage($"*       Average Entropy:                       {entropy.Average():0.###}  ");
+            ml.LogMessage($"*       Average F1Score:                       {F1Score.Average():0.###}  ");
+            ml.LogMessage($"*       Average LogLoss:                       {logLoss.Average():0.###}  ");
+            ml.LogMessage($"*       Average LogLossReduction:              {logLossReduction.Average():0.###}  ");
+            ml.LogMessage($"*       Average NegativePrecision:             {negativePrecision.Average():0.###}  ");
+            ml.LogMessage($"*       Average NegativeRecall:                {negativeRecall.Average():0.###}  ");
+            ml.LogMessage($"*       Average PositivePrecision:             {positivePrecision.Average():0.###}  ");
+            ml.LogMessage($"*       Average PositiveRecall:                {positiveRecall.Average():0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
             var result = (from fold in crossValidationResults
                           orderby fold.Metrics.Accuracy descending
                           select fold.Model).First();
@@ -316,7 +423,7 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            ml.LogMessage("=============== Cross-validating to get model's accuracy metrics ===============");
             var crossValidationResults = ml.Context.BinaryClassification.CrossValidateNonCalibrated(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
             var accuracy = crossValidationResults.Select(r => r.Metrics.Accuracy);
             var areaUnderPrecisionRecallCurve = crossValidationResults.Select(r => r.Metrics.AreaUnderPrecisionRecallCurve);
@@ -326,20 +433,18 @@ namespace MachineLearningStudio
             var negativeRecall = crossValidationResults.Select(r => r.Metrics.NegativeRecall);
             var positivePrecision = crossValidationResults.Select(r => r.Metrics.PositivePrecision);
             var positiveRecall = crossValidationResults.Select(r => r.Metrics.PositiveRecall);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Binary classification model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Average Accuracy:                      {accuracy.Average():0.###} ");
-            sb.AppendLine($"*       Average AreaUnderPrecisionRecallCurve: {areaUnderPrecisionRecallCurve.Average():0.###}  ");
-            sb.AppendLine($"*       Average AreaUnderRocCurve:             {areaUnderRocCurve.Average():0.###}  ");
-            sb.AppendLine($"*       Average F1Score:                       {F1Score.Average():0.###}  ");
-            sb.AppendLine($"*       Average NegativePrecision:             {negativePrecision.Average():0.###}  ");
-            sb.AppendLine($"*       Average NegativeRecall:                {negativeRecall.Average():0.###}  ");
-            sb.AppendLine($"*       Average PositivePrecision:             {positivePrecision.Average():0.###}  ");
-            sb.AppendLine($"*       Average PositiveRecall:                {positiveRecall.Average():0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Binary classification model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Average Accuracy:                      {accuracy.Average():0.###} ");
+            ml.LogMessage($"*       Average AreaUnderPrecisionRecallCurve: {areaUnderPrecisionRecallCurve.Average():0.###}  ");
+            ml.LogMessage($"*       Average AreaUnderRocCurve:             {areaUnderRocCurve.Average():0.###}  ");
+            ml.LogMessage($"*       Average F1Score:                       {F1Score.Average():0.###}  ");
+            ml.LogMessage($"*       Average NegativePrecision:             {negativePrecision.Average():0.###}  ");
+            ml.LogMessage($"*       Average NegativeRecall:                {negativeRecall.Average():0.###}  ");
+            ml.LogMessage($"*       Average PositivePrecision:             {positivePrecision.Average():0.###}  ");
+            ml.LogMessage($"*       Average PositiveRecall:                {positiveRecall.Average():0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
             var result = (from fold in crossValidationResults
                           orderby fold.Metrics.Accuracy descending
                           select fold.Model).First();
@@ -363,25 +468,23 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            ml.LogMessage("================== Evaluating to get model's accuracy metrics ==================");
             var metrics = ml.Context.BinaryClassification.Evaluate(data, labelColumnName, scoreColumnName, probabilityColumnName, predictedLabelColumnName);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Binary classification model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Accuracy:                     {metrics.Accuracy:0.###} ");
-            sb.AppendLine($"*       AreaUnderPrecisionRecallCurve:{metrics.AreaUnderPrecisionRecallCurve:0.###}  ");
-            sb.AppendLine($"*       AreaUnderRocCurve:            {metrics.AreaUnderRocCurve:0.###}  ");
-            sb.AppendLine($"*       Entropy:                      {metrics.Entropy:0.###}  ");
-            sb.AppendLine($"*       F1Score:                      {metrics.F1Score:0.###}  ");
-            sb.AppendLine($"*       LogLoss:                      {metrics.LogLoss:0.###}  ");
-            sb.AppendLine($"*       LogLossReduction:             {metrics.LogLossReduction:0.###}  ");
-            sb.AppendLine($"*       NegativePrecision:            {metrics.NegativePrecision:0.###}  ");
-            sb.AppendLine($"*       NegativeRecall:               {metrics.NegativeRecall:0.###}  ");
-            sb.AppendLine($"*       PositivePrecision:            {metrics.PositivePrecision:0.###}  ");
-            sb.AppendLine($"*       PositiveRecall:               {metrics.PositiveRecall:0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Binary classification model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Accuracy:                     {metrics.Accuracy:0.###} ");
+            ml.LogMessage($"*       AreaUnderPrecisionRecallCurve:{metrics.AreaUnderPrecisionRecallCurve:0.###}  ");
+            ml.LogMessage($"*       AreaUnderRocCurve:            {metrics.AreaUnderRocCurve:0.###}  ");
+            ml.LogMessage($"*       Entropy:                      {metrics.Entropy:0.###}  ");
+            ml.LogMessage($"*       F1Score:                      {metrics.F1Score:0.###}  ");
+            ml.LogMessage($"*       LogLoss:                      {metrics.LogLoss:0.###}  ");
+            ml.LogMessage($"*       LogLossReduction:             {metrics.LogLossReduction:0.###}  ");
+            ml.LogMessage($"*       NegativePrecision:            {metrics.NegativePrecision:0.###}  ");
+            ml.LogMessage($"*       NegativeRecall:               {metrics.NegativeRecall:0.###}  ");
+            ml.LogMessage($"*       PositivePrecision:            {metrics.PositivePrecision:0.###}  ");
+            ml.LogMessage($"*       PositiveRecall:               {metrics.PositiveRecall:0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
             return metrics;
          }
          /// <summary>
@@ -400,22 +503,20 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            ml.LogMessage("================== Evaluating to get model's accuracy metrics ==================");
             var metrics = ml.Context.BinaryClassification.EvaluateNonCalibrated(data, labelColumnName, scoreColumnName, predictedLabelColumnName);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Binary classification model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Accuracy:                     {metrics.Accuracy:0.###} ");
-            sb.AppendLine($"*       AreaUnderPrecisionRecallCurve:{metrics.AreaUnderPrecisionRecallCurve:0.###}  ");
-            sb.AppendLine($"*       AreaUnderRocCurve:            {metrics.AreaUnderRocCurve:0.###}  ");
-            sb.AppendLine($"*       F1Score:                      {metrics.F1Score:0.###}  ");
-            sb.AppendLine($"*       NegativePrecision:            {metrics.NegativePrecision:0.###}  ");
-            sb.AppendLine($"*       NegativeRecall:               {metrics.NegativeRecall:0.###}  ");
-            sb.AppendLine($"*       PositivePrecision:            {metrics.PositivePrecision:0.###}  ");
-            sb.AppendLine($"*       PositiveRecall:               {metrics.PositiveRecall:0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Binary classification model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Accuracy:                     {metrics.Accuracy:0.###} ");
+            ml.LogMessage($"*       AreaUnderPrecisionRecallCurve:{metrics.AreaUnderPrecisionRecallCurve:0.###}  ");
+            ml.LogMessage($"*       AreaUnderRocCurve:            {metrics.AreaUnderRocCurve:0.###}  ");
+            ml.LogMessage($"*       F1Score:                      {metrics.F1Score:0.###}  ");
+            ml.LogMessage($"*       NegativePrecision:            {metrics.NegativePrecision:0.###}  ");
+            ml.LogMessage($"*       NegativeRecall:               {metrics.NegativeRecall:0.###}  ");
+            ml.LogMessage($"*       PositivePrecision:            {metrics.PositivePrecision:0.###}  ");
+            ml.LogMessage($"*       PositiveRecall:               {metrics.PositiveRecall:0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
             return metrics;
          }
          #endregion
@@ -476,20 +577,18 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            ml.LogMessage("=============== Cross-validating to get model's accuracy metrics ===============");
             var crossValidationResults = ml.Context.Clustering.CrossValidate(data, estimator, numberOfFolds, labelColumnName, featuresColumnName, samplingKeyColumnName, seed);
             var averageDistance = crossValidationResults.Select(r => r.Metrics.AverageDistance);
             var daviesBouldinIndex = crossValidationResults.Select(r => r.Metrics.DaviesBouldinIndex);
             var normalizedMutualInformation = crossValidationResults.Select(r => r.Metrics.NormalizedMutualInformation);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Clustering model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Average Distance:                   {averageDistance.Average():0.###} ");
-            sb.AppendLine($"*       Average DaviesBouldinIndex:         {daviesBouldinIndex.Average():0.###}  ");
-            sb.AppendLine($"*       Average NormalizedMutualInformation: {normalizedMutualInformation.Average():0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Clustering model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Average Distance:                   {averageDistance.Average():0.###} ");
+            ml.LogMessage($"*       Average DaviesBouldinIndex:         {daviesBouldinIndex.Average():0.###}  ");
+            ml.LogMessage($"*       Average NormalizedMutualInformation: {normalizedMutualInformation.Average():0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
             var result = (from fold in crossValidationResults
                           orderby fold.Metrics.AverageDistance descending
                           select fold.Model).First();
@@ -516,17 +615,15 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            ml.LogMessage("================== Evaluating to get model's accuracy metrics ==================");
             var metrics = ml.Context.Clustering.Evaluate(data, labelColumnName, scoreColumnName, featuresColumnName);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Clustering model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       AverageDistance:              {metrics.AverageDistance:0.###} ");
-            sb.AppendLine($"*       DaviesBouldinIndex:           {metrics.DaviesBouldinIndex:0.###}  ");
-            sb.AppendLine($"*       NormalizedMutualInformation:  {metrics.NormalizedMutualInformation:0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Clustering model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       AverageDistance:              {metrics.AverageDistance:0.###} ");
+            ml.LogMessage($"*       DaviesBouldinIndex:           {metrics.DaviesBouldinIndex:0.###}  ");
+            ml.LogMessage($"*       NormalizedMutualInformation:  {metrics.NormalizedMutualInformation:0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
             return metrics;
          }
          #endregion
@@ -585,7 +682,7 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            ml.LogMessage("=============== Cross-validating to get model's accuracy metrics ===============");
             var crossValidationResults = ml.Context.MulticlassClassification.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
             var metricsInMultipleFolds = crossValidationResults.Select(r => r.Metrics);
             var microAccuracyValues = metricsInMultipleFolds.Select(m => m.MicroAccuracy);
@@ -604,16 +701,14 @@ namespace MachineLearningStudio
             var logLossReductionAverage = logLossReductionValues.Average();
             var logLossReductionStdDeviation = CalculateStandardDeviation(logLossReductionValues);
             var logLossReductionConfidenceInterval95 = CalculateConfidenceInterval95(logLossReductionValues);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Multi-class Classification model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Average MicroAccuracy:    {microAccuracyAverage:0.###}  - Standard deviation: ({microAccuraciesStdDeviation:0.###})  - Confidence Interval 95%: ({microAccuraciesConfidenceInterval95:0.###})");
-            sb.AppendLine($"*       Average MacroAccuracy:    {macroAccuracyAverage:0.###}  - Standard deviation: ({macroAccuraciesStdDeviation:0.###})  - Confidence Interval 95%: ({macroAccuraciesConfidenceInterval95:0.###})");
-            sb.AppendLine($"*       Average LogLoss:          {logLossAverage:0.###}  - Standard deviation: ({logLossStdDeviation:0.###})  - Confidence Interval 95%: ({logLossConfidenceInterval95:0.###})");
-            sb.AppendLine($"*       Average LogLossReduction: {logLossReductionAverage:0.###}  - Standard deviation: ({logLossReductionStdDeviation:0.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:0.###})");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Multi-class Classification model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Average MicroAccuracy:    {microAccuracyAverage:0.###}  - Standard deviation: ({microAccuraciesStdDeviation:0.###})  - Confidence Interval 95%: ({microAccuraciesConfidenceInterval95:0.###})");
+            ml.LogMessage($"*       Average MacroAccuracy:    {macroAccuracyAverage:0.###}  - Standard deviation: ({macroAccuraciesStdDeviation:0.###})  - Confidence Interval 95%: ({macroAccuraciesConfidenceInterval95:0.###})");
+            ml.LogMessage($"*       Average LogLoss:          {logLossAverage:0.###}  - Standard deviation: ({logLossStdDeviation:0.###})  - Confidence Interval 95%: ({logLossConfidenceInterval95:0.###})");
+            ml.LogMessage($"*       Average LogLossReduction: {logLossReductionAverage:0.###}  - Standard deviation: ({logLossReductionStdDeviation:0.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:0.###})");
+            ml.LogMessage($"*************************************************************************************************************");
             var result = (from fold in crossValidationResults
                           orderby fold.Metrics.LogLoss
                           select fold.Model).First();
@@ -641,18 +736,16 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            ml.LogMessage("================== Evaluating to get model's accuracy metrics ==================");
             var metrics = ml.Context.MulticlassClassification.Evaluate(data, labelColumnName, scoreColumnName, predictedLabelColumnName, topKPredictionCount);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Multi-class Classification model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       MicroAccuracy:    {metrics.MicroAccuracy:0.###}");
-            sb.AppendLine($"*       MacroAccuracy:    {metrics.MacroAccuracy:0.###}");
-            sb.AppendLine($"*       LogLoss:          {metrics.LogLoss:0.###}");
-            sb.AppendLine($"*       LogLossReduction: {metrics.LogLossReduction:0.###}");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Multi-class Classification model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       MicroAccuracy:    {metrics.MicroAccuracy:0.###}");
+            ml.LogMessage($"*       MacroAccuracy:    {metrics.MacroAccuracy:0.###}");
+            ml.LogMessage($"*       LogLoss:          {metrics.LogLoss:0.###}");
+            ml.LogMessage($"*       LogLossReduction: {metrics.LogLossReduction:0.###}");
+            ml.LogMessage($"*************************************************************************************************************");
             return metrics;
          }
          #endregion
@@ -711,18 +804,16 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            ml.LogMessage("=============== Cross-validating to get model's accuracy metrics ===============");
             var crossValidationResults = ml.Context.Ranking.CrossValidate(data, estimator, numberOfFolds, labelColumnName, rowGroupColumnName, seed);
             var discountedCumulativeGains = crossValidationResults.Select(r => DcgScore(r.Metrics.DiscountedCumulativeGains));
             var normalizedDiscountedCumulativeGains = crossValidationResults.Select(r => DcgScore(r.Metrics.NormalizedDiscountedCumulativeGains));
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Ranking model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Average DiscountedCumulativeGains:           {discountedCumulativeGains.Average():0.###} ");
-            sb.AppendLine($"*       Average NormalizedDiscountedCumulativeGains: {normalizedDiscountedCumulativeGains.Average():0.###} ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Ranking model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Average DiscountedCumulativeGains:           {discountedCumulativeGains.Average():0.###} ");
+            ml.LogMessage($"*       Average NormalizedDiscountedCumulativeGains: {normalizedDiscountedCumulativeGains.Average():0.###} ");
+            ml.LogMessage($"*************************************************************************************************************");
             var result = (from fold in crossValidationResults
                           orderby DcgScore(fold.Metrics.NormalizedDiscountedCumulativeGains) descending
                           select fold.Model).First();
@@ -782,19 +873,17 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            ml.LogMessage("================== Evaluating to get model's accuracy metrics ==================");
             var metrics =
                options != null ?
                ml.Context.Ranking.Evaluate(data, options, labelColumnName, rowGroupColumnName, scoreColumnName) :
                ml.Context.Ranking.Evaluate(data, labelColumnName, rowGroupColumnName, scoreColumnName);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Ranking model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       DCG Score:           {DcgScore(metrics.DiscountedCumulativeGains)}");
-            sb.AppendLine($"*       NDCG Score:          {DcgScore(metrics.NormalizedDiscountedCumulativeGains)}");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Ranking model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       DCG Score:           {DcgScore(metrics.DiscountedCumulativeGains)}");
+            ml.LogMessage($"*       NDCG Score:          {DcgScore(metrics.NormalizedDiscountedCumulativeGains)}");
+            ml.LogMessage($"*************************************************************************************************************");
             return metrics;
          }
          #endregion
@@ -853,24 +942,22 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+            ml.LogMessage("=============== Cross-validating to get model's accuracy metrics ===============");
             var crossValidationResults = ml.Context.Regression.CrossValidate(data, estimator, numberOfFolds, labelColumnName, samplingKeyColumnName, seed);
             var L1 = crossValidationResults.Select(r => r.Metrics.MeanAbsoluteError);
             var L2 = crossValidationResults.Select(r => r.Metrics.MeanSquaredError);
             var RMS = crossValidationResults.Select(r => r.Metrics.RootMeanSquaredError);
             var lossFunction = crossValidationResults.Select(r => r.Metrics.LossFunction);
             var R2 = crossValidationResults.Select(r => r.Metrics.RSquared);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Regression model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Average L1 Loss:       {L1.Average():0.###} ");
-            sb.AppendLine($"*       Average L2 Loss:       {L2.Average():0.###}  ");
-            sb.AppendLine($"*       Average RMS:           {RMS.Average():0.###}  ");
-            sb.AppendLine($"*       Average Loss Function: {lossFunction.Average():0.###}  ");
-            sb.AppendLine($"*       Average R-squared:     {R2.Average():0.###}  ");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Regression model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       Average L1 Loss:       {L1.Average():0.###} ");
+            ml.LogMessage($"*       Average L2 Loss:       {L2.Average():0.###}  ");
+            ml.LogMessage($"*       Average RMS:           {RMS.Average():0.###}  ");
+            ml.LogMessage($"*       Average Loss Function: {lossFunction.Average():0.###}  ");
+            ml.LogMessage($"*       Average R-squared:     {R2.Average():0.###}  ");
+            ml.LogMessage($"*************************************************************************************************************");
             var result = (from fold in crossValidationResults
                           orderby fold.Metrics.LossFunction
                           select fold.Model).First();
@@ -896,19 +983,17 @@ namespace MachineLearningStudio
          {
             // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
             // in order to evaluate and get the model's accuracy metrics
-            ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+            ml.LogMessage("================== Evaluating to get model's accuracy metrics ==================");
             var metrics = ml.Context.Regression.Evaluate(data, labelColumnName, scoreColumnName);
-            var sb = new StringBuilder();
-            sb.AppendLine($"*************************************************************************************************************");
-            sb.AppendLine($"*       Metrics for Regression model      ");
-            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       LossFunction:        {metrics.LossFunction:0.###}");
-            sb.AppendLine($"*       MeanAbsoluteError:   {metrics.MeanAbsoluteError:0.###}");
-            sb.AppendLine($"*       MeanSquaredError:    {metrics.MeanSquaredError:0.###}");
-            sb.AppendLine($"*       RootMeanSquaredError:{metrics.RootMeanSquaredError:0.###}");
-            sb.AppendLine($"*       RSquared:            {metrics.RSquared:0.###}");
-            sb.AppendLine($"*************************************************************************************************************");
-            ml.LogAppend(sb.ToString());
+            ml.LogMessage($"*************************************************************************************************************");
+            ml.LogMessage($"*       Metrics for Regression model      ");
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       LossFunction:        {metrics.LossFunction:0.###}");
+            ml.LogMessage($"*       MeanAbsoluteError:   {metrics.MeanAbsoluteError:0.###}");
+            ml.LogMessage($"*       MeanSquaredError:    {metrics.MeanSquaredError:0.###}");
+            ml.LogMessage($"*       RootMeanSquaredError:{metrics.RootMeanSquaredError:0.###}");
+            ml.LogMessage($"*       RSquared:            {metrics.RSquared:0.###}");
+            ml.LogMessage($"*************************************************************************************************************");
             return metrics;
          }
          #endregion

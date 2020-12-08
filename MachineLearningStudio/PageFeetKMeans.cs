@@ -210,15 +210,15 @@ namespace MachineLearningStudio
                   // Crea il contesto
                   ml = new ML(seed: 0);
                   // Connette il log
-                  ml.LogMessage += (sender, e) =>
+                  ml.Log += (sender, e) =>
                   {
                      try {
                         if (e.Kind < ChannelMessageKind.Info)
                            return;
-                        textBoxOutput.BeginInvoke(new Action<MLLogMessageEventArgs>(log =>
+                        textBoxOutput.BeginInvoke(new Action<LoggingEventArgs>(log =>
                         {
                            try {
-                              textBoxOutput.AppendText(log.Text);
+                              textBoxOutput.AppendText(log.Message + Environment.NewLine);
                               textBoxOutput.Select(textBoxOutput.TextLength, 0);
                               textBoxOutput.ScrollToCaret();
                            }
@@ -262,12 +262,12 @@ namespace MachineLearningStudio
                         }
                      }
                      // Set di dati
-                     dataView = ml.Context.Data.LoadFromEnumerable(data);
+                     dataView = ml.Data.LoadFromEnumerable(data);
                      //using (var stream = new FileStream(@"D:\Feet.txt", FileMode.Create))
                      //   mlContext.Data.SaveAsText(dataView, stream, ',', false, false);
                   }
                   else
-                     dataView = ml.Context.Data.LoadFromTextFile<PageFeetKMeansData>(dataSetPath, hasHeader: false, separatorChar: ',');
+                     dataView = ml.Data.LoadFromTextFile<PageFeetKMeansData>(dataSetPath, hasHeader: false, separatorChar: ',');
                   cancel.ThrowIfCancellationRequested();
                   // Numeri presenti nel set
                   var numbers = new HashSet<string>(from v in dataView.GetColumn<string>(nameof(PageFeetKMeansData.Number)) select v.Trim());
@@ -277,9 +277,9 @@ namespace MachineLearningStudio
                   // Elenco di associazioni cluster / numero
                   clusterToNumber = new string[numbers.Count];
                   // Crea colonna dati per il training
-                  var dataCols = ml.Context.Transforms.Concatenate("Features", nameof(PageFeetKMeansData.Length), nameof(PageFeetKMeansData.Instep));
+                  var dataCols = ml.Transforms.Concatenate("Features", nameof(PageFeetKMeansData.Length), nameof(PageFeetKMeansData.Instep));
                   // Crea il trainer di tipo KMeans
-                  var trainer = ml.Context.Clustering.Trainers.KMeans(new KMeansTrainer.Options()
+                  var trainer = ml.Clustering.Trainers.KMeans(new KMeansTrainer.Options()
                   {
                      AccelerationMemoryBudgetMb = 4096,
                      InitializationAlgorithm = KMeansTrainer.InitializationAlgorithm.KMeansYinyang,
@@ -301,7 +301,7 @@ namespace MachineLearningStudio
                   }
                   // Crea il previsore
                   cancel.ThrowIfCancellationRequested();
-                  predictor = ml.Context.Model.CreatePredictionEngine<PageFeetKMeansData, PageFeetKMeansPrediction>(model);
+                  predictor = ml.Model.CreatePredictionEngine<PageFeetKMeansData, PageFeetKMeansPrediction>(model);
                   // Ottiene i centroidi
                   var centroids = default(VBuffer<float>[]);
                   ((TransformerChain<ClusteringPredictionTransformer<KMeansModelParameters>>)model).LastTransformer.Model.GetClusterCentroids(ref centroids, out int k);
