@@ -336,9 +336,7 @@ namespace MachineLearningStudio
                      // Effettua la miglior valutazione del modello
                      cancel.ThrowIfCancellationRequested();
                      model = ml.Context.MulticlassClassification.CrossValidate(ml, dataView, trainingPipeline, 5, nameof(PageIntentSdcaData.Intent));
-
                      ml.Context.MulticlassClassification.Evaluate(ml, model.Transform(dataView), nameof(PageIntentSdcaData.Intent));
-
                      // Salva il modello
                      if (SaveModel) {
                         cancel.ThrowIfCancellationRequested();
