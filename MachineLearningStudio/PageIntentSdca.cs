@@ -182,6 +182,7 @@ namespace MachineLearningStudio
             if (modified) {
                // Aggiorna il file di dati
                using (var writer = new StreamWriter(dataSetPath)) {
+                  lines.Sort((item1, item2) => string.Compare(item1.Intent, item2.Intent));
                   foreach (var (Intent, Sentence) in lines)
                      writer.WriteLine($"{Intent}|{Sentence}");
                }

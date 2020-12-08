@@ -1,25 +1,30 @@
-OpenWindow|Apri la finestra
-OpenWindow|Apri le finestre
-OpenWindow|Aprire la finestra
-OpenWindow|Aprire le finestre
-OpenWindow|Finestra aperta
+CloseDoor|Porta chiusa
+CloseDoor|Chiudere le porte
+CloseDoor|Chiudere la porta
+CloseDoor|Chiudi le porte
+CloseDoor|Chiudi la porta
 CloseWindow|Chiudi la finestra
 CloseWindow|Chiudi le finestre
 CloseWindow|Chiudere la finestra
 CloseWindow|Chiudere le finestre
 CloseWindow|Finestra chiusa
-OpenDoor|Apri la porta
-OpenDoor|Apri le porte
-OpenDoor|Aprire la porta
-OpenDoor|Aprire le porte
+HigherTemperature|Alza il termostato
+LowerTemperature|Abbassa il termostato
 OpenDoor|Porta aperta
-CloseDoor|Chiudi la porta
-CloseDoor|Chiudi le porte
-CloseDoor|Chiudere la porta
-CloseDoor|Chiudere le porte
-CloseDoor|Porta chiusa
+OpenDoor|Mi fai il favore di aprire la porta?
+OpenDoor|mi potresti aprire la porta, grazie del favore
+OpenDoor|La porta, grazie.
+OpenDoor|Aprire le porte
+OpenDoor|Aprire la porta
+OpenDoor|Apri le porte
+OpenDoor|Apri la porta
+OpenDoor|Apri la porta, grazie.
 OpenWindow|apri la persiana
+OpenWindow|Finestra aperta
+OpenWindow|Aprire le finestre
+OpenWindow|Aprire la finestra
+OpenWindow|Apri le finestre
+OpenWindow|Mi potresti aprire la finestra?
+OpenWindow|Apri la finestra
 SwitchOffLight|Spegni la luce
 SwitchOnLight|Accendi la luce
-LowerTemperature|Abbassa il termostato
-HigherTemperature|Alza il termostato
