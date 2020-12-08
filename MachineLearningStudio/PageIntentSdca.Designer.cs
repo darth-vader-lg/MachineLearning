@@ -30,6 +30,7 @@ namespace MachineLearningStudio
       {
          this.tableLayoutPanelMain = new System.Windows.Forms.TableLayoutPanel();
          this.panelControls = new System.Windows.Forms.Panel();
+         this.comboBoxIntent = new System.Windows.Forms.ComboBox();
          this.labelDataSetName = new System.Windows.Forms.Label();
          this.labelIntent = new System.Windows.Forms.Label();
          this.textBoxDataSetName = new System.Windows.Forms.TextBox();
@@ -37,7 +38,6 @@ namespace MachineLearningStudio
          this.labelSentence = new System.Windows.Forms.Label();
          this.buttonTrain = new System.Windows.Forms.Button();
          this.textBoxOutput = new System.Windows.Forms.TextBox();
-         this.comboBoxIntent = new System.Windows.Forms.ComboBox();
          this.tableLayoutPanelMain.SuspendLayout();
          this.panelControls.SuspendLayout();
          this.SuspendLayout();
@@ -50,11 +50,12 @@ namespace MachineLearningStudio
          this.tableLayoutPanelMain.Controls.Add(this.textBoxOutput, 0, 1);
          this.tableLayoutPanelMain.Dock = System.Windows.Forms.DockStyle.Fill;
          this.tableLayoutPanelMain.Location = new System.Drawing.Point(0, 0);
+         this.tableLayoutPanelMain.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.tableLayoutPanelMain.Name = "tableLayoutPanelMain";
          this.tableLayoutPanelMain.RowCount = 2;
          this.tableLayoutPanelMain.RowStyles.Add(new System.Windows.Forms.RowStyle());
          this.tableLayoutPanelMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-         this.tableLayoutPanelMain.Size = new System.Drawing.Size(596, 473);
+         this.tableLayoutPanelMain.Size = new System.Drawing.Size(695, 546);
          this.tableLayoutPanelMain.TabIndex = 0;
          // 
          // panelControls
@@ -69,17 +70,31 @@ namespace MachineLearningStudio
          this.panelControls.Controls.Add(this.labelSentence);
          this.panelControls.Controls.Add(this.buttonTrain);
          this.panelControls.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.panelControls.Location = new System.Drawing.Point(3, 3);
+         this.panelControls.Location = new System.Drawing.Point(4, 3);
+         this.panelControls.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.panelControls.Name = "panelControls";
-         this.panelControls.Size = new System.Drawing.Size(590, 43);
+         this.panelControls.Size = new System.Drawing.Size(687, 49);
          this.panelControls.TabIndex = 0;
+         // 
+         // comboBoxIntent
+         // 
+         this.comboBoxIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.comboBoxIntent.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+         this.comboBoxIntent.FormattingEnabled = true;
+         this.comboBoxIntent.Location = new System.Drawing.Point(535, 22);
+         this.comboBoxIntent.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+         this.comboBoxIntent.Name = "comboBoxIntent";
+         this.comboBoxIntent.Size = new System.Drawing.Size(144, 23);
+         this.comboBoxIntent.TabIndex = 8;
+         this.comboBoxIntent.SelectionChangeCommitted += new System.EventHandler(this.comboBoxIntent_SelectionChangeCommitted);
          // 
          // labelDataSetName
          // 
          this.labelDataSetName.AutoSize = true;
-         this.labelDataSetName.Location = new System.Drawing.Point(85, 3);
+         this.labelDataSetName.Location = new System.Drawing.Point(99, 3);
+         this.labelDataSetName.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelDataSetName.Name = "labelDataSetName";
-         this.labelDataSetName.Size = new System.Drawing.Size(47, 13);
+         this.labelDataSetName.Size = new System.Drawing.Size(49, 15);
          this.labelDataSetName.TabIndex = 1;
          this.labelDataSetName.Text = "Data set";
          // 
@@ -87,17 +102,19 @@ namespace MachineLearningStudio
          // 
          this.labelIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
          this.labelIntent.AutoSize = true;
-         this.labelIntent.Location = new System.Drawing.Point(456, 3);
+         this.labelIntent.Location = new System.Drawing.Point(531, 3);
+         this.labelIntent.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelIntent.Name = "labelIntent";
-         this.labelIntent.Size = new System.Drawing.Size(34, 13);
+         this.labelIntent.Size = new System.Drawing.Size(38, 15);
          this.labelIntent.TabIndex = 7;
          this.labelIntent.Text = "Intent";
          // 
          // textBoxDataSetName
          // 
-         this.textBoxDataSetName.Location = new System.Drawing.Point(88, 20);
+         this.textBoxDataSetName.Location = new System.Drawing.Point(103, 23);
+         this.textBoxDataSetName.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxDataSetName.Name = "textBoxDataSetName";
-         this.textBoxDataSetName.Size = new System.Drawing.Size(100, 20);
+         this.textBoxDataSetName.Size = new System.Drawing.Size(116, 23);
          this.textBoxDataSetName.TabIndex = 2;
          this.textBoxDataSetName.TextChanged += new System.EventHandler(this.textBoxDataSetName_TextChanged);
          // 
@@ -105,26 +122,29 @@ namespace MachineLearningStudio
          // 
          this.textBoxSentence.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-         this.textBoxSentence.Location = new System.Drawing.Point(194, 20);
+         this.textBoxSentence.Location = new System.Drawing.Point(226, 23);
+         this.textBoxSentence.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxSentence.Name = "textBoxSentence";
-         this.textBoxSentence.Size = new System.Drawing.Size(259, 20);
+         this.textBoxSentence.Size = new System.Drawing.Size(301, 23);
          this.textBoxSentence.TabIndex = 4;
          this.textBoxSentence.TextChanged += new System.EventHandler(this.textBoxSentence_TextChanged);
          // 
          // labelSentence
          // 
          this.labelSentence.AutoSize = true;
-         this.labelSentence.Location = new System.Drawing.Point(191, 3);
+         this.labelSentence.Location = new System.Drawing.Point(223, 3);
+         this.labelSentence.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelSentence.Name = "labelSentence";
-         this.labelSentence.Size = new System.Drawing.Size(53, 13);
+         this.labelSentence.Size = new System.Drawing.Size(55, 15);
          this.labelSentence.TabIndex = 3;
          this.labelSentence.Text = "Sentence";
          // 
          // buttonTrain
          // 
-         this.buttonTrain.Location = new System.Drawing.Point(3, 3);
+         this.buttonTrain.Location = new System.Drawing.Point(4, 3);
+         this.buttonTrain.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.buttonTrain.Name = "buttonTrain";
-         this.buttonTrain.Size = new System.Drawing.Size(75, 37);
+         this.buttonTrain.Size = new System.Drawing.Size(88, 43);
          this.buttonTrain.TabIndex = 0;
          this.buttonTrain.Text = "Train";
          this.buttonTrain.UseVisualStyleBackColor = true;
@@ -133,32 +153,24 @@ namespace MachineLearningStudio
          // textBoxOutput
          // 
          this.textBoxOutput.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.textBoxOutput.Location = new System.Drawing.Point(3, 52);
+         this.textBoxOutput.Location = new System.Drawing.Point(4, 58);
+         this.textBoxOutput.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxOutput.MaxLength = 0;
          this.textBoxOutput.Multiline = true;
          this.textBoxOutput.Name = "textBoxOutput";
          this.textBoxOutput.ReadOnly = true;
-         this.textBoxOutput.Size = new System.Drawing.Size(590, 418);
+         this.textBoxOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+         this.textBoxOutput.Size = new System.Drawing.Size(687, 485);
          this.textBoxOutput.TabIndex = 1;
-         // 
-         // comboBoxIntent
-         // 
-         this.comboBoxIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-         this.comboBoxIntent.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-         this.comboBoxIntent.FormattingEnabled = true;
-         this.comboBoxIntent.Location = new System.Drawing.Point(459, 19);
-         this.comboBoxIntent.Name = "comboBoxIntent";
-         this.comboBoxIntent.Size = new System.Drawing.Size(124, 21);
-         this.comboBoxIntent.TabIndex = 8;
-         this.comboBoxIntent.SelectionChangeCommitted += new System.EventHandler(this.comboBoxIntent_SelectionChangeCommitted);
          // 
          // PageIntentSdca
          // 
-         this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+         this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
          this.Controls.Add(this.tableLayoutPanelMain);
+         this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.Name = "PageIntentSdca";
-         this.Size = new System.Drawing.Size(596, 473);
+         this.Size = new System.Drawing.Size(695, 546);
          this.tableLayoutPanelMain.ResumeLayout(false);
          this.tableLayoutPanelMain.PerformLayout();
          this.panelControls.ResumeLayout(false);

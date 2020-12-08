@@ -200,7 +200,8 @@ namespace MachineLearningStudio
       /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
-      private async void MakePrediction()
+      /// <param name="delay"></param>
+      private void MakePrediction(TimeSpan delay = default)
       {
          try {
             // Verifica che il controllo sia inizializzato
@@ -208,9 +209,8 @@ namespace MachineLearningStudio
                return;
             // Avvia un nuovo task di previsione
             taskPrediction.cancellation.Cancel();
-            await taskPrediction.task;
             taskPrediction.cancellation = new CancellationTokenSource();
-            taskPrediction.task = TaskPrediction(taskPrediction.cancellation.Token);
+            taskPrediction.task = TaskPrediction(taskPrediction.cancellation.Token, delay);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -235,11 +235,13 @@ namespace MachineLearningStudio
       /// <summary>
       /// Task di previsione
       /// </summary>
-      /// <param name="cancel"></param>
-      /// <returns></returns>
-      private async Task TaskPrediction(CancellationToken cancel)
+      /// <param name="cancel">Token di cancellazione</param>
+      /// <param name="delay">Ritardo dell'avvio</param>
+      /// <returns>Il task</returns>
+      private async Task TaskPrediction(CancellationToken cancel, TimeSpan delay = default)
       {
          try {
+            await Task.Delay(delay, cancel);
             // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
             if (ml == null)
@@ -367,7 +369,7 @@ namespace MachineLearningStudio
             }, cancel);
             // Ricreazione del contenuto della combo box delle previsioni
             cancel.ThrowIfCancellationRequested();
-            if (rebuildCombo && intents != default) {
+            if (rebuildCombo || (comboBoxIntent.Items.Count == 0 && intents != default)) {
                // Cancella contenuto
                comboBoxIntent.Items.Clear();
                // Aggiunge il primo oggetto per l'aggiunta di previsioni
@@ -453,7 +455,7 @@ namespace MachineLearningStudio
       {
          try {
             // Lancia una previsione
-            MakePrediction();
+            MakePrediction(new TimeSpan(0, 0, 0, 0, 500));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
