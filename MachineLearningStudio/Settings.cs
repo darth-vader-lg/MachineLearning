@@ -24,7 +24,9 @@ namespace MachineLearningStudio
       {
          Default = new Settings();
          try {
-            Default.Load(Path.Combine(Environment.CurrentDirectory, "Settings.xml"));
+            var path = Path.Combine(Environment.CurrentDirectory, "Settings.xml");
+            if (File.Exists(path))
+               Default.Load(path);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
