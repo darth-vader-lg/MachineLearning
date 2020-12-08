@@ -145,7 +145,7 @@ namespace MachineLearningStudio
    /// <summary>
    /// Estensioni
    /// </summary>
-   public static class Extension
+   public static class MLExtension
    {
       #region Methods
       /// <summary>
@@ -169,6 +169,39 @@ namespace MachineLearningStudio
          var sumOfSquaresOfDifferences = values.Select(val => (val - average) * (val - average)).Sum();
          var standardDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (values.Count() - 1));
          return standardDeviation;
+      }
+      /// <summary>
+      /// Valutazione incrociata di un modello di clusterizzazione
+      /// </summary>
+      /// <param name="catalog">Catalogo</param>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="estimator">Pipeline</param>
+      /// <param name="numberOfFolds">Numero di valutazioni</param>
+      /// <param name="labelColumnName">Nome della colonna di previsione</param>
+      /// <param name="samplingKeyColumnName">Nome colonna di campionamento</param>
+      /// <param name="seed">Seme generatore numeri casuali</param>
+      /// <returns>Il modello migliore</returns>
+      public static ITransformer CrossValidate(
+         this ClusteringCatalog catalog,
+         ML ml,
+         IDataView data,
+         IEstimator<ITransformer> estimator,
+         int numberOfFolds = 5,
+         string labelColumnName = null,
+         string featuresColumnName = null,
+         string samplingKeyColumnName = null,
+         int? seed = null)
+      {
+         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+         // in order to evaluate and get the model's accuracy metrics
+         ml.LogAppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
+         var crossValidationResults = catalog.CrossValidate(data, estimator, numberOfFolds, labelColumnName, featuresColumnName, samplingKeyColumnName, seed);
+         Print(ml, crossValidationResults);
+         var result = (from fold in crossValidationResults
+                       orderby fold.Metrics.AverageDistance descending
+                       select fold.Model).First();
+         return result;
       }
       /// <summary>
       /// Valutazione incrociata di un modello a classificazione multipla
@@ -235,6 +268,29 @@ namespace MachineLearningStudio
          return result;
       }
       /// <summary>
+      /// Valuta un modello a clusterizzazione
+      /// </summary>
+      /// <param name="catalog">Catalogo</param>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="labelColumnName">Nome della colonna della label</param>
+      /// <param name="scoreColumnName">Nome colonna del punteggio</param>
+      /// <param name="featuresColumnName">Nome colonna delle features</param>
+      public static void Evaluate(
+         this ClusteringCatalog catalog,
+         ML ml,
+         IDataView data,
+         string labelColumnName = null,
+         string scoreColumnName = "Score",
+         string featuresColumnName = null)
+      {
+         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+         // in order to evaluate and get the model's accuracy metrics
+         ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+         var metrics = catalog.Evaluate(data, labelColumnName, scoreColumnName, featuresColumnName);
+         Print(ml, metrics);
+      }
+      /// <summary>
       /// Valuta un modello a classificazione multipla
       /// </summary>
       /// <param name="catalog">Catalogo</param>
@@ -279,6 +335,51 @@ namespace MachineLearningStudio
          ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
          var metrics = catalog.Evaluate(data, labelColumnName, scoreColumnName);
          Print(ml, metrics);
+      }
+      /// <summary>
+      /// Stampa la metrica media di un modello di clusterizzazione
+      /// </summary>
+      /// <param name="metrics">Risultati della metrica</param>
+      public static void Print(ML ml, ClusteringMetrics metrics)
+      {
+         try {
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Clustering model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       AverageDistance:              {metrics.AverageDistance:0.###} ");
+            sb.AppendLine($"*       DaviesBouldinIndex:           {metrics.DaviesBouldinIndex:0.###}  ");
+            sb.AppendLine($"*       NormalizedMutualInformation:  {metrics.NormalizedMutualInformation:0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Stampa la metrica media di un modello di clusterizzazione
+      /// </summary>
+      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
+      private static void Print(ML ml, IEnumerable<TrainCatalogBase.CrossValidationResult<ClusteringMetrics>> crossValResults)
+      {
+         try {
+            var averageDistance = crossValResults.Select(r => r.Metrics.AverageDistance);
+            var daviesBouldinIndex = crossValResults.Select(r => r.Metrics.DaviesBouldinIndex);
+            var normalizedMutualInformation = crossValResults.Select(r => r.Metrics.NormalizedMutualInformation);
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Clustering model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       Average Distance:                   {averageDistance.Average():0.###} ");
+            sb.AppendLine($"*       Average DaviesBouldinIndex:         {daviesBouldinIndex.Average():0.###}  ");
+            sb.AppendLine($"*       Average NormalizedMutualInformation: {normalizedMutualInformation.Average():0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
       }
       /// <summary>
       /// Stampa la metrica media di un modello a classificazione multipla
@@ -350,7 +451,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Stampa la metrica media di un modello a classificazione multipla
       /// </summary>
-      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
+      /// <param name="metrics">Risultati della metrica</param>
       public static void Print(ML ml, MulticlassClassificationMetrics metrics)
       {
          try {
@@ -372,7 +473,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Stampa la metrica media di un modello di regressione
       /// </summary>
-      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
+      /// <param name="metrics">Risultati della metrica</param>
       public static void Print(ML ml, RegressionMetrics metrics)
       {
          try {
