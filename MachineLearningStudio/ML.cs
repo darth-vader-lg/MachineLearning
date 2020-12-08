@@ -107,7 +107,7 @@ namespace MachineLearningStudio
       {
          LogAppendLine($"============== Loading the model  ===============");
          var result = Context.Model.Load(path, out inputSchema);
-         LogAppendLine($"The model is saved to {path}");
+         LogAppendLine($"The model is loaded from {path}");
          return result;
       }
       /// <summary>
