@@ -171,7 +171,7 @@ namespace MachineLearningStudio
          return standardDeviation;
       }
       /// <summary>
-      /// Valuta un modello a classificazione multipla
+      /// Valutazione incrociata di un modello a classificazione multipla
       /// </summary>
       /// <param name="catalog">Catalogo</param>
       /// <param name="ml">Contesto di machine learning</param>
@@ -203,7 +203,7 @@ namespace MachineLearningStudio
          return result;
       }
       /// <summary>
-      /// Valuta un modello a regressione
+      /// Valutazione incrociata di un modello a regressione
       /// </summary>
       /// <param name="catalog">Catalogo</param>
       /// <param name="ml">Contesto di machine learning</param>
@@ -235,6 +235,52 @@ namespace MachineLearningStudio
          return result;
       }
       /// <summary>
+      /// Valuta un modello a classificazione multipla
+      /// </summary>
+      /// <param name="catalog">Catalogo</param>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="labelColumnName">Nome della colonna della label</param>
+      /// <param name="scoreColumnName">Nome colonna del punteggio</param>
+      /// <param name="predictedLabelColumnName">Nome colonna di previsione</param>
+      /// <param name="topKPredictionCount"></param>
+      public static void Evaluate(
+         this MulticlassClassificationCatalog catalog,
+         ML ml,
+         IDataView data,
+         string labelColumnName = "Label",
+         string scoreColumnName = "Score",
+         string predictedLabelColumnName = "Score",
+         int topKPredictionCount = 0)
+      {
+         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+         // in order to evaluate and get the model's accuracy metrics
+         ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+         var metrics = catalog.Evaluate(data, labelColumnName, scoreColumnName, predictedLabelColumnName, topKPredictionCount);
+         Print(ml, metrics);
+      }
+      /// <summary>
+      /// Valuta un modello di regressione
+      /// </summary>
+      /// <param name="catalog">Catalogo</param>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="labelColumnName">Nome della colonna della label</param>
+      /// <param name="scoreColumnName">Nome colonna del punteggio</param>
+      public static void Evaluate(
+         this RegressionCatalog catalog,
+         ML ml,
+         IDataView data,
+         string labelColumnName = "Label",
+         string scoreColumnName = "Score")
+      {
+         // Cross-Validate with single dataset (since we don't have two datasets, one for training and for evaluate)
+         // in order to evaluate and get the model's accuracy metrics
+         ml.LogAppendLine("================== Evaluating to get model's accuracy metrics ==================");
+         var metrics = catalog.Evaluate(data, labelColumnName, scoreColumnName);
+         Print(ml, metrics);
+      }
+      /// <summary>
       /// Stampa la metrica media di un modello a classificazione multipla
       /// </summary>
       /// <param name="crossValResults">Risultati di una validazione incrociata</param>
@@ -262,10 +308,10 @@ namespace MachineLearningStudio
             sb.AppendLine($"*************************************************************************************************************");
             sb.AppendLine($"*       Metrics for Multi-class Classification model      ");
             sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-            sb.AppendLine($"*       Average MicroAccuracy:    {microAccuracyAverage:0.###}  - Standard deviation: ({microAccuraciesStdDeviation:#.###})  - Confidence Interval 95%: ({microAccuraciesConfidenceInterval95:#.###})");
-            sb.AppendLine($"*       Average MacroAccuracy:    {macroAccuracyAverage:0.###}  - Standard deviation: ({macroAccuraciesStdDeviation:#.###})  - Confidence Interval 95%: ({macroAccuraciesConfidenceInterval95:#.###})");
-            sb.AppendLine($"*       Average LogLoss:          {logLossAverage:#.###}  - Standard deviation: ({logLossStdDeviation:#.###})  - Confidence Interval 95%: ({logLossConfidenceInterval95:#.###})");
-            sb.AppendLine($"*       Average LogLossReduction: {logLossReductionAverage:#.###}  - Standard deviation: ({logLossReductionStdDeviation:#.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:#.###})");
+            sb.AppendLine($"*       Average MicroAccuracy:    {microAccuracyAverage:0.###}  - Standard deviation: ({microAccuraciesStdDeviation:0.###})  - Confidence Interval 95%: ({microAccuraciesConfidenceInterval95:0.###})");
+            sb.AppendLine($"*       Average MacroAccuracy:    {macroAccuracyAverage:0.###}  - Standard deviation: ({macroAccuraciesStdDeviation:0.###})  - Confidence Interval 95%: ({macroAccuraciesConfidenceInterval95:0.###})");
+            sb.AppendLine($"*       Average LogLoss:          {logLossAverage:0.###}  - Standard deviation: ({logLossStdDeviation:0.###})  - Confidence Interval 95%: ({logLossConfidenceInterval95:0.###})");
+            sb.AppendLine($"*       Average LogLossReduction: {logLossReductionAverage:0.###}  - Standard deviation: ({logLossReductionStdDeviation:0.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:0.###})");
             sb.AppendLine($"*************************************************************************************************************");
             ml.LogAppend(sb.ToString());
          }
@@ -294,6 +340,51 @@ namespace MachineLearningStudio
             sb.AppendLine($"*       Average RMS:           {RMS.Average():0.###}  ");
             sb.AppendLine($"*       Average Loss Function: {lossFunction.Average():0.###}  ");
             sb.AppendLine($"*       Average R-squared:     {R2.Average():0.###}  ");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Stampa la metrica media di un modello a classificazione multipla
+      /// </summary>
+      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
+      public static void Print(ML ml, MulticlassClassificationMetrics metrics)
+      {
+         try {
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Multi-class Classification model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       MicroAccuracy:    {metrics.MicroAccuracy:0.###}");
+            sb.AppendLine($"*       MacroAccuracy:    {metrics.MacroAccuracy:0.###}");
+            sb.AppendLine($"*       LogLoss:          {metrics.LogLoss:0.###}");
+            sb.AppendLine($"*       LogLossReduction: {metrics.LogLossReduction:0.###}");
+            sb.AppendLine($"*************************************************************************************************************");
+            ml.LogAppend(sb.ToString());
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Stampa la metrica media di un modello di regressione
+      /// </summary>
+      /// <param name="crossValResults">Risultati di una validazione incrociata</param>
+      public static void Print(ML ml, RegressionMetrics metrics)
+      {
+         try {
+            var sb = new StringBuilder();
+            sb.AppendLine($"*************************************************************************************************************");
+            sb.AppendLine($"*       Metrics for Regression model      ");
+            sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
+            sb.AppendLine($"*       LossFunction:        {metrics.LossFunction:0.###}");
+            sb.AppendLine($"*       MeanAbsoluteError:   {metrics.MeanAbsoluteError:0.###}");
+            sb.AppendLine($"*       MeanSquaredError:    {metrics.MeanSquaredError:0.###}");
+            sb.AppendLine($"*       RootMeanSquaredError:{metrics.RootMeanSquaredError:0.###}");
+            sb.AppendLine($"*       RSquared:            {metrics.RSquared:0.###}");
             sb.AppendLine($"*************************************************************************************************************");
             ml.LogAppend(sb.ToString());
          }

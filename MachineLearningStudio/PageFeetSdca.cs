@@ -232,6 +232,7 @@ namespace MachineLearningStudio
                   var trainingPipeline = dataProcessPipeline.Append(trainer);
                   cancel.ThrowIfCancellationRequested();
                   model = ml.Context.Regression.CrossValidate(ml, dataView, trainingPipeline, 5, nameof(PageFeetSdcaData.Number));
+                  ml.Context.Regression.Evaluate(ml, dataView, nameof(PageFeetSdcaData.Number), nameof(PageFeetSdcaPrediction.Number));
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();
