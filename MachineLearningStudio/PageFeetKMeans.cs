@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using Microsoft.ML.Trainers;
 using System;
 using System.Collections.Generic;
@@ -44,7 +45,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Contesto ML
       /// </summary>
-      private MLContext mlContext;
+      private ML ml;
       /// <summary>
       /// Modello di apprendimento
       /// </summary>
@@ -52,7 +53,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Path del modello di autoapprendimento dei piedi
       /// </summary>
-      private static readonly string modelPath = Path.Combine(Environment.CurrentDirectory, "Data", "FeedKMeans.zip");
+      private static readonly string modelPath = Path.Combine(Environment.CurrentDirectory, "Data", "FeetKMeans.zip");
       /// <summary>
       /// Punti per il plotting
       /// </summary>
@@ -191,17 +192,41 @@ namespace MachineLearningStudio
       private async Task TaskPrediction(CancellationToken cancel)
       {
          try {
+            // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
+            if (ml == null)
+               textBoxOutput.Clear();
+            // Path del set di dati in chiaro
             var dataSetPath = dataSetName != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
+            // Rigenerazione del plotting
             var plot = false;
             await Task.Run(() =>
             {
                try {
+                  cancel.ThrowIfCancellationRequested();
                   // Verifica che non sia gia' stato calcolato il modello
-                  if (mlContext != null)
+                  if (ml != null)
                      return;
                   // Crea il contesto
-                  mlContext = new MLContext(seed: 0);
+                  ml = new ML(seed: 0);
+                  // Connette il log
+                  ml.LogMessage += (sender, e) =>
+                  {
+                     try {
+                        if (e.Kind < ChannelMessageKind.Info)
+                           return;
+                        textBoxOutput.BeginInvoke(new Action<MLLogMessageEventArgs>(log =>
+                        {
+                           try {
+                              textBoxOutput.AppendText(log.Text);
+                              textBoxOutput.Select(textBoxOutput.TextLength, 0);
+                              textBoxOutput.ScrollToCaret();
+                           }
+                           catch (Exception) { }
+                        }), e);
+                     }
+                     catch (Exception) { }
+                  };
                   // Dizionario di contatori occorrenze numero / cluster
                   var idCounters = new Dictionary<string, long[]>();
                   // Dati
@@ -237,12 +262,12 @@ namespace MachineLearningStudio
                         }
                      }
                      // Set di dati
-                     dataView = mlContext.Data.LoadFromEnumerable(data);
+                     dataView = ml.Context.Data.LoadFromEnumerable(data);
                      //using (var stream = new FileStream(@"D:\Feet.txt", FileMode.Create))
                      //   mlContext.Data.SaveAsText(dataView, stream, ',', false, false);
                   }
                   else
-                     dataView = mlContext.Data.LoadFromTextFile<PageFeetKMeansData>(dataSetPath, hasHeader: false, separatorChar: ',');
+                     dataView = ml.Context.Data.LoadFromTextFile<PageFeetKMeansData>(dataSetPath, hasHeader: false, separatorChar: ',');
                   cancel.ThrowIfCancellationRequested();
                   // Numeri presenti nel set
                   var numbers = new HashSet<string>(from v in dataView.GetColumn<string>(nameof(PageFeetKMeansData.Number)) select v.Trim());
@@ -252,14 +277,14 @@ namespace MachineLearningStudio
                   // Elenco di associazioni cluster / numero
                   clusterToNumber = new string[numbers.Count];
                   // Crea colonna dati per il training
-                  var dataCols = mlContext.Transforms.Concatenate("Features", nameof(PageFeetKMeansData.Length), nameof(PageFeetKMeansData.Instep));
+                  var dataCols = ml.Context.Transforms.Concatenate("Features", nameof(PageFeetKMeansData.Length), nameof(PageFeetKMeansData.Instep));
                   // Crea il trainer di tipo KMeans
-                  var trainer = mlContext.Clustering.Trainers.KMeans(new KMeansTrainer.Options()
+                  var trainer = ml.Context.Clustering.Trainers.KMeans(new KMeansTrainer.Options()
                   {
                      AccelerationMemoryBudgetMb = 4096,
                      InitializationAlgorithm = KMeansTrainer.InitializationAlgorithm.KMeansYinyang,
                      NumberOfClusters = numbers.Count,
-                     NumberOfThreads = 1,
+                     NumberOfThreads = Environment.ProcessorCount,
                      FeatureColumnName = "Features",
                      OptimizationTolerance = 1E-7f,
                      MaximumNumberOfIterations = 10000,
@@ -267,16 +292,16 @@ namespace MachineLearningStudio
                   // Crea la pipeline di training
                   var pipeline = dataCols.Append(trainer);
                   // Crea il modello di training
-                  model = pipeline.Fit(dataView);
-                  cancel.ThrowIfCancellationRequested();
+                  model = ml.Context.Clustering.CrossValidate(ml, dataView, pipeline, 5, null, null/*"Features"*/);
+                  ml.Context.Clustering.Evaluate(ml, model.Transform(dataView));
                   // Salva il modello
                   if (SaveModel) {
-                     using (var fileStream = new FileStream(modelPath, FileMode.Create, FileAccess.Write, FileShare.Write))
-                        mlContext.Model.Save(model, dataView.Schema, fileStream);
+                     cancel.ThrowIfCancellationRequested();
+                     ml.SaveModel(model, dataView.Schema, modelPath);
                   }
                   // Crea il previsore
-                  predictor = mlContext.Model.CreatePredictionEngine<PageFeetKMeansData, PageFeetKMeansPrediction>(model);
                   cancel.ThrowIfCancellationRequested();
+                  predictor = ml.Context.Model.CreatePredictionEngine<PageFeetKMeansData, PageFeetKMeansPrediction>(model);
                   // Ottiene i centroidi
                   var centroids = default(VBuffer<float>[]);
                   ((TransformerChain<ClusteringPredictionTransformer<KMeansModelParameters>>)model).LastTransformer.Model.GetClusterCentroids(ref centroids, out int k);
@@ -331,10 +356,12 @@ namespace MachineLearningStudio
                }
                catch (OperationCanceledException)
                {
-                  mlContext = null;
+                  ml = null;
+                  predictor = null;
                }
                catch (Exception) {
-                  mlContext = null;
+                  ml = null;
+                  predictor = null;
                   throw;
                }
             });
@@ -342,7 +369,7 @@ namespace MachineLearningStudio
             if (plot)
                panelPlot.Invalidate();
             cancel.ThrowIfCancellationRequested();
-            if (!float.IsNaN(length) && !float.IsNaN(instep)) {
+            if (predictor != null && !float.IsNaN(length) && !float.IsNaN(instep)) {
                // Aggiorna la previsione
                var prediction = predictor.Predict(new PageFeetKMeansData { Instep = instep, Length = length });
                labelNumberResult.Text = clusterToNumber[prediction.PredictedClusterId - 1];
@@ -379,7 +406,8 @@ namespace MachineLearningStudio
                   Settings.Default.Save();
                }
             }
-            mlContext = null;
+            ml = null;
+            predictor = null;
             MakePrediction();
          }
          catch (Exception exc) {

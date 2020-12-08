@@ -30,18 +30,24 @@ namespace MachineLearningStudio
       {
          this.tableLayoutPanelMain = new System.Windows.Forms.TableLayoutPanel();
          this.panelControls = new System.Windows.Forms.Panel();
+         this.labelDataSetName = new System.Windows.Forms.Label();
          this.labelNumberResult = new System.Windows.Forms.Label();
          this.textBoxInstep = new System.Windows.Forms.TextBox();
          this.labelNumber = new System.Windows.Forms.Label();
          this.labelInstep = new System.Windows.Forms.Label();
+         this.textBoxDataSetName = new System.Windows.Forms.TextBox();
          this.textBoxLength = new System.Windows.Forms.TextBox();
          this.labelLength = new System.Windows.Forms.Label();
          this.buttonTrain = new System.Windows.Forms.Button();
+         this.splitContainer = new System.Windows.Forms.SplitContainer();
          this.panelPlot = new System.Windows.Forms.Panel();
-         this.labelDataSetName = new System.Windows.Forms.Label();
-         this.textBoxDataSetName = new System.Windows.Forms.TextBox();
+         this.textBoxOutput = new System.Windows.Forms.TextBox();
          this.tableLayoutPanelMain.SuspendLayout();
          this.panelControls.SuspendLayout();
+         ((System.ComponentModel.ISupportInitialize)(this.splitContainer)).BeginInit();
+         this.splitContainer.Panel1.SuspendLayout();
+         this.splitContainer.Panel2.SuspendLayout();
+         this.splitContainer.SuspendLayout();
          this.SuspendLayout();
          // 
          // tableLayoutPanelMain
@@ -49,7 +55,7 @@ namespace MachineLearningStudio
          this.tableLayoutPanelMain.ColumnCount = 1;
          this.tableLayoutPanelMain.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
          this.tableLayoutPanelMain.Controls.Add(this.panelControls, 0, 0);
-         this.tableLayoutPanelMain.Controls.Add(this.panelPlot, 0, 1);
+         this.tableLayoutPanelMain.Controls.Add(this.splitContainer, 0, 1);
          this.tableLayoutPanelMain.Dock = System.Windows.Forms.DockStyle.Fill;
          this.tableLayoutPanelMain.Location = new System.Drawing.Point(0, 0);
          this.tableLayoutPanelMain.Name = "tableLayoutPanelMain";
@@ -77,6 +83,15 @@ namespace MachineLearningStudio
          this.panelControls.Name = "panelControls";
          this.panelControls.Size = new System.Drawing.Size(590, 43);
          this.panelControls.TabIndex = 0;
+         // 
+         // labelDataSetName
+         // 
+         this.labelDataSetName.AutoSize = true;
+         this.labelDataSetName.Location = new System.Drawing.Point(85, 3);
+         this.labelDataSetName.Name = "labelDataSetName";
+         this.labelDataSetName.Size = new System.Drawing.Size(47, 13);
+         this.labelDataSetName.TabIndex = 1;
+         this.labelDataSetName.Text = "Data set";
          // 
          // labelNumberResult
          // 
@@ -113,6 +128,14 @@ namespace MachineLearningStudio
          this.labelInstep.TabIndex = 5;
          this.labelInstep.Text = "Instep";
          // 
+         // textBoxDataSetName
+         // 
+         this.textBoxDataSetName.Location = new System.Drawing.Point(88, 20);
+         this.textBoxDataSetName.Name = "textBoxDataSetName";
+         this.textBoxDataSetName.Size = new System.Drawing.Size(100, 20);
+         this.textBoxDataSetName.TabIndex = 2;
+         this.textBoxDataSetName.TextChanged += new System.EventHandler(this.textBoxDataSetName_TextChanged);
+         // 
          // textBoxLength
          // 
          this.textBoxLength.Location = new System.Drawing.Point(194, 20);
@@ -140,32 +163,44 @@ namespace MachineLearningStudio
          this.buttonTrain.UseVisualStyleBackColor = true;
          this.buttonTrain.Click += new System.EventHandler(this.buttonTrain_Click);
          // 
+         // splitContainer
+         // 
+         this.splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.splitContainer.Location = new System.Drawing.Point(3, 52);
+         this.splitContainer.Name = "splitContainer";
+         this.splitContainer.Orientation = System.Windows.Forms.Orientation.Horizontal;
+         // 
+         // splitContainer.Panel1
+         // 
+         this.splitContainer.Panel1.Controls.Add(this.panelPlot);
+         // 
+         // splitContainer.Panel2
+         // 
+         this.splitContainer.Panel2.Controls.Add(this.textBoxOutput);
+         this.splitContainer.Size = new System.Drawing.Size(590, 418);
+         this.splitContainer.SplitterDistance = 298;
+         this.splitContainer.TabIndex = 1;
+         // 
          // panelPlot
          // 
          this.panelPlot.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.panelPlot.Location = new System.Drawing.Point(3, 52);
+         this.panelPlot.Location = new System.Drawing.Point(0, 0);
          this.panelPlot.Name = "panelPlot";
-         this.panelPlot.Size = new System.Drawing.Size(590, 418);
-         this.panelPlot.TabIndex = 0;
+         this.panelPlot.Size = new System.Drawing.Size(590, 298);
+         this.panelPlot.TabIndex = 1;
          this.panelPlot.Paint += new System.Windows.Forms.PaintEventHandler(this.panelPlot_Paint);
          this.panelPlot.Resize += new System.EventHandler(this.panelPlot_Resize);
          // 
-         // labelDataSetName
+         // textBoxOutput
          // 
-         this.labelDataSetName.AutoSize = true;
-         this.labelDataSetName.Location = new System.Drawing.Point(85, 3);
-         this.labelDataSetName.Name = "labelDataSetName";
-         this.labelDataSetName.Size = new System.Drawing.Size(47, 13);
-         this.labelDataSetName.TabIndex = 1;
-         this.labelDataSetName.Text = "Data set";
-         // 
-         // textBoxDataSetName
-         // 
-         this.textBoxDataSetName.Location = new System.Drawing.Point(88, 20);
-         this.textBoxDataSetName.Name = "textBoxDataSetName";
-         this.textBoxDataSetName.Size = new System.Drawing.Size(100, 20);
-         this.textBoxDataSetName.TabIndex = 2;
-         this.textBoxDataSetName.TextChanged += new System.EventHandler(this.textBoxDataSetName_TextChanged);
+         this.textBoxOutput.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.textBoxOutput.Location = new System.Drawing.Point(0, 0);
+         this.textBoxOutput.Multiline = true;
+         this.textBoxOutput.Name = "textBoxOutput";
+         this.textBoxOutput.ReadOnly = true;
+         this.textBoxOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+         this.textBoxOutput.Size = new System.Drawing.Size(590, 116);
+         this.textBoxOutput.TabIndex = 0;
          // 
          // PageFeetKMeans
          // 
@@ -178,6 +213,11 @@ namespace MachineLearningStudio
          this.tableLayoutPanelMain.PerformLayout();
          this.panelControls.ResumeLayout(false);
          this.panelControls.PerformLayout();
+         this.splitContainer.Panel1.ResumeLayout(false);
+         this.splitContainer.Panel2.ResumeLayout(false);
+         this.splitContainer.Panel2.PerformLayout();
+         ((System.ComponentModel.ISupportInitialize)(this.splitContainer)).EndInit();
+         this.splitContainer.ResumeLayout(false);
          this.ResumeLayout(false);
 
       }
@@ -186,7 +226,6 @@ namespace MachineLearningStudio
 
       private System.Windows.Forms.TableLayoutPanel tableLayoutPanelMain;
       private System.Windows.Forms.Panel panelControls;
-      private System.Windows.Forms.Panel panelPlot;
       private System.Windows.Forms.Button buttonTrain;
       private System.Windows.Forms.Label labelNumberResult;
       private System.Windows.Forms.TextBox textBoxInstep;
@@ -196,5 +235,8 @@ namespace MachineLearningStudio
       private System.Windows.Forms.Label labelLength;
       private System.Windows.Forms.Label labelDataSetName;
       private System.Windows.Forms.TextBox textBoxDataSetName;
+      private System.Windows.Forms.SplitContainer splitContainer;
+      private System.Windows.Forms.Panel panelPlot;
+      private System.Windows.Forms.TextBox textBoxOutput;
    }
 }
