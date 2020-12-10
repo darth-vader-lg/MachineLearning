@@ -22,6 +22,10 @@ namespace MachineLearningStudio
    {
       #region Fields
       /// <summary>
+      /// Token di cancellazione del machine learning automatico
+      /// </summary>
+      private CancellationTokenSource autoMLCancellation = CancellationTokenSource.CreateLinkedTokenSource(new CancellationToken(true));
+      /// <summary>
       /// Set di dati
       /// </summary>
       private string dataSetName;
@@ -60,6 +64,11 @@ namespace MachineLearningStudio
       /// </summary>
       [Category("Behavior"), DefaultValue(true)]
       public bool SaveModel { get; set; } = true;
+      /// <summary>
+      /// Abilitazione utilizzo auto tuning algoritmo
+      /// </summary>
+      [Category("Behavior"), DefaultValue(false)]
+      public bool UseAutoML { get; set; } = false;
       #endregion
       #region Methods
       /// <summary>
@@ -78,6 +87,10 @@ namespace MachineLearningStudio
       private void buttonTrain_Click(object sender, EventArgs e)
       {
          try {
+            if (!autoMLCancellation.IsCancellationRequested) {
+               autoMLCancellation.Cancel();
+               return;
+            }
             // Forza il training
             ml = null;
             predictor = null;
@@ -209,7 +222,10 @@ namespace MachineLearningStudio
             if (!initialized)
                return;
             // Avvia un nuovo task di previsione
+            autoMLCancellation.Cancel();
             taskPrediction.cancellation.Cancel();
+            if (UseAutoML)
+               autoMLCancellation = new CancellationTokenSource();
             taskPrediction.cancellation = new CancellationTokenSource();
             taskPrediction.task = TaskPrediction(taskPrediction.cancellation.Token, delay);
          }
@@ -273,23 +289,61 @@ namespace MachineLearningStudio
                   // Crea il contesto
                   ml = new ML(seed: 1);
                   // Connette il log
+                  var logSourceFilter = default(string[]);
                   ml.Log += (sender, e) =>
                   {
                      try {
                         if (e.Kind < ChannelMessageKind.Info)
                            return;
-                        textBoxOutput.BeginInvoke(new Action<LoggingEventArgs>(log =>
+                        if (logSourceFilter != null) {
+                           if (logSourceFilter.FirstOrDefault(item => item == e.Source) == null)
+                              return;
+                        }
+                        textBoxOutput.Invoke(new Action<LoggingEventArgs>(log =>
                         {
                            try {
+                              var scroll = textBoxOutput.SelectionStart >= textBoxOutput.TextLength;
                               textBoxOutput.AppendText(log.Message + Environment.NewLine);
-                              textBoxOutput.Select(textBoxOutput.TextLength, 0);
-                              textBoxOutput.ScrollToCaret();
+                              if (scroll) {
+                                 textBoxOutput.Select(textBoxOutput.TextLength, 0);
+                                 textBoxOutput.ScrollToCaret();
+                              }
                            }
                            catch (Exception) { }
                         }), e);
                      }
                      catch (Exception) { }
                   };
+                  if (UseAutoML) {
+                     try {
+                        logSourceFilter = new[] { "AutoML" };
+                        var dataView = ml.Data.LoadFromTextFile<PageIntentSdcaData>(
+                           path: dataSetPath,
+                           hasHeader: false,
+                           separatorChar: '|',
+                           allowQuoting: true,
+                           trimWhitespace: true,
+                           allowSparse: false);
+                        var experimentSettings = new Microsoft.ML.AutoML.MulticlassExperimentSettings
+                        {
+                           CacheBeforeTrainer = Microsoft.ML.AutoML.CacheBeforeTrainer.On,
+                           CancellationToken = autoMLCancellation.Token,
+                           MaxExperimentTimeInSeconds = 60 * 5,
+                           OptimizingMetric = Microsoft.ML.AutoML.MulticlassClassificationMetric.LogLoss
+                        };
+                        experimentSettings.Trainers.Clear();
+                        experimentSettings.Trainers.Add(Microsoft.ML.AutoML.MulticlassClassificationTrainer.LbfgsMaximumEntropy);
+                        experimentSettings.Trainers.Add(Microsoft.ML.AutoML.MulticlassClassificationTrainer.LbfgsLogisticRegressionOva);
+                        var experiment = ml.Auto.CreateMulticlassClassificationExperiment(experimentSettings);
+                        var result = experiment.Execute(trainData: dataView, labelColumnName: nameof(PageIntentSdcaData.Intent), null, null, ml);
+                        ml.LogMessage($"Best result = {result.BestRun.TrainerName}");
+                        ml.SaveModel(result.BestRun.Model, dataView.Schema, modelPath);
+                        loadModel = true;
+                     }
+                     finally {
+                        logSourceFilter = null;
+                     }
+                  }
                   // Verifica se deve caricare un modello preesistente
                   if (loadModel) {
                      try {
@@ -332,6 +386,16 @@ namespace MachineLearningStudio
                            FeatureColumnName = "Features",
                            NumberOfThreads = Environment.ProcessorCount,
                         });
+                     //var trainer = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(
+                     //   new LbfgsMaximumEntropyMulticlassTrainer.Options
+                     //   {
+                     //      L2Regularization = 1E-06f,
+                     //      L1Regularization = 0.25f,
+                     //      MaximumNumberOfIterations = 100,
+                     //      LabelColumnName = nameof(PageIntentSdcaData.Intent),
+                     //      FeatureColumnName = "Features",
+                     //      NumberOfThreads = Environment.ProcessorCount,
+                     //   });
                      // Pipeline completa di training
                      var trainingPipeline =
                         dataProcessPipeline.Append(trainer).
@@ -362,7 +426,13 @@ namespace MachineLearningStudio
                   ml = null;
                   predictor = null;
                }
-               catch (Exception) {
+               catch (Exception exc) {
+                  try {
+                     using var textReader = new StringReader(exc.ToString());
+                     for (var line = textReader.ReadLine(); line != null; line = textReader.ReadLine())
+                        ml.LogMessage(line);
+                  }
+                  catch (Exception) { }
                   ml = null;
                   predictor = null;
                   throw;
