@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using System;
@@ -12,7 +13,15 @@ namespace MachineLearningStudio
    /// <summary>
    /// Classe di utilità generiche
    /// </summary>
-   public partial class ML : IHostEnvironment, IChannelProvider, IExceptionContext, IProgressChannelProvider
+   public partial class ML :
+      IChannelProvider,
+      IExceptionContext,
+      IHostEnvironment,
+      IProgress<RunDetail<BinaryClassificationMetrics>>,
+      IProgress<RunDetail<MulticlassClassificationMetrics>>,
+      IProgress<RunDetail<RankingMetrics>>,
+      IProgress<RunDetail<RegressionMetrics>>,
+      IProgressChannelProvider
    {
       #region Fields
       /// <summary>
@@ -25,6 +34,10 @@ namespace MachineLearningStudio
       /// Trainers e tasks specifici per i broblemi di rilevamento anomalie.
       /// </summary>
       public AnomalyDetectionCatalog AnomalyDetection { get; }
+      /// <summary>
+      /// Catalogo di tutte le possibili operazioni di valutazione automatica del miglior algoritmo di training
+      /// </summary>
+      public AutoCatalog Auto => Context.Auto();
       /// <summary>
       /// Trainers e tasks specifici dei problemi di classificazione binaria.
       /// </summary>
@@ -154,6 +167,43 @@ namespace MachineLearningStudio
       /// Crea un host col il nome di registrazione fornito
       /// </summary>
       IHost IHostEnvironment.Register(string name, int? seed, bool? verbose) => ((IHostEnvironment)Context).Register(name, seed, verbose);
+      /// <summary>
+      /// Progress del machine learning automatico della categoria di classificazione binaria
+      /// </summary>
+      /// <param name="value">Dati del progress</param>
+      void IProgress<RunDetail<BinaryClassificationMetrics>>.Report(RunDetail<BinaryClassificationMetrics> value) => Report(value, value.Exception);
+      /// <summary>
+      /// Progress del machine learning automatico della categoria di classificazione multiclasse
+      /// </summary>
+      /// <param name="value">Dati del progress</param>
+      void IProgress<RunDetail<MulticlassClassificationMetrics>>.Report(RunDetail<MulticlassClassificationMetrics> value) => Report(value, value.Exception);
+      /// <summary>
+      /// Progress del machine learning automatico della categoria di ranking
+      /// </summary>
+      /// <param name="value">Dati del progress</param>
+      void IProgress<RunDetail<RankingMetrics>>.Report(RunDetail<RankingMetrics> value) => Report(value, value.Exception);
+      /// <summary>
+      /// Progress del machine learning automatico della categoria di regressione
+      /// </summary>
+      /// <param name="value">Dati del progress</param>
+      void IProgress<RunDetail<RegressionMetrics>>.Report(RunDetail<RegressionMetrics> value) => Report(value, value.Exception);
+      /// <summary>
+      /// Riporta un messaggio di log di AutoML
+      /// </summary>
+      /// <param name="runDetail"></param>
+      /// <param name="exception"></param>
+      private void Report(RunDetail runDetail, Exception exception = null)
+      {
+         try {
+            if (exception == null)
+               Context_Log(this, new LoggingEventArgs($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs", ChannelMessageKind.Info, "AutoML"));
+            else
+               Context_Log(this, new LoggingEventArgs($"Exception: {exception.Message}", ChannelMessageKind.Error, "AutoML"));
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
       /// <summary>
       /// Avvia un canale di progress per un nuome di una computazione
       /// </summary>
