@@ -99,7 +99,7 @@ namespace MachineLearningStudio
       private void checkBoxCrossValidate_CheckedChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is CheckBox cb))
+            if (sender is not CheckBox cb)
                return;
             crossValidate = checkBoxCrossValidate.Checked;
             if (crossValidate != Settings.Default.PageImageClassification.CrossValidate) {
@@ -275,7 +275,7 @@ namespace MachineLearningStudio
                   throw;
                }
                await Task.CompletedTask;
-            });
+            }, cancel);
             cancel.ThrowIfCancellationRequested();
             if (!string.IsNullOrWhiteSpace(openFileDialog.FileName) && File.Exists(openFileDialog.FileName)) {
                var prediction = predictor.Predict(new PageImageClassificationData { ImageSource = openFileDialog.FileName });
@@ -301,7 +301,7 @@ namespace MachineLearningStudio
       private void textBoxImageSetName_TextChanged(object sender, EventArgs e)
       {
          try {
-            if (!(sender is TextBox tb))
+            if (sender is not TextBox tb)
                return;
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
             if (!Directory.Exists(path)) {

@@ -185,7 +185,7 @@ namespace MachineLearningStudio
                   while (list.Count > 0) {
                      try {
                         // Crea un serializzatore per provare sela lista dei tipi è valida
-                        var serializer = new XmlSerializer(GetType(), list.ToArray() ?? new Type[0]);
+                        var serializer = new XmlSerializer(GetType(), list.ToArray() ?? Array.Empty<Type>());
                         break;
                      }
                      catch (Exception exc) {
@@ -197,7 +197,7 @@ namespace MachineLearningStudio
                   extraTypesFiltered = list.ToArray();
                }
                else
-                  extraTypesFiltered = new Type[0];
+                  extraTypesFiltered = Array.Empty<Type>();
             }
             return extraTypesFiltered;
          }
@@ -233,14 +233,13 @@ namespace MachineLearningStudio
       {
          this.path = path;
          var customStringFormatter = CustomStringFormatter;
-         using (XmlReader reader = XmlReader.Create(path, new XmlReaderSettings() { })) {
-            var settings = new XmlSerializer(GetType(), ExtraTypesFiltered ?? new Type[0]).Deserialize(reader);
-            var members = FormatterServices.GetSerializableMembers(GetType());
-            FormatterServices.PopulateObjectMembers(this, members, FormatterServices.GetObjectData(settings, members));
-            CustomStringFormatter = customStringFormatter;
-            OnLoaded();
-            Loaded = true;
-         }
+         using XmlReader reader = XmlReader.Create(path, new XmlReaderSettings() { });
+         var settings = new XmlSerializer(GetType(), ExtraTypesFiltered ?? Array.Empty<Type>()).Deserialize(reader);
+         var members = FormatterServices.GetSerializableMembers(GetType());
+         FormatterServices.PopulateObjectMembers(this, members, FormatterServices.GetObjectData(settings, members));
+         CustomStringFormatter = customStringFormatter;
+         OnLoaded();
+         Loaded = true;
       }
       /// <summary>
       /// Funziona chiamata al termine del caricamento
@@ -314,7 +313,7 @@ namespace MachineLearningStudio
                Directory.CreateDirectory(dir);
             // Serializza l'oggetto
             using (var writer = new Writer(tmpPath, CustomStringFormatter))
-               new XmlSerializer(GetType(), ExtraTypesFiltered ?? new Type[0]).Serialize(writer, this);
+               new XmlSerializer(GetType(), ExtraTypesFiltered ?? Array.Empty<Type>()).Serialize(writer, this);
             // Copia il file nella destinazione finale
             File.Copy(tmpPath, path, true);
          }

@@ -82,8 +82,8 @@ namespace MachineLearningStudio
             //   Append(mlContext.Clustering.Trainers.KMeans(featuresColumnName, numberOfClusters: 3));
             model = pipeline.Fit(dataView);
             if (SaveModel) {
-               using (var fileStream = new FileStream(irisModelPath, FileMode.Create, FileAccess.Write, FileShare.Write))
-                  mlContext.Model.Save(model, dataView.Schema, fileStream);
+               using var fileStream = new FileStream(irisModelPath, FileMode.Create, FileAccess.Write, FileShare.Write);
+               mlContext.Model.Save(model, dataView.Schema, fileStream);
             }
             //
             irisPredictor = irisPredictor != null && !ModifierKeys.HasFlag(Keys.Shift) ? irisPredictor : mlContext.Model.CreatePredictionEngine<PageIrisKMeansData, PageIrisKMeansPrediction>(model);
