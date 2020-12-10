@@ -9,7 +9,13 @@ CloseWindow|Chiudere la finestra
 CloseWindow|Chiudere le finestre
 CloseWindow|Finestra chiusa
 HigherTemperature|Alza il termostato
+HigherTemperature|Alzare termostato
+HigherTemperature|Alzare temperatura
+HigherTemperature|Alza temperatura
 LowerTemperature|Abbassa il termostato
+LowerTemperature|Abbassare termostato
+LowerTemperature|Abbassare temperatura
+LowerTemperature|Abbassa temperatura
 OpenDoor|Porta aperta
 OpenDoor|Mi fai il favore di aprire la porta?
 OpenDoor|mi potresti aprire la porta, grazie del favore
@@ -27,4 +33,12 @@ OpenWindow|Apri le finestre
 OpenWindow|Mi potresti aprire la finestra?
 OpenWindow|Apri la finestra
 SwitchOffLight|Spegni la luce
+SwitchOffLight|Spegnimento luce
+SwitchOffLight|Spegnimento della luce
+SwitchOffLight|Spegnere la luce
+SwitchOffLight|Luce spenta
 SwitchOnLight|Accendi la luce
+SwitchOnLight|Accensione luce
+SwitchOnLight|Accensione della luce
+SwitchOnLight|Accendere della luce
+SwitchOnLight|Luce accesa della luce
