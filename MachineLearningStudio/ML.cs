@@ -645,13 +645,11 @@ namespace MachineLearningStudio
             return result;
          }
          /// <summary>
-         /// Evaluates scored multiclass classification data.
+         /// Evaluates scored clustering
          /// </summary>
          /// <param name="data">The scored data.</param>
          /// <param name="labelColumnName">The name of the label column in data.</param>
          /// <param name="scoreColumnName">The name of the score column in data.</param>
-         /// <param name="predictedLabelColumnName">The name of the predicted label column in data.</param>
-         /// <param name="topKPredictionCount">
          /// If given a positive value, the Microsoft.ML.Data.MulticlassClassificationMetrics.TopKAccuracy
          /// will be filled with the top-K accuracy, that is, the accuracy assuming we consider
          /// an example with the correct class within the top-K values as being stored "correctly."
@@ -758,11 +756,19 @@ namespace MachineLearningStudio
             ml.LogMessage($"*       Average MacroAccuracy:    {macroAccuracyAverage:0.###}  - Standard deviation: ({macroAccuraciesStdDeviation:0.###})  - Confidence Interval 95%: ({macroAccuraciesConfidenceInterval95:0.###})");
             ml.LogMessage($"*       Average LogLoss:          {logLossAverage:0.###}  - Standard deviation: ({logLossStdDeviation:0.###})  - Confidence Interval 95%: ({logLossConfidenceInterval95:0.###})");
             ml.LogMessage($"*       Average LogLossReduction: {logLossReductionAverage:0.###}  - Standard deviation: ({logLossReductionStdDeviation:0.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:0.###})");
+            var result = (from item in (from cvr in crossValidationResults
+                                        group cvr by cvr.Metrics.MicroAccuracy into grps
+                                        orderby grps.Key descending
+                                        select grps).First()
+                          orderby item.Metrics.LogLoss
+                          select item).First();
+            ml.LogMessage($"*------------------------------------------------------------------------------------------------------------");
+            ml.LogMessage($"*       MicroAccuracy:    {result.Metrics.MicroAccuracy:0.###}");
+            ml.LogMessage($"*       MacroAccuracy:    {result.Metrics.MacroAccuracy:0.###}");
+            ml.LogMessage($"*       LogLoss:          {result.Metrics.LogLoss:0.###}");
+            ml.LogMessage($"*       LogLossReduction: {result.Metrics.LogLossReduction:0.###}");
             ml.LogMessage($"*************************************************************************************************************");
-            var result = (from fold in crossValidationResults
-                          orderby fold.Metrics.LogLoss
-                          select fold.Model).First();
-            return result;
+            return result.Model;
          }
          /// <summary>
          /// Evaluates scored multiclass classification data.
