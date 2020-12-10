@@ -328,12 +328,11 @@ namespace MachineLearningStudio
                         {
                            CacheBeforeTrainer = Microsoft.ML.AutoML.CacheBeforeTrainer.On,
                            CancellationToken = autoMLCancellation.Token,
-                           MaxExperimentTimeInSeconds = 60 * 5,
+                           MaxExperimentTimeInSeconds = 60 * 2,
                            OptimizingMetric = Microsoft.ML.AutoML.MulticlassClassificationMetric.LogLoss
                         };
                         experimentSettings.Trainers.Clear();
                         experimentSettings.Trainers.Add(Microsoft.ML.AutoML.MulticlassClassificationTrainer.LbfgsMaximumEntropy);
-                        experimentSettings.Trainers.Add(Microsoft.ML.AutoML.MulticlassClassificationTrainer.LbfgsLogisticRegressionOva);
                         var experiment = ml.Auto.CreateMulticlassClassificationExperiment(experimentSettings);
                         var result = experiment.Execute(trainData: dataView, labelColumnName: nameof(PageIntentSdcaData.Intent), null, null, ml);
                         ml.LogMessage($"Best result = {result.BestRun.TrainerName}");
@@ -373,37 +372,39 @@ namespace MachineLearningStudio
                         AppendCacheCheckpoint(ml);
                      // Algoritmo di training
                      cancel.ThrowIfCancellationRequested();
-                     var trainer = ml.MulticlassClassification.Trainers.SdcaMaximumEntropy(
-                        new SdcaMaximumEntropyMulticlassTrainer.Options
-                        {
-                           L2Regularization = 1E-06f,
-                           L1Regularization = 0.25f,
-                           ConvergenceTolerance = 0.1f,
-                           MaximumNumberOfIterations = 100,
-                           Shuffle = false,
-                           BiasLearningRate = 0f,
-                           LabelColumnName = nameof(PageIntentSdcaData.Intent),
-                           FeatureColumnName = "Features",
-                           NumberOfThreads = Environment.ProcessorCount,
-                        });
-                     //var trainer = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(
-                     //   new LbfgsMaximumEntropyMulticlassTrainer.Options
+                     //var trainer = ml.MulticlassClassification.Trainers.SdcaMaximumEntropy(
+                     //   new SdcaMaximumEntropyMulticlassTrainer.Options
                      //   {
                      //      L2Regularization = 1E-06f,
                      //      L1Regularization = 0.25f,
+                     //      ConvergenceTolerance = 0.1f,
                      //      MaximumNumberOfIterations = 100,
+                     //      Shuffle = false,
+                     //      BiasLearningRate = 0f,
                      //      LabelColumnName = nameof(PageIntentSdcaData.Intent),
                      //      FeatureColumnName = "Features",
                      //      NumberOfThreads = Environment.ProcessorCount,
                      //   });
+                     var trainerOptions = new LbfgsMaximumEntropyMulticlassTrainer.Options
+                     {
+                        HistorySize = 1000,
+                        OptimizationTolerance = 1E-06f,
+                        ShowTrainingStatistics = true,
+                        L2Regularization = 1E-06f,
+                        L1Regularization = 0.25f,
+                        MaximumNumberOfIterations = 100,
+                        LabelColumnName = nameof(PageIntentSdcaData.Intent),
+                        FeatureColumnName = "Features",
+                        NumberOfThreads = Environment.ProcessorCount,
+                     };
+                     var trainer = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(trainerOptions);
                      // Pipeline completa di training
                      var trainingPipeline =
                         dataProcessPipeline.Append(trainer).
                         Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
                      // Effettua la miglior valutazione del modello
                      cancel.ThrowIfCancellationRequested();
-                     model = ml.MulticlassClassification.CrossValidate( dataView, trainingPipeline, 5, nameof(PageIntentSdcaData.Intent));
-                     ml.MulticlassClassification.Evaluate(model.Transform(dataView), nameof(PageIntentSdcaData.Intent));
+                     model = ml.MulticlassClassification.CrossValidate( dataView, trainingPipeline, 50, nameof(PageIntentSdcaData.Intent));
                      // Salva il modello
                      if (SaveModel) {
                         cancel.ThrowIfCancellationRequested();
@@ -451,7 +452,7 @@ namespace MachineLearningStudio
                intentsList.ForEach(intent => comboBoxIntent.Items.Add(intent));
             }
             // Verifica se esiste un gestore di previsioni
-            if (predictor != null) {
+            if (predictor != null && !string.IsNullOrWhiteSpace(sentence)) {
                // Aggiorna la previsione
                var prediction = predictor.Predict(new PageIntentSdcaData { Sentence = sentence });
                // Seleziona la previsione nella combo box
