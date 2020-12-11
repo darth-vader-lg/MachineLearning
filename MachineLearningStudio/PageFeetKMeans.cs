@@ -45,7 +45,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Contesto ML
       /// </summary>
-      private ML ml;
+      private MLContext ml;
       /// <summary>
       /// Modello di apprendimento
       /// </summary>
@@ -208,7 +208,7 @@ namespace MachineLearningStudio
                   if (ml != null)
                      return;
                   // Crea il contesto
-                  ml = new ML(seed: 0);
+                  ml = new MLContext(seed: 0);
                   // Connette il log
                   ml.Log += (sender, e) =>
                   {
@@ -292,12 +292,15 @@ namespace MachineLearningStudio
                   // Crea la pipeline di training
                   var pipeline = dataCols.Append(trainer);
                   // Crea il modello di training
-                  model = ml.Clustering.CrossValidate(dataView, pipeline);
-                  ml.Clustering.Evaluate(model.Transform(dataView));
+                  var crossValidationResults = ml.Clustering.CrossValidate(dataView, pipeline);
+                  ml.WriteLog(crossValidationResults.ToText(), "Cross validation average metrics");
+                  ml.WriteLog(crossValidationResults.Best().ToText(), "Best model metrics");
+                  model = crossValidationResults.Best().Model;
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();
-                     ml.SaveModel(model, dataView.Schema, modelPath);
+                     ml.WriteLog($"Saving the model...", nameof(PageFeetKMeans));
+                     ml.WriteLog($"The model is saved in {modelPath}", nameof(PageFeetKMeans));
                   }
                   // Crea il previsore
                   cancel.ThrowIfCancellationRequested();

@@ -39,7 +39,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Contesto ML
       /// </summary>
-      private ML ml;
+      private MLContext ml;
       /// <summary>
       /// Modello di apprendimento
       /// </summary>
@@ -146,7 +146,7 @@ namespace MachineLearningStudio
                   if (ml != null)
                      return;
                   // Crea il contesto
-                  ml = new ML(seed: 1);
+                  ml = new MLContext(seed: 1);
                   // Connette il log
                   ml.Log += (sender, e) =>
                   {
@@ -231,12 +231,16 @@ namespace MachineLearningStudio
                   // Train the model
                   var trainingPipeline = dataProcessPipeline.Append(trainer);
                   cancel.ThrowIfCancellationRequested();
-                  model = ml.Regression.CrossValidate( dataView, trainingPipeline, 5, nameof(PageFeetSdcaData.Number));
-                  ml.Regression.Evaluate(dataView, nameof(PageFeetSdcaData.Number), nameof(PageFeetSdcaPrediction.Number));
+                  var crossValidationResults = ml.Regression.CrossValidate( dataView, trainingPipeline, 5, nameof(PageFeetSdcaData.Number));
+                  ml.WriteLog(crossValidationResults.ToText(), "Cross validation average metrics");
+                  ml.WriteLog(crossValidationResults.Best().ToText(), "Best model metrics");
+                  model = crossValidationResults.Best().Model;
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();
-                     ml.SaveModel(model, dataView.Schema, modelPath);
+                     ml.WriteLog($"Saving the model...", nameof(PageFeetSdca));
+                     ml.Model.Save(model, dataView.Schema, modelPath);
+                     ml.WriteLog($"The model is saved in {modelPath}", nameof(PageFeetSdca));
                   }
                   cancel.ThrowIfCancellationRequested();
                   // Crea il generatore di previsioni

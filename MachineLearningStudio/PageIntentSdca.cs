@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using Microsoft.ML.Trainers;
@@ -40,7 +41,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Contesto ML
       /// </summary>
-      private ML ml;
+      private MLContext ml;
       /// <summary>
       /// Modello di apprendimento
       /// </summary>
@@ -68,7 +69,7 @@ namespace MachineLearningStudio
       /// Abilitazione utilizzo auto tuning algoritmo
       /// </summary>
       [Category("Behavior"), DefaultValue(false)]
-      public bool UseAutoML { get; set; } = false;
+      public bool UseAutoML { get; set; } = false
       #endregion
       #region Methods
       /// <summary>
@@ -287,7 +288,7 @@ namespace MachineLearningStudio
                   if (!loadModel && !loadData)
                      return;
                   // Crea il contesto
-                  ml = new ML(seed: 1);
+                  ml = new MLContext(seed: 1);
                   // Connette il log
                   var logSourceFilter = default(string[]);
                   ml.Log += (sender, e) =>
@@ -324,19 +325,23 @@ namespace MachineLearningStudio
                            allowQuoting: true,
                            trimWhitespace: true,
                            allowSparse: false);
-                        var experimentSettings = new Microsoft.ML.AutoML.MulticlassExperimentSettings
+                        var experimentSettings = new MulticlassExperimentSettings
                         {
-                           CacheBeforeTrainer = Microsoft.ML.AutoML.CacheBeforeTrainer.On,
+                           CacheBeforeTrainer = CacheBeforeTrainer.On,
                            CancellationToken = autoMLCancellation.Token,
-                           MaxExperimentTimeInSeconds = 60 * 2,
-                           OptimizingMetric = Microsoft.ML.AutoML.MulticlassClassificationMetric.LogLoss
+                           MaxExperimentTimeInSeconds = 15,
+                           OptimizingMetric = MulticlassClassificationMetric.LogLoss
                         };
                         experimentSettings.Trainers.Clear();
-                        experimentSettings.Trainers.Add(Microsoft.ML.AutoML.MulticlassClassificationTrainer.LbfgsMaximumEntropy);
-                        var experiment = ml.Auto.CreateMulticlassClassificationExperiment(experimentSettings);
-                        var result = experiment.Execute(trainData: dataView, labelColumnName: nameof(PageIntentSdcaData.Intent), null, null, ml);
-                        ml.LogMessage($"Best result = {result.BestRun.TrainerName}");
-                        ml.SaveModel(result.BestRun.Model, dataView.Schema, modelPath);
+                        experimentSettings.Trainers.Add(MulticlassClassificationTrainer.LbfgsMaximumEntropy);
+                        var experiment = ml.Auto().CreateMulticlassClassificationExperiment(experimentSettings);
+                        var result = experiment.Execute(trainData: dataView, labelColumnName: nameof(PageIntentSdcaData.Intent), null, null, ml.MulticlassClassificationProgress());
+                        logSourceFilter = null;
+                        ml.WriteLog($"Best result = {result.BestRun.TrainerName}", "AutoML");
+                        ml.WriteLog(result.BestRun.ValidationMetrics.ToText(), "AutoML");
+                        ml.WriteLog($"Saving the model...", "AutoML");
+                        ml.Model.Save(result.BestRun.Model, dataView.Schema, modelPath);
+                        ml.WriteLog($"The model is saved in {modelPath}", "AutoML");
                         loadModel = true;
                      }
                      finally {
@@ -347,7 +352,9 @@ namespace MachineLearningStudio
                   if (loadModel) {
                      try {
                         // Carica il modello
-                        model = ml.LoadModel(modelPath, out var _);
+                        ml.WriteLog($"Loading the model from {modelPath}...", nameof(PageIntentSdca));
+                        model = ml.Model.Load(modelPath, out var _);
+                        ml.WriteLog("The model is loaded", nameof(PageIntentSdca));
                         // Disabilita il caricamento dei dati in chiaro
                         loadData = false;
                      }
@@ -404,11 +411,16 @@ namespace MachineLearningStudio
                         Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
                      // Effettua la miglior valutazione del modello
                      cancel.ThrowIfCancellationRequested();
-                     model = ml.MulticlassClassification.CrossValidate( dataView, trainingPipeline, 50, nameof(PageIntentSdcaData.Intent));
+                     var crossValidationResults = ml.MulticlassClassification.CrossValidate(dataView, trainingPipeline, 50, nameof(PageIntentSdcaData.Intent));
+                     ml.WriteLog(crossValidationResults.ToText(), "Cross validation average metrics");
+                     ml.WriteLog(crossValidationResults.Best().ToText(), "Best model metrics");
+                     model = crossValidationResults.Best().Model;
                      // Salva il modello
                      if (SaveModel) {
                         cancel.ThrowIfCancellationRequested();
-                        ml.SaveModel(model, dataView.Schema, Path.ChangeExtension(dataSetPath, "model.zip"));
+                        ml.WriteLog($"Saving the model...", nameof(PageIntentSdca));
+                        ml.Model.Save(model, dataView.Schema, Path.ChangeExtension(dataSetPath, "model.zip"));
+                        ml.WriteLog($"The model is saved in {modelPath}", nameof(PageIntentSdca));
                      }
                   }
                   // Crea il generatore di previsioni
@@ -429,9 +441,7 @@ namespace MachineLearningStudio
                }
                catch (Exception exc) {
                   try {
-                     using var textReader = new StringReader(exc.ToString());
-                     for (var line = textReader.ReadLine(); line != null; line = textReader.ReadLine())
-                        ml.LogMessage(line);
+                     ml.WriteLog(exc.ToString(), nameof(PageIntentSdca));
                   }
                   catch (Exception) { }
                   ml = null;
@@ -467,9 +477,9 @@ namespace MachineLearningStudio
                              }
                              orderby score.Score descending
                              select score).ToList();
-               ml.LogMessage("==========");
-               ml.LogMessage(sentence);
-               scores.ForEach(item => ml.LogMessage($"{item.Intent}: ({(int)(item.Score * 100f)})"));
+               ml.WriteLog("==========", nameof(PageIntentSdca));
+               ml.WriteLog(sentence, nameof(PageIntentSdca));
+               scores.ForEach(item => ml.WriteLog($"{item.Intent}: ({(int)(item.Score * 100f)})", nameof(PageIntentSdca)));
             }
             else
                comboBoxIntent.SelectedIndex = -1;
