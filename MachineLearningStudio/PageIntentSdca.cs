@@ -3,6 +3,7 @@ using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using Microsoft.ML.Trainers;
+using ML.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -69,7 +70,7 @@ namespace MachineLearningStudio
       /// Abilitazione utilizzo auto tuning algoritmo
       /// </summary>
       [Category("Behavior"), DefaultValue(false)]
-      public bool UseAutoML { get; set; } = false
+      public bool UseAutoML { get; set; } = false;
       #endregion
       #region Methods
       /// <summary>

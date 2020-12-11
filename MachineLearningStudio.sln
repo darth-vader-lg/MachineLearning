@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		c# - ML.NET plotting K-means clustering results- - Stack Overflow.url = c# - ML.NET plotting K-means clustering results- - Stack Overflow.url
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ML.Utilities", "ML.Utilities\ML.Utilities.csproj", "{9543B73C-42DB-4958-9F59-7EA50F596FA9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{B19212F0-F9E8-4964-A19D-EBABAE290A41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B19212F0-F9E8-4964-A19D-EBABAE290A41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B19212F0-F9E8-4964-A19D-EBABAE290A41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9543B73C-42DB-4958-9F59-7EA50F596FA9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9543B73C-42DB-4958-9F59-7EA50F596FA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9543B73C-42DB-4958-9F59-7EA50F596FA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9543B73C-42DB-4958-9F59-7EA50F596FA9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
