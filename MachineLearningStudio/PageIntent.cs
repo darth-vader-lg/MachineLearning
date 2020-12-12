@@ -416,14 +416,6 @@ namespace MachineLearningStudio
                      ml.WriteLog(crossValidationResults.ToText(), "Cross validation average metrics");
                      ml.WriteLog(crossValidationResults.Best().ToText(), "Best model metrics");
                      model = crossValidationResults.Best().Model;
-
-                     //var previewData = ml.Data.LoadFromEnumerable(new[]
-                     //{
-                     //   new { Intent = "?", Sentence = "Apri la porta" }
-                     //});
-                     //var transformedPreviewData = model.Transform(previewData);
-                     //var preview = transformedPreviewData.Preview();
-
                      // Salva il modello
                      if (SaveModel) {
                         cancel.ThrowIfCancellationRequested();

@@ -5,6 +5,9 @@
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Update="PageIntentRetrain.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="PageIntent.cs">
       <SubType>UserControl</SubType>
     </Compile>

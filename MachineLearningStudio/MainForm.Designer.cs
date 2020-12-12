@@ -39,17 +39,21 @@ namespace MachineLearningStudio
          this.pageIrisKMeans = new MachineLearningStudio.PageIrisKMeans();
          this.tabPageImageClassification = new System.Windows.Forms.TabPage();
          this.pageImageClassification = new MachineLearningStudio.PageImageClassification();
+         this.tabPageIntentRetrain = new System.Windows.Forms.TabPage();
+         this.pageIntentRetrain = new MachineLearningStudio.PageIntentRetrain();
          this.tabControlMain.SuspendLayout();
          this.tabPageIntent.SuspendLayout();
          this.tabPageFeetSdca.SuspendLayout();
          this.tabPageFeetKMeans.SuspendLayout();
          this.tabPageIrisKMeans.SuspendLayout();
          this.tabPageImageClassification.SuspendLayout();
+         this.tabPageIntentRetrain.SuspendLayout();
          this.SuspendLayout();
          // 
          // tabControlMain
          // 
          this.tabControlMain.Controls.Add(this.tabPageIntent);
+         this.tabControlMain.Controls.Add(this.tabPageIntentRetrain);
          this.tabControlMain.Controls.Add(this.tabPageFeetSdca);
          this.tabControlMain.Controls.Add(this.tabPageFeetKMeans);
          this.tabControlMain.Controls.Add(this.tabPageIrisKMeans);
@@ -76,10 +80,10 @@ namespace MachineLearningStudio
          // pageIntent
          // 
          this.pageIntent.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.pageIntent.Location = new System.Drawing.Point(5, 3);
+         this.pageIntent.Location = new System.Drawing.Point(0, 0);
          this.pageIntent.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
          this.pageIntent.Name = "pageIntent";
-         this.pageIntent.Size = new System.Drawing.Size(1185, 743);
+         this.pageIntent.Size = new System.Drawing.Size(1157, 742);
          this.pageIntent.TabIndex = 0;
          // 
          // tabPageFeetSdca
@@ -109,7 +113,7 @@ namespace MachineLearningStudio
          this.tabPageFeetKMeans.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.tabPageFeetKMeans.Name = "tabPageFeetKMeans";
          this.tabPageFeetKMeans.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-         this.tabPageFeetKMeans.Size = new System.Drawing.Size(1216, 822);
+         this.tabPageFeetKMeans.Size = new System.Drawing.Size(1157, 742);
          this.tabPageFeetKMeans.TabIndex = 0;
          this.tabPageFeetKMeans.Text = "Feet K-Means";
          this.tabPageFeetKMeans.UseVisualStyleBackColor = true;
@@ -120,7 +124,7 @@ namespace MachineLearningStudio
          this.pageFeetKMeans.Location = new System.Drawing.Point(4, 3);
          this.pageFeetKMeans.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
          this.pageFeetKMeans.Name = "pageFeetKMeans";
-         this.pageFeetKMeans.Size = new System.Drawing.Size(1208, 816);
+         this.pageFeetKMeans.Size = new System.Drawing.Size(1149, 736);
          this.pageFeetKMeans.TabIndex = 0;
          // 
          // tabPageIrisKMeans
@@ -130,7 +134,7 @@ namespace MachineLearningStudio
          this.tabPageIrisKMeans.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.tabPageIrisKMeans.Name = "tabPageIrisKMeans";
          this.tabPageIrisKMeans.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-         this.tabPageIrisKMeans.Size = new System.Drawing.Size(1216, 822);
+         this.tabPageIrisKMeans.Size = new System.Drawing.Size(1157, 742);
          this.tabPageIrisKMeans.TabIndex = 1;
          this.tabPageIrisKMeans.Text = "Iris K-Means";
          this.tabPageIrisKMeans.UseVisualStyleBackColor = true;
@@ -141,7 +145,7 @@ namespace MachineLearningStudio
          this.pageIrisKMeans.Location = new System.Drawing.Point(4, 3);
          this.pageIrisKMeans.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
          this.pageIrisKMeans.Name = "pageIrisKMeans";
-         this.pageIrisKMeans.Size = new System.Drawing.Size(1208, 816);
+         this.pageIrisKMeans.Size = new System.Drawing.Size(1149, 736);
          this.pageIrisKMeans.TabIndex = 0;
          // 
          // tabPageImageClassification
@@ -150,7 +154,7 @@ namespace MachineLearningStudio
          this.tabPageImageClassification.Location = new System.Drawing.Point(4, 24);
          this.tabPageImageClassification.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.tabPageImageClassification.Name = "tabPageImageClassification";
-         this.tabPageImageClassification.Size = new System.Drawing.Size(1216, 822);
+         this.tabPageImageClassification.Size = new System.Drawing.Size(1157, 742);
          this.tabPageImageClassification.TabIndex = 3;
          this.tabPageImageClassification.Text = "Image classification";
          this.tabPageImageClassification.UseVisualStyleBackColor = true;
@@ -161,8 +165,27 @@ namespace MachineLearningStudio
          this.pageImageClassification.Location = new System.Drawing.Point(0, 0);
          this.pageImageClassification.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
          this.pageImageClassification.Name = "pageImageClassification";
-         this.pageImageClassification.Size = new System.Drawing.Size(1216, 822);
+         this.pageImageClassification.Size = new System.Drawing.Size(1157, 742);
          this.pageImageClassification.TabIndex = 0;
+         // 
+         // tabPageIntentRetrain
+         // 
+         this.tabPageIntentRetrain.Controls.Add(this.pageIntentRetrain);
+         this.tabPageIntentRetrain.Location = new System.Drawing.Point(4, 24);
+         this.tabPageIntentRetrain.Name = "tabPageIntentRetrain";
+         this.tabPageIntentRetrain.Size = new System.Drawing.Size(1157, 742);
+         this.tabPageIntentRetrain.TabIndex = 5;
+         this.tabPageIntentRetrain.Text = "Intend retrain";
+         this.tabPageIntentRetrain.UseVisualStyleBackColor = true;
+         // 
+         // pageIntentRetrain
+         // 
+         this.pageIntentRetrain.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageIntentRetrain.Location = new System.Drawing.Point(0, 0);
+         this.pageIntentRetrain.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+         this.pageIntentRetrain.Name = "pageIntentRetrain";
+         this.pageIntentRetrain.Size = new System.Drawing.Size(1157, 742);
+         this.pageIntentRetrain.TabIndex = 0;
          // 
          // MainForm
          // 
@@ -179,8 +202,8 @@ namespace MachineLearningStudio
          this.tabPageFeetKMeans.ResumeLayout(false);
          this.tabPageIrisKMeans.ResumeLayout(false);
          this.tabPageImageClassification.ResumeLayout(false);
+         this.tabPageIntentRetrain.ResumeLayout(false);
          this.ResumeLayout(false);
-         this.PerformLayout();
 
       }
 
@@ -196,6 +219,8 @@ namespace MachineLearningStudio
       private PageImageClassification pageImageClassification;
       private System.Windows.Forms.TabPage tabPageIntent;
       private PageIntent pageIntent;
+      private System.Windows.Forms.TabPage tabPageIntentRetrain;
+      private PageIntentRetrain pageIntentRetrain;
    }
 }
 
