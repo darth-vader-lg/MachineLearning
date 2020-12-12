@@ -18,7 +18,7 @@ using System.Windows.Forms;
 namespace MachineLearningStudio
 {
    /// <summary>
-   /// Pagina di test algoritmo Sdca per la previsione delle intenzioni
+   /// Pagina di test algoritmo per la previsione delle intenzioni
    /// </summary>
    public partial class PageIntent : UserControl
    {
@@ -244,7 +244,7 @@ namespace MachineLearningStudio
          // Metodo base
          try {
             base.OnLoad(e);
-            textBoxDataSetName.Text = Settings.Default.PageIntentSdca.DataSetName?.Trim();
+            textBoxDataSetName.Text = Settings.Default.PageIntent.DataSetName?.Trim();
             initialized = true;
          }
          catch (Exception exc) {
@@ -515,8 +515,8 @@ namespace MachineLearningStudio
                tb.BackColor = textBoxBackColor;
                dataSetName = tb.Text.Trim();
                // Salva nei settings lo stato
-               if (dataSetName != Settings.Default.PageIntentSdca.DataSetName) {
-                  Settings.Default.PageIntentSdca.DataSetName = dataSetName;
+               if (dataSetName != Settings.Default.PageIntent.DataSetName) {
+                  Settings.Default.PageIntent.DataSetName = dataSetName;
                   Settings.Default.Save();
                }
             }
@@ -552,18 +552,18 @@ namespace MachineLearningStudio
    /// </summary>
    public partial class Settings
    {
-      #region class PageIntentSdcaSettings
+      #region class PageIntentSettings
       /// <summary>
       /// Impostazione della pagina
       /// </summary>
       [Serializable]
-      public class PageIntentSdcaSettings
+      public class PageIntentSettings
       {
          #region Properties
          /// <summary>
          /// Nome del set di dati
          /// </summary>
-         public string DataSetName { get; set; } = "sentences.txt";
+         public string DataSetName { get; set; } = "intents.data";
          #endregion
       }
       #endregion
@@ -571,7 +571,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Settings della pagina
       /// </summary>
-      public PageIntentSdcaSettings PageIntentSdca { get; set; } = new PageIntentSdcaSettings();
+      public PageIntentSettings PageIntent { get; set; } = new PageIntentSettings();
       #endregion
    }
 }
