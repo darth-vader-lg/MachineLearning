@@ -5,7 +5,7 @@ namespace MachineLearningStudio
    /// <summary>
    /// Dati di test algoritmo di previsione intenzioni
    /// </summary>
-   public class PageIntentSdcaData
+   public class PageIntentData
    {
       [LoadColumn(0)]
       public string Intent;

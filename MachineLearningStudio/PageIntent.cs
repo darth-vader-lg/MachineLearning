@@ -20,7 +20,7 @@ namespace MachineLearningStudio
    /// <summary>
    /// Pagina di test algoritmo Sdca per la previsione delle intenzioni
    /// </summary>
-   public partial class PageIntentSdca : UserControl
+   public partial class PageIntent : UserControl
    {
       #region Fields
       /// <summary>
@@ -50,7 +50,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Previsore di piedi
       /// </summary>
-      private PredictionEngine<PageIntentSdcaData, PageIntentSdcaPrediction> predictor;
+      private PredictionEngine<PageIntentData, PageIntentPrediction> predictor;
       /// <summary>
       /// Task di previsione
       /// </summary>
@@ -76,7 +76,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PageIntentSdca()
+      public PageIntent()
       {
          InitializeComponent();
          textBoxBackColor = textBoxSentence.BackColor;
@@ -319,7 +319,7 @@ namespace MachineLearningStudio
                   if (UseAutoML) {
                      try {
                         logSourceFilter = new[] { "AutoML" };
-                        var dataView = ml.Data.LoadFromTextFile<PageIntentSdcaData>(
+                        var dataView = ml.Data.LoadFromTextFile<PageIntentData>(
                            path: dataSetPath,
                            hasHeader: false,
                            separatorChar: '|',
@@ -336,7 +336,7 @@ namespace MachineLearningStudio
                         experimentSettings.Trainers.Clear();
                         experimentSettings.Trainers.Add(MulticlassClassificationTrainer.LbfgsMaximumEntropy);
                         var experiment = ml.Auto().CreateMulticlassClassificationExperiment(experimentSettings);
-                        var result = experiment.Execute(trainData: dataView, labelColumnName: nameof(PageIntentSdcaData.Intent), null, null, ml.MulticlassClassificationProgress());
+                        var result = experiment.Execute(trainData: dataView, labelColumnName: nameof(PageIntentData.Intent), null, null, ml.MulticlassClassificationProgress());
                         logSourceFilter = null;
                         ml.WriteLog($"Best result = {result.BestRun.TrainerName}", "AutoML");
                         ml.WriteLog(result.BestRun.ValidationMetrics.ToText(), "AutoML");
@@ -353,9 +353,9 @@ namespace MachineLearningStudio
                   if (loadModel) {
                      try {
                         // Carica il modello
-                        ml.WriteLog($"Loading the model from {modelPath}...", nameof(PageIntentSdca));
+                        ml.WriteLog($"Loading the model from {modelPath}...", nameof(PageIntent));
                         model = ml.Model.Load(modelPath, out var _);
-                        ml.WriteLog("The model is loaded", nameof(PageIntentSdca));
+                        ml.WriteLog("The model is loaded", nameof(PageIntent));
                         // Disabilita il caricamento dei dati in chiaro
                         loadData = false;
                      }
@@ -364,7 +364,7 @@ namespace MachineLearningStudio
                   // Verifica se deve caricare dai dati
                   if (loadData) {
                      // Dati
-                     var dataView = ml.Data.LoadFromTextFile<PageIntentSdcaData>(
+                     var dataView = ml.Data.LoadFromTextFile<PageIntentData>(
                         path: dataSetPath,
                         hasHeader: false,
                         separatorChar: '|',
@@ -373,9 +373,9 @@ namespace MachineLearningStudio
                      // Pipeline di trasformazione dei dati
                      cancel.ThrowIfCancellationRequested();
                      var dataProcessPipeline =
-                        ml.Transforms.Conversion.MapValueToKey(nameof(PageIntentSdcaData.Intent), nameof(PageIntentSdcaData.Intent)).
-                        Append(ml.Transforms.Text.FeaturizeText($"{nameof(PageIntentSdcaData.Sentence)}_tf", nameof(PageIntentSdcaData.Sentence))).
-                        Append(ml.Transforms.CopyColumns("Features", $"{nameof(PageIntentSdcaData.Sentence)}_tf")).
+                        ml.Transforms.Conversion.MapValueToKey(nameof(PageIntentData.Intent), nameof(PageIntentData.Intent)).
+                        Append(ml.Transforms.Text.FeaturizeText($"{nameof(PageIntentData.Sentence)}_tf", nameof(PageIntentData.Sentence))).
+                        Append(ml.Transforms.CopyColumns("Features", $"{nameof(PageIntentData.Sentence)}_tf")).
                         Append(ml.Transforms.NormalizeMinMax("Features", "Features")).
                         AppendCacheCheckpoint(ml);
                      // Algoritmo di training
@@ -401,7 +401,7 @@ namespace MachineLearningStudio
                         L2Regularization = 1E-06f,
                         L1Regularization = 0.25f,
                         MaximumNumberOfIterations = 100,
-                        LabelColumnName = nameof(PageIntentSdcaData.Intent),
+                        LabelColumnName = nameof(PageIntentData.Intent),
                         FeatureColumnName = "Features",
                         NumberOfThreads = Environment.ProcessorCount,
                      };
@@ -412,21 +412,21 @@ namespace MachineLearningStudio
                         Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
                      // Effettua la miglior valutazione del modello
                      cancel.ThrowIfCancellationRequested();
-                     var crossValidationResults = ml.MulticlassClassification.CrossValidate(dataView, trainingPipeline, 50, nameof(PageIntentSdcaData.Intent));
+                     var crossValidationResults = ml.MulticlassClassification.CrossValidate(dataView, trainingPipeline, 50, nameof(PageIntentData.Intent));
                      ml.WriteLog(crossValidationResults.ToText(), "Cross validation average metrics");
                      ml.WriteLog(crossValidationResults.Best().ToText(), "Best model metrics");
                      model = crossValidationResults.Best().Model;
                      // Salva il modello
                      if (SaveModel) {
                         cancel.ThrowIfCancellationRequested();
-                        ml.WriteLog($"Saving the model...", nameof(PageIntentSdca));
+                        ml.WriteLog($"Saving the model...", nameof(PageIntent));
                         ml.Model.Save(model, dataView.Schema, Path.ChangeExtension(dataSetPath, "model.zip"));
-                        ml.WriteLog($"The model is saved in {modelPath}", nameof(PageIntentSdca));
+                        ml.WriteLog($"The model is saved in {modelPath}", nameof(PageIntent));
                      }
                   }
                   // Crea il generatore di previsioni
                   cancel.ThrowIfCancellationRequested();
-                  predictor = ml.Model.CreatePredictionEngine<PageIntentSdcaData, PageIntentSdcaPrediction>(model);
+                  predictor = ml.Model.CreatePredictionEngine<PageIntentData, PageIntentPrediction>(model);
                   // Estrae l'elenco di previsioni possibili
                   var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
                   predictor.OutputSchema.GetColumnOrNull("Score").Value.Annotations.GetValue("SlotNames", ref slotNames);
@@ -442,7 +442,7 @@ namespace MachineLearningStudio
                }
                catch (Exception exc) {
                   try {
-                     ml.WriteLog(exc.ToString(), nameof(PageIntentSdca));
+                     ml.WriteLog(exc.ToString(), nameof(PageIntent));
                   }
                   catch (Exception) { }
                   ml = null;
@@ -465,7 +465,7 @@ namespace MachineLearningStudio
             // Verifica se esiste un gestore di previsioni
             if (predictor != null && !string.IsNullOrWhiteSpace(sentence)) {
                // Aggiorna la previsione
-               var prediction = predictor.Predict(new PageIntentSdcaData { Sentence = sentence });
+               var prediction = predictor.Predict(new PageIntentData { Sentence = sentence });
                // Seleziona la previsione nella combo box
                var intentIx = new List<string>(from object item in comboBoxIntent.Items select item.ToString()).FindIndex(item => item == prediction.Intent);
                comboBoxIntent.SelectedIndex = intentIx;
@@ -478,9 +478,9 @@ namespace MachineLearningStudio
                              }
                              orderby score.Score descending
                              select score).ToList();
-               ml.WriteLog("==========", nameof(PageIntentSdca));
-               ml.WriteLog(sentence, nameof(PageIntentSdca));
-               scores.ForEach(item => ml.WriteLog($"{item.Intent}: ({(int)(item.Score * 100f)})", nameof(PageIntentSdca)));
+               ml.WriteLog("==========", nameof(PageIntent));
+               ml.WriteLog(sentence, nameof(PageIntent));
+               scores.ForEach(item => ml.WriteLog($"{item.Intent}: ({(int)(item.Score * 100f)})", nameof(PageIntent)));
             }
             else
                comboBoxIntent.SelectedIndex = -1;

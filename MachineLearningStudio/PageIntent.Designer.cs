@@ -1,7 +1,7 @@
 ﻿
 namespace MachineLearningStudio
 {
-   partial class PageIntentSdca
+   partial class PageIntent
    {
       /// <summary> 
       /// Variabile di progettazione necessaria.

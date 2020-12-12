@@ -5,7 +5,7 @@
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Update="PageIntentSdca.cs">
+    <Compile Update="PageIntent.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="PageImageClassification.cs">

@@ -5,7 +5,7 @@ namespace MachineLearningStudio
    /// <summary>
    /// Risultato del test algoritmo di previsione intenzioni
    /// </summary>
-   public class PageIntentSdcaPrediction
+   public class PageIntentPrediction
    {
       /// <summary>
       /// Intenzione prevista
