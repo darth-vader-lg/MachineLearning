@@ -83,6 +83,7 @@ namespace MachineLearningStudio
          this.textBoxIntent.Name = "textBoxIntent";
          this.textBoxIntent.Size = new System.Drawing.Size(147, 23);
          this.textBoxIntent.TabIndex = 6;
+         this.textBoxIntent.KeyDown += new System.Windows.Forms.KeyEventHandler(this.textBoxIntent_KeyDown);
          // 
          // labelDataSetName
          // 
