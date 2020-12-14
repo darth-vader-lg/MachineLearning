@@ -25,6 +25,10 @@ namespace MachineLearningStudio
       /// </summary>
       private string dataSetName;
       /// <summary>
+      /// Sicronismo per l'aggiornamento dei dati
+      /// </summary>
+      private object dataSetUpdateLocker = new object();
+      /// <summary>
       /// Flag di controllo inizializzato
       /// </summary>
       private bool initialized;
@@ -214,11 +218,11 @@ namespace MachineLearningStudio
                {
                   HistorySize = 1000,
                   OptimizationTolerance = 1E-06f,
-                  ShowTrainingStatistics = true,
+                  ShowTrainingStatistics = false,
                   L2Regularization = 1E-06f,
                   L1Regularization = 0.25f,
                   MaximumNumberOfIterations = 100,
-                  NumberOfThreads = 8,
+                  NumberOfThreads = Math.Max(Environment.ProcessorCount / 2, 1)
                };
                // Trainer
                var trainer = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(trainerOptions);
@@ -234,13 +238,20 @@ namespace MachineLearningStudio
                var taskSaveModel = (task: Task.CompletedTask, cancellation: CancellationTokenSource.CreateLinkedTokenSource(cancel));
                // Loop di training continuo
                var prevMetrics = default(MulticlassClassificationMetrics);
-               var prevDataSetTime = File.GetLastWriteTime(dataSetPath);
+               var prevDataSetTime = File.GetLastWriteTime(dataSetPath) - new TimeSpan(1, 0, 0);
                int seed = 0;
                while (!cancel.IsCancellationRequested) {
                   try {
+                     // Time stamp del file di dati
+                     var dataSetTime = File.GetLastWriteTime(dataSetPath);
+                     // Copia il file temporaneo se il file di dati e' stato aggiornato
+                     if (dataSetTime > prevDataSetTime) {
+                        lock (dataSetUpdateLocker)
+                           File.Copy(dataSetPath, $"{dataSetPath}.trn", true);
+                     }
                      // Dati di input
                      var dataView = ml.Data.LoadFromTextFile(
-                        path: dataSetPath,
+                        path: $"{dataSetPath}.trn",
                         columns: new[]
                         {
                            new TextLoader.Column("Label", DataKind.String, 0),
@@ -250,29 +261,16 @@ namespace MachineLearningStudio
                         separatorChar: '|',
                         allowQuoting: true,
                         allowSparse: false);
-                     //using var stream = new MemoryStream();
-                     //ml.Data.SaveAsText(dataView, stream, '|', false, false);
-                     //stream.Position = 0;
-                     //using var textReader = new StreamReader(stream);
-                     //var dic = new System.Collections.Generic.Dictionary<string, string>();
-                     //for (var line = textReader.ReadLine(); line != default; line = textReader.ReadLine()) {
-                     //   var items = line.Split('|', 2);
-                     //   dic[items[1]] = items[0];
-                     //}
-
-
                      //// Effettua il training
                      //var model = pipe.Fit(dataView);
                      //// Valuta
                      //var metrics = ml.MulticlassClassification.Evaluate(model.Transform(dataView));
-
                      var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 10, "Label", null, seed++);
                      var best = crossValidation.Best();
                      var model = best.Model;
                      var metrics = best.Metrics;
 
                      cancel.ThrowIfCancellationRequested();
-                     var dataSetTime = File.GetLastWriteTime(dataSetPath);
                      // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
                      if (prevMetrics == default || dataSetTime > prevDataSetTime || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
                         // Emette il log
@@ -357,16 +355,51 @@ namespace MachineLearningStudio
       private void textBoxIntent_KeyDown(object sender, KeyEventArgs e)
       {
          try {
-            if (sender is not TextBox tb || string.IsNullOrWhiteSpace(tb.Text) || e.KeyCode != Keys.Enter)
+            if (e.KeyCode != Keys.Enter)
                return;
-            //// Avvia un nuovo task di retraining
-            //taskRetrain.cancellation.Cancel();
-            //taskRetrain.cancellation = new CancellationTokenSource();
-            //taskRetrain.task = TaskRetrain(taskRetrain.cancellation.Token);
+            if (sender is not TextBox tb)
+               return;
+            if (string.IsNullOrWhiteSpace(tb.Text))
+               return;
+            if (string.IsNullOrWhiteSpace(textBoxSentence.Text))
+               return;
+            if (string.IsNullOrWhiteSpace(dataSetName))
+               return;
+            var savingDataPath = Path.Combine(Environment.CurrentDirectory, "Data", dataSetName);
+            var savingSentence = textBoxSentence.Text.Trim().ToLower();
+            var savingIntent = tb.Text;
+            Task.Run(() =>
+            {
+               try {
+                  lock (dataSetUpdateLocker) {
+                     using var reader = new StreamReader(savingDataPath);
+                     using var writer = new StreamWriter($"{savingDataPath}.new");
+                     var found = false;
+                     for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+                        var items = line.Split('|', 2);
+                        if (items[1].ToLower() == savingSentence) {
+                           if (items[0] != savingIntent) {
+                              items[0] = savingIntent;
+                              found = true;
+                           }
+                        }
+                        writer.WriteLine($"{items[0]}|{items[1]}");
+                     }
+                     if (!found)
+                        writer.WriteLine($"{savingIntent}|{savingSentence}");
+                     reader.Close();
+                     writer.Close();
+                     File.Copy($"{savingDataPath}.new", savingDataPath, true);
+                     File.Delete($"{savingDataPath}.new");
+                  }
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+               }
+            });
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            throw;
          }
       }
       /// <summary>
