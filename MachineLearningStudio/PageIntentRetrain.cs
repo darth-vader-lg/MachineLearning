@@ -1,5 +1,4 @@
 ﻿using Microsoft.ML;
-using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using Microsoft.ML.Trainers;
@@ -36,29 +35,15 @@ namespace MachineLearningStudio
       /// <summary>
       /// Modello di apprendimento
       /// </summary>
-      private (ITransformer In, ITransformer Trained, ITransformer Out) model = default;
-      /// <summary>
-      /// Task di ricostruzione modello
-      /// </summary>
-      private (Task<(ITransformer In, ITransformer Trained, ITransformer Out)> task, CancellationTokenSource cancellation) taskBuildModel =
-         (Task.FromCanceled<(ITransformer In, ITransformer Trained, ITransformer Out)>(new CancellationToken(true)), new CancellationTokenSource());
+      private TaskCompletionSource<ITransformer[]> model = new TaskCompletionSource<ITransformer[]>();
       /// <summary>
       /// Task di previsione
       /// </summary>
       private (Task task, CancellationTokenSource cancellation) taskPrediction = (Task.CompletedTask, new CancellationTokenSource());
       /// <summary>
-      /// Task di retrain
+      /// Task di training continuo
       /// </summary>
-      private (Task task, CancellationTokenSource cancellation) taskRetrain = (Task.CompletedTask, new CancellationTokenSource());
-      /// <summary>
-      /// Task di retrain del modello
-      /// </summary>
-      private (Task<(ITransformer In, ITransformer Trained, ITransformer Out)> task, CancellationTokenSource cancellation) taskRetrainModel =
-         (Task.FromCanceled<(ITransformer In, ITransformer Trained, ITransformer Out)>(new CancellationToken(true)), new CancellationTokenSource());
-      /// <summary>
-      /// Task di salvataggio modello
-      /// </summary>
-      private (Task task, CancellationTokenSource cancellation) taskSaveModel = (Task.CompletedTask, new CancellationTokenSource());
+      private (Task task, CancellationTokenSource cancellation) taskTrain = (Task.CompletedTask, new CancellationTokenSource());
       /// <summary>
       /// Colore di background dei testi
       /// </summary>
@@ -82,7 +67,6 @@ namespace MachineLearningStudio
       {
          try {
             // Forza il training
-            ml = null;
             MakePrediction(default, true);
          }
          catch (Exception exc) {
@@ -103,11 +87,36 @@ namespace MachineLearningStudio
             // Avvia un nuovo task di previsione
             taskPrediction.cancellation.Cancel();
             taskPrediction.cancellation = new CancellationTokenSource();
-            taskPrediction.task = TaskPrediction(taskPrediction.cancellation.Token, delay, forceRebuildModel);
+            taskPrediction.task = TaskPrediction(textBoxDataSetName.Text.Trim(), textBoxSentence.Text.Trim(), taskPrediction.cancellation.Token, delay, forceRebuildModel);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
+      }
+      /// <summary>
+      /// Log del machine learning
+      /// </summary>
+      /// <param name="sender"></param>
+      /// <param name="e"></param>
+      private void Ml_Log(object sender, LoggingEventArgs e)
+      {
+         try {
+            if (e.Kind < ChannelMessageKind.Info || (e.Source != nameof(TaskTrain) && e.Source != nameof(TaskPrediction)))
+               return;
+            textBoxOutput.Invoke(new Action<LoggingEventArgs>(log =>
+            {
+               try {
+                  var scroll = textBoxOutput.SelectionStart >= textBoxOutput.TextLength;
+                  textBoxOutput.AppendText(log.Message + Environment.NewLine);
+                  if (scroll) {
+                     textBoxOutput.Select(textBoxOutput.TextLength, 0);
+                     textBoxOutput.ScrollToCaret();
+                  }
+               }
+               catch (Exception) { }
+            }), e);
+         }
+         catch (Exception) { }
       }
       /// <summary>
       /// Funzione di caricamento del controllo
@@ -119,6 +128,8 @@ namespace MachineLearningStudio
          try {
             base.OnLoad(e);
             textBoxDataSetName.Text = Settings.Default.PageIntent.DataSetName?.Trim();
+            ml = new MLContext();
+            ml.Log += Ml_Log;
             initialized = true;
          }
          catch (Exception exc) {
@@ -128,11 +139,13 @@ namespace MachineLearningStudio
       /// <summary>
       /// Task di previsione
       /// </summary>
+      /// <param name="dataSetName">Nome del set di dati</param>
+      /// <param name="sentence">Sentenza attuale</param>
       /// <param name="cancel">Token di cancellazione</param>
       /// <param name="delay">Ritardo dell'avvio</param>
       /// <param name="forceRebuildModel">Forza la ricostruzione del modello da zero</param>
       /// <returns>Il task</returns>
-      private async Task TaskPrediction(CancellationToken cancel, TimeSpan delay = default, bool forceRebuildModel = false)
+      private async Task TaskPrediction(string dataSetName, string sentence, CancellationToken cancel, TimeSpan delay = default, bool forceRebuildModel = false)
       {
          try {
             await Task.Delay(delay, cancel);
@@ -140,180 +153,26 @@ namespace MachineLearningStudio
             cancel.ThrowIfCancellationRequested();
             if (forceRebuildModel)
                textBoxOutput.Clear();
-            // Path del set di dati in chiaro
-            var dataSetPath = !string.IsNullOrWhiteSpace(dataSetName) ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
-            // Path del modello
-            var modelInPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model-in.zip") : null;
-            var modelTrainedPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model-trained.zip") : null;
-            var modelOutPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model-out.zip") : null;
-            // Sentenza attuale
-            var sentence = textBoxSentence.Text;
-            // Task di costruzione del modello
-            if (forceRebuildModel || model == default) {
-               taskBuildModel.cancellation.Cancel();
-               await taskBuildModel.task.ContinueWith(t => { });
+            cancel.ThrowIfCancellationRequested();
+            // Rilancia o avvia il task di training
+            if (forceRebuildModel || taskTrain.task.IsCompleted) {
+               // Annulla quello attuale
+               taskTrain.cancellation.Cancel();
+               await taskTrain.task;
                cancel.ThrowIfCancellationRequested();
-               taskBuildModel.cancellation = new CancellationTokenSource();
-               taskBuildModel.task = Task.Run(async () =>
-               {
-                  try {
-                     taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                     // Verifica che non sia gia' stato calcolato il modello
-                     if (dataSetPath == null && (modelInPath == null || modelTrainedPath == null || modelOutPath == null))
-                        return default;
-                     // Abilitazione al caricamento del modello preesistente
-                     var loadModel = !forceRebuildModel && new[] { modelInPath, modelTrainedPath, modelOutPath }.All(item => File.Exists(item) && (!File.Exists(dataSetPath) || File.GetLastWriteTime(dataSetPath) < File.GetLastWriteTime(item)));
-                     // Abilitazione al caricamento di dati
-                     var loadData = File.Exists(dataSetPath);
-                     // Verifica le condizioni di caricamento possibile
-                     if (!loadModel && !loadData)
-                        return default;
-                     // Crea il contesto
-                     ml = new MLContext(seed: 1);
-                     // Connette il log
-                     var logSourceFilter = default(string[]);
-                     ml.Log += (sender, e) =>
-                     {
-                        try {
-                           if (e.Kind < ChannelMessageKind.Info)
-                              return;
-                           if (logSourceFilter != null) {
-                              if (logSourceFilter.FirstOrDefault(item => item == e.Source) == null)
-                                 return;
-                           }
-                           textBoxOutput.Invoke(new Action<LoggingEventArgs>(log =>
-                           {
-                              try {
-                                 var scroll = textBoxOutput.SelectionStart >= textBoxOutput.TextLength;
-                                 textBoxOutput.AppendText(log.Message + Environment.NewLine);
-                                 if (scroll) {
-                                    textBoxOutput.Select(textBoxOutput.TextLength, 0);
-                                    textBoxOutput.ScrollToCaret();
-                                 }
-                              }
-                              catch (Exception) { }
-                           }), e);
-                        }
-                        catch (Exception) { }
-                     };
-                     // Verifica se deve caricare un modello preesistente
-                     if (loadModel) {
-                        try {
-                           // Carica il modello
-                           taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                           ml.WriteLog($"Loading the model from {modelInPath}...", GetType().Name);
-                           var modelIn = ml.Model.Load(modelInPath, out var _);
-                           ml.WriteLog("The model is loaded", GetType().Name);
-                           taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                           ml.WriteLog($"Loading the model from {modelTrainedPath}...", GetType().Name);
-                           var modelTrained = ml.Model.Load(modelTrainedPath, out var _);
-                           ml.WriteLog("The model is loaded", GetType().Name);
-                           taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                           ml.WriteLog($"Loading the model from {modelOutPath}...", GetType().Name);
-                           var modelOut = ml.Model.Load(modelOutPath, out var _);
-                           ml.WriteLog("The model is loaded", GetType().Name);
-                           taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                           return (modelIn, modelTrained, modelOut);
-                        }
-                        catch (Exception) { }
-                     }
-                     // Verifica se deve caricare dai dati
-                     if (loadData) {
-                        // Crea l'input di dati
-                        var dataView = ml.Data.LoadFromTextFile(
-                           path: dataSetPath,
-                           columns: new[]
-                           {
-                              new TextLoader.Column("Intent", DataKind.String, 0),
-                              new TextLoader.Column("Sentence", DataKind.String, 1),
-                           },
-                           hasHeader: false,
-                           separatorChar: '|',
-                           allowQuoting: true,
-                           allowSparse: false);
-                        // Pipeline di trasformazione dei dati
-                        taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                        var modelInPipeline =
-                           ml.Transforms.Conversion.MapValueToKey("Intent").
-                           Append(ml.Transforms.Text.FeaturizeText("Sentence_tf", "Sentence")).
-                           Append(ml.Transforms.CopyColumns("Features", "Sentence_tf")).
-                           Append(ml.Transforms.NormalizeMinMax("Features")).
-                           AppendCacheCheckpoint(ml);
-                        var modelIn = modelInPipeline.Fit(dataView);
-                        // Algoritmo di training
-                        taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                        var trainerOptions = new LbfgsMaximumEntropyMulticlassTrainer.Options
-                        {
-                           HistorySize = 1000,
-                           OptimizationTolerance = 1E-06f,
-                           ShowTrainingStatistics = true,
-                           L2Regularization = 1E-06f,
-                           L1Regularization = 0.25f,
-                           MaximumNumberOfIterations = 100,
-                           LabelColumnName = "Intent",
-                           FeatureColumnName = "Features",
-                           NumberOfThreads = Environment.ProcessorCount,
-                        };
-                        var trainer = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(trainerOptions);
-                        // Pipeline di training
-                        var dataIn = modelIn.Transform(dataView);
-                        // Effettua la miglior valutazione del modello
-                        taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                        var crossValidationResults = ml.MulticlassClassification.CrossValidate(dataIn, trainer, 50, "Intent");
-                        ml.WriteLog(crossValidationResults.ToText(), "Cross validation average metrics");
-                        ml.WriteLog(crossValidationResults.Best().ToText(), "Best model metrics");
-                        var modelTrained = crossValidationResults.Best().Model;
-                        var dataTrained = modelTrained.Transform(dataIn);
-                        var modelOutPipeline = ml.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel");
-                        var modelOut = modelOutPipeline.Fit(dataTrained);
-                        // Salva il modello
-                        taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                        taskSaveModel.cancellation.Cancel();
-                        await taskSaveModel.task.ContinueWith(t => { });
-                        taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                        taskSaveModel.cancellation = CancellationTokenSource.CreateLinkedTokenSource(taskBuildModel.cancellation.Token);
-                        taskSaveModel.task = Task.Run(() =>
-                        {
-                           taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
-                           ml.WriteLog($"Saving the model to {modelInPath}...", GetType().Name);
-                           ml.Model.Save(modelIn, dataView.Schema, modelInPath);
-                           ml.WriteLog("The model is saved", GetType().Name);
-                           taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
-                           ml.WriteLog($"Saving the model to {modelTrainedPath}...", GetType().Name);
-                           ml.Model.Save(modelTrained, dataIn.Schema, modelTrainedPath);
-                           ml.WriteLog("The model is saved", GetType().Name);
-                           taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
-                           ml.WriteLog($"Saving the model to {modelOutPath}...", GetType().Name);
-                           ml.Model.Save(modelOut, dataTrained.Schema, modelOutPath);
-                           ml.WriteLog("The model is saved", GetType().Name);
-                           taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
-                        }, taskSaveModel.cancellation.Token);
-                        taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                        return ((ITransformer)modelIn, (ITransformer)modelTrained, (ITransformer)modelOut);
-                     }
-                  }
-                  catch (OperationCanceledException) {
-                     ml = null;
-                  }
-                  catch (Exception exc) {
-                     try {
-                        ml.WriteLog(exc.ToString(), GetType().Name);
-                     }
-                     catch (Exception) { }
-                     ml = null;
-                     throw;
-                  }
-                  return default;
-               }, taskBuildModel.cancellation.Token);
-               model = await taskBuildModel.task;
+               // Lo rilancia
+               model = new TaskCompletionSource<ITransformer[]>();
+               taskTrain.cancellation = new CancellationTokenSource();
+               taskTrain.task = TaskTrain(dataSetName, taskTrain.cancellation.Token);
             }
             // Verifica se esiste un gestore di previsioni
             cancel.ThrowIfCancellationRequested();
-            if (ml != default && model != default && !string.IsNullOrWhiteSpace(sentence)) {
-               var predictionData = ml.Data.LoadFromEnumerable(new[] { new { Intent = "?", Sentence = sentence } });
-               var predictionDataIn = model.In.Transform(predictionData);
-               var predictionDataTrained = model.Trained.Transform(predictionDataIn);
-               var predictionDataOut = model.Out.Transform(predictionDataTrained);
+            // Attende il modello
+            var predicionModel = await model.Task;
+            // Effettua la previsione
+            if (predicionModel[0] != default && !string.IsNullOrWhiteSpace(sentence)) {
+               var predictionDataIn = ml.Data.LoadFromEnumerable(new[] { new { Label = "?", Sentence = sentence } });
+               var predictionDataOut = predicionModel[0].Transform(predictionDataIn);
                textBoxIntent.Text = predictionDataOut.GetString("PredictedLabel");
                textBoxIntent.BackColor = textBoxBackColor;
             }
@@ -327,97 +186,133 @@ namespace MachineLearningStudio
             Trace.WriteLine(exc);
             textBoxIntent.Text = "";
             textBoxIntent.BackColor = Color.Red;
+            ml.WriteLog(exc.ToString(), nameof(TaskPrediction));
          }
       }
       /// <summary>
-      /// Task di retrain del modello
+      /// Task di training continuo
       /// </summary>
-      /// <param name="cancel">Token di annullamento</param>
+      /// <param name="dataSetName">Nome del set di dati</param>
+      /// <param name="cancel">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      async Task TaskRetrain(CancellationToken cancel)
+      private Task TaskTrain(string dataSetName, CancellationToken cancel) => Task.Factory.StartNew(async () =>
       {
          try {
-            // Verifica l'esistenza di un modello
-            if (model == default)
-               return;
-            var intent = textBoxIntent.Text;
-            var sentence = textBoxSentence.Text;
-            cancel.ThrowIfCancellationRequested();
             // Path del set di dati in chiaro
             var dataSetPath = !string.IsNullOrWhiteSpace(dataSetName) ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetName) : null;
             // Path del modello
-            var modelInPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model-in.zip") : null;
-            var modelTrainedPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model-trained.zip") : null;
-            var modelOutPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model-out.zip") : null;
-            // Modello di uscita
-            var modelOut = model.Out;
-            // Stoppa eventuale altro task di retraining
-            taskRetrainModel.cancellation.Cancel();
-            await taskRetrainModel.task.ContinueWith(t => { });
-            cancel.ThrowIfCancellationRequested();
-            // Avvia task di retraing
-            taskRetrainModel.cancellation = new CancellationTokenSource();
-            taskRetrainModel.task = Task.Run(async () =>
-            {
-               // Verifica condizioni
-               if (ml != default && model != default && !string.IsNullOrWhiteSpace(sentence) && !string.IsNullOrWhiteSpace(intent)) {
-                  // Nuova sentenza e intento
-                  var predictionData = ml.Data.LoadFromEnumerable(new[] { new { Intent = intent, Sentence = sentence } });
-                  var modelIn = ml.Model.Load(modelInPath, out _);
-                  var predictionDataIn = modelIn.Transform(predictionData);
-                  taskRetrainModel.cancellation.Token.ThrowIfCancellationRequested();
-                  // Ottiene i parametri del veccio modello
-                  var modelTrained = ml.Model.Load(modelTrainedPath, out _);
-                  var originalModelParameters = ((ISingleFeaturePredictionTransformer<MaximumEntropyModelParameters>)modelTrained).Model;
-                  // Effettua il retrain riferito ai parametri originali per la correzione
-                  var trainerOptions = new LbfgsMaximumEntropyMulticlassTrainer.Options
-                  {
-                     HistorySize = 1000,
-                     OptimizationTolerance = 1E-06f,
-                     ShowTrainingStatistics = true,
-                     L2Regularization = 1E-06f,
-                     L1Regularization = 0.25f,
-                     MaximumNumberOfIterations = 100,
-                     LabelColumnName = "Intent",
-                     FeatureColumnName = "Features",
-                     NumberOfThreads = Environment.ProcessorCount,
-                  };
-                  var newModelTrained = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(trainerOptions).Fit(predictionDataIn, originalModelParameters);
-                  if (newModelTrained.Model.Statistics.Deviance < 0.001f)
-                     return model;
-                  // Ottiene nuovi parametri modello
-                  taskRetrainModel.cancellation.Token.ThrowIfCancellationRequested();
-                  var retrainedModelParameters = ((ISingleFeaturePredictionTransformer<MaximumEntropyModelParameters>)newModelTrained).Model;
-                  // Log
-                  ml.WriteLog($"Original model deviance: {originalModelParameters.Statistics.Deviance}");
-                  ml.WriteLog($"Retrained model deviance: {retrainedModelParameters.Statistics.Deviance}");
-                  taskRetrainModel.cancellation.Token.ThrowIfCancellationRequested();
-                  // Salvataggio del modello con correzione
-                  taskSaveModel.cancellation.Cancel();
-                  await taskSaveModel.task.ContinueWith(t => { });
-                  taskRetrainModel.cancellation.Token.ThrowIfCancellationRequested();
-                  taskSaveModel.cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancel);
-                  taskSaveModel.task = Task.Run(() =>
-                  {
-                     taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
-                     ml.WriteLog($"Saving the retrained model to {modelTrainedPath}...", GetType().Name);
-                     ml.Model.Save(newModelTrained, predictionDataIn.Schema, modelTrainedPath);
-                     ml.WriteLog("The retrained model is saved", GetType().Name);
-                     taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
-                  }, taskSaveModel.cancellation.Token);
-                  taskBuildModel.cancellation.Token.ThrowIfCancellationRequested();
-                  return ((ITransformer)modelIn, (ITransformer)newModelTrained, (ITransformer)modelOut);
+            var modelPath = !string.IsNullOrWhiteSpace(dataSetPath) ? Path.ChangeExtension(dataSetPath, "model.zip") : null;
+            // Carica modello esistente
+            if (modelPath != default && File.Exists(modelPath)) {
+               var m = ml.Model.Load(modelPath, out _);
+               if (!model.TrySetResult(new[] { m }))
+                  model.Task.Result[0] = m;
+            }
+            if (dataSetPath != default && File.Exists(dataSetPath)) {
+               // Opzioni del trainer
+               var trainerOptions = new LbfgsMaximumEntropyMulticlassTrainer.Options
+               {
+                  HistorySize = 1000,
+                  OptimizationTolerance = 1E-06f,
+                  ShowTrainingStatistics = true,
+                  L2Regularization = 1E-06f,
+                  L1Regularization = 0.25f,
+                  MaximumNumberOfIterations = 100,
+                  NumberOfThreads = 8,
+               };
+               // Trainer
+               var trainer = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(trainerOptions);
+               var pipe =
+                  ml.Transforms.Conversion.MapValueToKey("Label").
+                  Append(ml.Transforms.Text.FeaturizeText("Sentence_tf", "Sentence")).
+                  Append(ml.Transforms.CopyColumns("Features", "Sentence_tf")).
+                  Append(ml.Transforms.NormalizeMinMax("Features")).
+                  AppendCacheCheckpoint(ml).
+                  Append(trainer).
+                  Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
+               // Task di salvataggio del modello
+               var taskSaveModel = (task: Task.CompletedTask, cancellation: CancellationTokenSource.CreateLinkedTokenSource(cancel));
+               // Loop di training continuo
+               var prevMetrics = default(MulticlassClassificationMetrics);
+               var prevDataSetTime = File.GetLastWriteTime(dataSetPath);
+               int seed = 0;
+               while (!cancel.IsCancellationRequested) {
+                  try {
+                     // Dati di input
+                     var dataView = ml.Data.LoadFromTextFile(
+                        path: dataSetPath,
+                        columns: new[]
+                        {
+                           new TextLoader.Column("Label", DataKind.String, 0),
+                           new TextLoader.Column("Sentence", DataKind.String, 1),
+                        },
+                        hasHeader: false,
+                        separatorChar: '|',
+                        allowQuoting: true,
+                        allowSparse: false);
+                     //using var stream = new MemoryStream();
+                     //ml.Data.SaveAsText(dataView, stream, '|', false, false);
+                     //stream.Position = 0;
+                     //using var textReader = new StreamReader(stream);
+                     //var dic = new System.Collections.Generic.Dictionary<string, string>();
+                     //for (var line = textReader.ReadLine(); line != default; line = textReader.ReadLine()) {
+                     //   var items = line.Split('|', 2);
+                     //   dic[items[1]] = items[0];
+                     //}
+
+
+                     //// Effettua il training
+                     //var model = pipe.Fit(dataView);
+                     //// Valuta
+                     //var metrics = ml.MulticlassClassification.Evaluate(model.Transform(dataView));
+
+                     var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 10, "Label", null, seed++);
+                     var best = crossValidation.Best();
+                     var model = best.Model;
+                     var metrics = best.Metrics;
+
+                     cancel.ThrowIfCancellationRequested();
+                     var dataSetTime = File.GetLastWriteTime(dataSetPath);
+                     // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
+                     if (prevMetrics == default || dataSetTime > prevDataSetTime || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
+                        // Emette il log
+                        ml.WriteLog("Found best model", nameof(TaskTrain));
+                        ml.WriteLog(metrics.ToText(), nameof(TaskTrain));
+                        cancel.ThrowIfCancellationRequested();
+                        // Annulla eventuali task di salvataggio precedenti
+                        taskSaveModel.cancellation.Cancel();
+                        await taskSaveModel.task;
+                        cancel.ThrowIfCancellationRequested();
+                        // Avvia il task di salvataggio
+                        taskSaveModel.cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+                        var savingModel = model;
+                        taskSaveModel.task = Task.Run(() =>
+                        {
+                           taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
+                           ml.Model.Save(savingModel, dataView.Schema, modelPath);
+                        }, taskSaveModel.cancellation.Token);
+                        prevMetrics = metrics;
+                        prevDataSetTime = dataSetTime;
+                        // Aggiorna il modello attuale
+                        if (!this.model.TrySetResult(new[] { model }))
+                           this.model.Task.Result[0] = model;
+                     }
+                  }
+                  catch (OperationCanceledException) { }
+                  catch (Exception exc) {
+                     Trace.WriteLine(exc);
+                     ml.WriteLog(exc.Message, nameof(TaskTrain));
+                  }
                }
-               else
-                  return default;
-            }, taskRetrainModel.cancellation.Token);
-            model = await taskRetrainModel.task;
+            }
          }
-         catch (OperationCanceledException) { }
          catch (Exception exc) {
             Trace.WriteLine(exc);
+            ml.WriteLog(exc.ToString(), nameof(TaskTrain));
          }
-      }
+         if (!model.TrySetResult(new ITransformer[] { default }))
+            model.Task.Result[0] = default;
+      }, cancel, TaskCreationOptions.LongRunning, TaskScheduler.Default);
       /// <summary>
       /// Evento di variazione del testo del nome del set di dati
       /// </summary>
@@ -448,7 +343,6 @@ namespace MachineLearningStudio
                }
             }
             // Avvia una ricostruzione del modello
-            ml = null;
             MakePrediction(new TimeSpan(0, 0, 0, 0, 500), true);
          }
          catch (Exception exc) {
@@ -465,10 +359,10 @@ namespace MachineLearningStudio
          try {
             if (sender is not TextBox tb || string.IsNullOrWhiteSpace(tb.Text) || e.KeyCode != Keys.Enter)
                return;
-            // Avvia un nuovo task di retraining
-            taskRetrain.cancellation.Cancel();
-            taskRetrain.cancellation = new CancellationTokenSource();
-            taskRetrain.task = TaskRetrain(taskRetrain.cancellation.Token);
+            //// Avvia un nuovo task di retraining
+            //taskRetrain.cancellation.Cancel();
+            //taskRetrain.cancellation = new CancellationTokenSource();
+            //taskRetrain.task = TaskRetrain(taskRetrain.cancellation.Token);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
