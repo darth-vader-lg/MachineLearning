@@ -27,7 +27,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Sicronismo per l'aggiornamento dei dati
       /// </summary>
-      private object dataSetUpdateLocker = new object();
+      private readonly object dataSetUpdateLocker = new object();
       /// <summary>
       /// Flag di controllo inizializzato
       /// </summary>
@@ -213,19 +213,9 @@ namespace MachineLearningStudio
                   model.Task.Result[0] = m;
             }
             if (dataSetPath != default && File.Exists(dataSetPath)) {
-               // Opzioni del trainer
-               var trainerOptions = new LbfgsMaximumEntropyMulticlassTrainer.Options
-               {
-                  HistorySize = 1000,
-                  OptimizationTolerance = 1E-06f,
-                  ShowTrainingStatistics = false,
-                  L2Regularization = 1E-06f,
-                  L1Regularization = 0.25f,
-                  MaximumNumberOfIterations = 100,
-                  NumberOfThreads = Math.Max(Environment.ProcessorCount / 2, 1)
-               };
                // Trainer
-               var trainer = ml.MulticlassClassification.Trainers.LbfgsMaximumEntropy(trainerOptions);
+               var trainer = ml.MulticlassClassification.Trainers.SdcaNonCalibrated();
+               // Pipe di trasformazione
                var pipe =
                   ml.Transforms.Conversion.MapValueToKey("Label").
                   Append(ml.Transforms.Text.FeaturizeText("Sentence_tf", "Sentence")).
@@ -235,11 +225,11 @@ namespace MachineLearningStudio
                   Append(trainer).
                   Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
                // Task di salvataggio del modello
-               var taskSaveModel = (task: Task.CompletedTask, cancellation: CancellationTokenSource.CreateLinkedTokenSource(cancel));
+               var (taskSaveModel, cancSaveModel) = (Task.CompletedTask, CancellationTokenSource.CreateLinkedTokenSource(cancel));
                // Loop di training continuo
                var prevMetrics = default(MulticlassClassificationMetrics);
                var prevDataSetTime = File.GetLastWriteTime(dataSetPath) - new TimeSpan(1, 0, 0);
-               int seed = 0;
+               var seed = 0;
                while (!cancel.IsCancellationRequested) {
                   try {
                      // Time stamp del file di dati
@@ -261,15 +251,13 @@ namespace MachineLearningStudio
                         separatorChar: '|',
                         allowQuoting: true,
                         allowSparse: false);
-                     //// Effettua il training
-                     //var model = pipe.Fit(dataView);
-                     //// Valuta
-                     //var metrics = ml.MulticlassClassification.Evaluate(model.Transform(dataView));
-                     var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 10, "Label", null, seed++);
-                     var best = crossValidation.Best();
-                     var model = best.Model;
-                     var metrics = best.Metrics;
-
+                     // Effettua il training
+                     var model = pipe.Fit(ml.Data.ShuffleRows(dataView, seed++));
+                     var metrics = ml.MulticlassClassification.Evaluate(model.Transform(dataView));
+                     //var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 5, "Label", null, seed++);
+                     //var best = crossValidation.Best();
+                     //var model = best.Model;
+                     //var metrics = best.Metrics;
                      cancel.ThrowIfCancellationRequested();
                      // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
                      if (prevMetrics == default || dataSetTime > prevDataSetTime || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
@@ -278,17 +266,17 @@ namespace MachineLearningStudio
                         ml.WriteLog(metrics.ToText(), nameof(TaskTrain));
                         cancel.ThrowIfCancellationRequested();
                         // Annulla eventuali task di salvataggio precedenti
-                        taskSaveModel.cancellation.Cancel();
-                        await taskSaveModel.task;
+                        cancSaveModel.Cancel();
+                        await taskSaveModel;
                         cancel.ThrowIfCancellationRequested();
                         // Avvia il task di salvataggio
-                        taskSaveModel.cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+                        cancSaveModel = CancellationTokenSource.CreateLinkedTokenSource(cancel);
                         var savingModel = model;
-                        taskSaveModel.task = Task.Run(() =>
+                        taskSaveModel = Task.Run(() =>
                         {
-                           taskSaveModel.cancellation.Token.ThrowIfCancellationRequested();
+                           cancSaveModel.Token.ThrowIfCancellationRequested();
                            ml.Model.Save(savingModel, dataView.Schema, modelPath);
-                        }, taskSaveModel.cancellation.Token);
+                        }, cancSaveModel.Token);
                         prevMetrics = metrics;
                         prevDataSetTime = dataSetTime;
                         // Aggiorna il modello attuale
@@ -411,6 +399,7 @@ namespace MachineLearningStudio
       {
          try {
             // Lancia una previsione
+            textBoxIntent.Text = "";
             MakePrediction(new TimeSpan(0, 0, 0, 0, 500));
          }
          catch (Exception exc) {
