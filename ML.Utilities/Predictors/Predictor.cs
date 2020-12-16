@@ -18,7 +18,7 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Task di valutazione modello
       /// </summary>
-      private TaskCompletionSource<ModelAndSchema> taskModelEvaluation = new TaskCompletionSource<ModelAndSchema>();
+      private TaskCompletionSource taskEvaluation = new TaskCompletionSource();
       /// <summary>
       /// Task di salvataggio asincrono modello
       /// </summary>
@@ -30,25 +30,17 @@ namespace ML.Utilities.Predictors
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
+      /// Valutazione
+      /// </summary>
+      public Evaluator Evaluation { get; private set; }
+      /// <summary>
       /// Contesto ML
       /// </summary>
       public MLContext MLContext { get; }
       /// <summary>
-      /// Modello
-      /// </summary>
-      public ITransformer Model { get { var t = TaskModelEvaluation; return t.IsCompleted ? t.Result.Model : null; } }
-      /// <summary>
-      /// Schema di input del modello
-      /// </summary>
-      public DataViewSchema ModelInputSchema { get { var t = TaskModelEvaluation; return t.IsCompleted ? t.Result.Schema : null; } }
-      /// <summary>
       /// Gestore storage modello
       /// </summary>
       public IModelStorage ModelStorage{ get; set; }
-      /// <summary>
-      /// Task di valutazione modello
-      /// </summary>
-      public Task<ModelAndSchema> TaskModelEvaluation => taskModelEvaluation.Task;
       #endregion
       #region Methods
       /// <summary>
@@ -66,28 +58,56 @@ namespace ML.Utilities.Predictors
       /// <param name="ml">Contesto di machine learning</param>
       public Predictor(MLContext ml) => MLContext = ml;
       /// <summary>
+      /// Restituisce un task di attesa della valutazione copleta
+      /// </summary>
+      /// <returns></returns>
+      public async Task<Evaluator> GetEvaluation()
+      {
+         // Attende la valutazione
+         await taskEvaluation.Task;
+         // Restituisce la valutazione
+         return Evaluation;
+      }
+      /// <summary>
       /// Carica i dati
       /// </summary>
-      /// <param name="dataStorage">Eventuale gestore storage dati</param>
+      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(IDataStorage dataStorage = null) => (dataStorage ?? DataStorage).LoadData(MLContext);
       /// <summary>
       /// Carica il modello
       /// </summary>
-      /// <param name="modelStorage">Eventuale gestore storage modello</param>
-      public void LoadModel(IModelStorage modelStorage = null)
+      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
+      public ITransformer LoadModel(IModelStorage modelStorage = null) => (modelStorage ?? ModelStorage)?.LoadModel(MLContext, out _);
+      /// <summary>
+      /// Carica il modello
+      /// </summary>
+      /// <param name="schema">Schema di input del modello</param>
+      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
+      public ITransformer LoadModel(out DataViewSchema schema, IModelStorage modelStorage = null)
       {
-         var schema = default(DataViewSchema);
-         SetModel((modelStorage ?? ModelStorage)?.LoadModel(MLContext, out schema), schema);
+         schema = null;
+         return (modelStorage ?? ModelStorage)?.LoadModel(MLContext, out schema);
+      }
+      /// <summary>
+      /// Salva i dati
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
+      public void SaveData(IDataStorage dataStorage = null)
+      {
+         lock (taskSaveModel.Locker)
+            (dataStorage ?? DataStorage)?.SaveData(MLContext, Evaluation.Data);
       }
       /// <summary>
       /// Salva il modello
       /// </summary>
-      /// <param name="modelSaver">Eventuale oggetto di archiviazione modello</param>
+      /// <param name="model">Modello</param>
+      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
       public void SaveModel(IModelStorage modelStorage = null)
       {
          lock (taskSaveModel.Locker)
-            (modelStorage ?? ModelStorage)?.SaveModel(MLContext, Model, ModelInputSchema);
+            (modelStorage ?? ModelStorage)?.SaveModel(MLContext, Evaluation.Model, Evaluation.Schema);
       }
       /// <summary>
       /// Funzione di salvataggio asincrono del modello
@@ -102,7 +122,7 @@ namespace ML.Utilities.Predictors
             {
                try {
                   cancellation.Token.ThrowIfCancellationRequested();
-                  SaveModel();
+                  SaveModel(ModelStorage);
                }
                catch (Exception exc) {
                   Trace.WriteLine(exc);
@@ -112,35 +132,40 @@ namespace ML.Utilities.Predictors
          }
       }
       /// <summary>
-      /// Imposta il modello
+      /// Imposta i dati di valutazione
       /// </summary>
-      /// <param name="model">Modello</param>
-      /// <param name="schema">Schema di input</param>
-      protected void SetModel(ITransformer model, DataViewSchema schema = null)
+      /// <param name="evaluation">Dati di valutazione</param>
+      /// <remarks>Se la valutazione e' nulla annulla la validita' dei dati</remarks>
+      protected void SetEvaluation(Evaluator evaluation)
       {
          // Annulla il modello
-         if (model == default) {
-            taskModelEvaluation.TrySetCanceled();
-            taskModelEvaluation = new TaskCompletionSource<ModelAndSchema>();
+         if (evaluation == default) {
+            taskEvaluation.TrySetCanceled();
+            taskEvaluation = new TaskCompletionSource();
          }
          // Imposta il modello
-         else if (!taskModelEvaluation.TrySetResult(new ModelAndSchema { Model = model, Schema = schema ?? ModelInputSchema })) {
-            taskModelEvaluation.Task.Result.Model = model;
-            taskModelEvaluation.Task.Result.Schema = schema ?? ModelInputSchema;
+         else {
+            Evaluation = evaluation;
+            if (evaluation.Model != default)
+               taskEvaluation.TrySetResult();
          }
       }
       #endregion
    }
 
    /// <summary>
-   /// Modello e schema di input
+   /// Dati di valutazione
    /// </summary>
    public partial class Predictor
    {
       [Serializable]
-      public class ModelAndSchema
+      public class Evaluator
       {
          #region Properties
+         /// <summary>
+         /// Dati del modello
+         /// </summary>
+         public IDataView Data { get; set; }
          /// <summary>
          /// Modello
          /// </summary>

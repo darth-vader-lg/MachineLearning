@@ -121,7 +121,7 @@ namespace ML.Utilities.Predictors
          var dataView = LoadData(new DataStorageString() { TextData = data, TextOptions = (DataStorage as ITextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello
-         var predictor = await TaskModelEvaluation;
+         var predictor = await GetEvaluation();
          cancellation.ThrowIfCancellationRequested();
          // Effettua la predizione
          var prediction = predictor.Model.Transform(dataView);
@@ -147,8 +147,9 @@ namespace ML.Utilities.Predictors
          // Loop di costruzione della linea di dati
          var separator = "";
          foreach (var item in data) {
-            var quoting = quote.Length > 0 && item.TrimStart().StartsWith(quote) && item.TrimEnd().EndsWith(quote) ? "" : quote;
-            inputLine.Append($"{separator}{quoting}{item}{quoting}");
+            var text = item ?? "";
+            var quoting = quote.Length > 0 && text.TrimStart().StartsWith(quote) && text.TrimEnd().EndsWith(quote) ? "" : quote;
+            inputLine.Append($"{separator}{quoting}{text}{quoting}");
             separator = new string(separatorChar, 1);
          }
          // Ritorna il task di predizione asincrona
@@ -161,15 +162,17 @@ namespace ML.Utilities.Predictors
       private void Train(CancellationToken cancel)
       {
          // Carica il modello
-         LoadModel();
+         var model = LoadModel(out var dataViewSchema);
          // Carica i dati
-         var dataView = LoadData();
+         var data = LoadData();
+         // Imposta la valutazione
+         SetEvaluation(new Evaluator { Data = data, Model = model, Schema = data?.Schema ?? dataViewSchema });
          // Trainer
          var trainer = MLContext.MulticlassClassification.Trainers.SdcaNonCalibrated();
          // Pipe di trasformazione
          var pipe =
             MLContext.Transforms.Conversion.MapValueToKey("Label", labelColumnName).
-            Append(MLContext.Transforms.Text.FeaturizeText("Sentence_tf", new TextFeaturizingEstimator.Options(), (from c in dataView.Schema where c.Name != "Label" select c.Name).ToArray())).
+            Append(MLContext.Transforms.Text.FeaturizeText("Sentence_tf", new TextFeaturizingEstimator.Options(), (from c in Evaluation.Schema where c.Name != "Label" select c.Name).ToArray())).
             Append(MLContext.Transforms.CopyColumns("Features", "Sentence_tf")).
             Append(MLContext.Transforms.NormalizeMinMax("Features")).
             AppendCacheCheckpoint(MLContext).
@@ -183,8 +186,8 @@ namespace ML.Utilities.Predictors
          while (!cancel.IsCancellationRequested && --iteration >= 0) {
             try {
                // Effettua il training
-               dataView = MLContext.Data.ShuffleRows(dataView, seed++);
-               var model = pipe.Fit(dataView);
+               var dataView = MLContext.Data.ShuffleRows(data, seed++);
+               model = pipe.Fit(dataView);
                var metrics = MLContext.MulticlassClassification.Evaluate(model.Transform(dataView));
                //var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 5, "Label", null, seed++);
                //var best = crossValidation.Best();
@@ -200,12 +203,12 @@ namespace ML.Utilities.Predictors
                   // Salva il modello
                   SaveModel();
                   prevMetrics = metrics;
-                  // Aggiorna il modello attuale
-                  SetModel(model);
+                  // Aggiorna la valutazione
+                  SetEvaluation(new Evaluator { Data = data, Model = model, Schema = Evaluation.Schema });
                   iteration = iterationMax;
                }
                // Ricarica i dati
-               dataView = LoadData();
+               data = LoadData();
             }
             catch (OperationCanceledException) { }
             catch (Exception exc) {
