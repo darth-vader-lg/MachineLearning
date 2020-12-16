@@ -49,14 +49,15 @@ namespace ML.Utilities.Predictors
       /// <param name="ml">Contesto di machine learning</param>
       public TextMeaning(MLContext ml) : base(ml) => Init();
       /// <summary>
-      /// Aggiunge una linea
+      /// Aggiunge una linea di dati
       /// </summary>
-      /// <param name="line">Linea da aggiungere</param>
-      public void AppendLine(string line)
+      /// <param name="data">Linea da aggiungere</param>
+      public void AppendData(string data)
       {
+         // Aggiunge la linea di dati
          var sb = new StringBuilder();
          sb.Append(TextData);
-         sb.AppendLine(line);
+         sb.AppendLine(data);
          TextData = sb.ToString();
       }
       /// <summary>
@@ -66,6 +67,7 @@ namespace ML.Utilities.Predictors
       /// <param name="labelColumnName">Nome della colonna label</param>
       private void Init(IEnumerable<string> columns = null, string labelColumnName = "Label")
       {
+         // Nome colonna di label
          this.labelColumnName = string.IsNullOrWhiteSpace(labelColumnName) ? "Label" : labelColumnName;
          var textOptions = new TextLoader.Options
          {
@@ -73,7 +75,7 @@ namespace ML.Utilities.Predictors
             AllowSparse = false,
             Separators = new[] { ',' },
             Columns = columns != default ?
-            columns.Select((c, i) => new TextLoader.Column(c != this.labelColumnName ? c : labelColumnName, DataKind.String, i)).ToArray() :
+            columns.Select((c, i) => new TextLoader.Column(c, DataKind.String, i)).ToArray() :
             new[]
             {
                new TextLoader.Column("Label", DataKind.String, 0),
@@ -85,22 +87,25 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Predizione
       /// </summary>
-      /// <param name="sentences">Linea con le sentenze da usare per la previsione</param>
+      /// <param name="data">Linea con i dati da usare per la previsione</param>
       /// <returns>Il task di predizione</returns>
-      public string Predict(string sentences) => PredictAsync(sentences, CancellationToken.None).Result;
+      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
+      public string Predict(string data) => PredictAsync(data, CancellationToken.None).Result;
       /// <summary>
       /// Predizione asincrona
       /// </summary>
-      /// <param name="sentences">Elenco di sentenze da usare per la previsione</param>
+      /// <param name="data">Elenco di dati da usare per la previsione</param>
       /// <returns>Il task di predizione</returns>
-      public string Predict(IEnumerable<string> sentences) => PredictAsync(sentences, CancellationToken.None).Result;
+      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
+      public string Predict(IEnumerable<string> data) => PredictAsync(data, CancellationToken.None).Result;
       /// <summary>
       /// Predizione asincrona
       /// </summary>
-      /// <param name="sentences">Linea con le sentenze da usare per la previsione</param>
+      /// <param name="data">Linea con i dati da usare per la previsione</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
-      public async Task<string> PredictAsync(string sentences, CancellationToken cancellation)
+      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
+      public async Task<string> PredictAsync(string data, CancellationToken cancellation)
       {
          // Verifica validita' dello storage di dati
          if (DataStorage is not ITextOptionsProvider textOptionsProvider)
@@ -113,7 +118,7 @@ namespace ML.Utilities.Predictors
             taskTrain.Task = Task.Factory.StartNew(() => Train(taskTrain.Canc.Token), taskTrain.Canc.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
          }
          // Crea una dataview con i dati di input
-         var dataView = LoadData(new DataStorageString() { TextData = sentences, TextOptions = textOptionsProvider.TextOptions });
+         var dataView = LoadData(new DataStorageString() { TextData = data, TextOptions = (DataStorage as ITextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello
          var predictor = await TaskModelEvaluation;
@@ -127,48 +132,27 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Predizione asincrona
       /// </summary>
-      /// <param name="sentences">Elenco di sentenze da usare per la previsione</param>
+      /// <param name="data">Linea di dati da usare per la previsione</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
-      public Task<string> PredictAsync(IEnumerable<string> sentences, CancellationToken cancellation)
+      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
+      public Task<string> PredictAsync(IEnumerable<string> data, CancellationToken cancellation)
       {
          // Linea da passare al modello
-         string inputLine;
-         // Costruzione in presenza di opzioni di testo
-         if (DataStorage is ITextOptionsProvider textOptionsProvider) {
-            var textOptions = textOptionsProvider.TextOptions;
-            var quote = textOptions.AllowQuoting ? "\"" : "";
-            var sb = new StringBuilder();
-            var sentencesEnumerator = sentences.GetEnumerator();
-            var separator = "";
-            for (var i = 0; i < textOptions.Columns.Length; i++) {
-               var c = textOptions.Columns[i];
-               if (c.Name == labelColumnName)
-                  sb.Append(separator);
-               else {
-                  var sentence = sentencesEnumerator.MoveNext() ? sentencesEnumerator.Current : "";
-                  var quoting = sentence.Trim().StartsWith(quote) ? "" : quote;
-                  sb.Append($"{separator}{quoting}{sentence}{quoting}");
-               }
-               separator = new string(new[] { textOptions.Separators[0] });
-               cancellation.ThrowIfCancellationRequested();
-            }
-            inputLine = sb.ToString();
+         var inputLine = new StringBuilder();
+         // Quotatura stringhe
+         var quote = ((DataStorage as ITextOptionsProvider)?.TextOptions?.AllowQuoting ?? true) ? "\"" : "";
+         // Separatore di colonne
+         var separatorChar = (DataStorage as ITextOptionsProvider)?.TextOptions?.Separators?.FirstOrDefault() ?? ',';
+         // Loop di costruzione della linea di dati
+         var separator = "";
+         foreach (var item in data) {
+            var quoting = quote.Length > 0 && item.TrimStart().StartsWith(quote) && item.TrimEnd().EndsWith(quote) ? "" : quote;
+            inputLine.Append($"{separator}{quoting}{item}{quoting}");
+            separator = new string(separatorChar, 1);
          }
-         // Costruzione senza opzioni di testo
-         else {
-            var separator = "";
-            var sb = new StringBuilder();
-            var quote = "\"";
-            foreach (var sentence in sentences) {
-               var quoting = sentence.Trim().StartsWith(quote) ? "" : quote;
-               sb.Append($"{separator}{quoting}{sentence}{quoting}");
-               separator = ",";
-               cancellation.ThrowIfCancellationRequested();
-            }
-            inputLine = sb.ToString();
-         }
-         return PredictAsync(inputLine, cancellation);
+         // Ritorna il task di predizione asincrona
+         return PredictAsync(inputLine.ToString(), cancellation);
       }
       /// <summary>
       /// Routine di training continuo
@@ -184,7 +168,7 @@ namespace ML.Utilities.Predictors
          var trainer = MLContext.MulticlassClassification.Trainers.SdcaNonCalibrated();
          // Pipe di trasformazione
          var pipe =
-            MLContext.Transforms.Conversion.MapValueToKey("Label").
+            MLContext.Transforms.Conversion.MapValueToKey("Label", labelColumnName).
             Append(MLContext.Transforms.Text.FeaturizeText("Sentence_tf", new TextFeaturizingEstimator.Options(), (from c in dataView.Schema where c.Name != "Label" select c.Name).ToArray())).
             Append(MLContext.Transforms.CopyColumns("Features", "Sentence_tf")).
             Append(MLContext.Transforms.NormalizeMinMax("Features")).
@@ -210,8 +194,8 @@ namespace ML.Utilities.Predictors
                // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
                if (prevMetrics == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
                   // Emette il log
-                  MLContext.WriteLog("Found best model", nameof(Train));
-                  MLContext.WriteLog(metrics.ToText(), nameof(Train));
+                  MLContext.WriteLog("Found best model", $"{nameof(TextMeaning)}.{nameof(Train)}");
+                  MLContext.WriteLog(metrics.ToText(), $"{nameof(TextMeaning)}.{nameof(Train)}");
                   cancel.ThrowIfCancellationRequested();
                   // Salva il modello
                   SaveModel();
@@ -226,7 +210,7 @@ namespace ML.Utilities.Predictors
             catch (OperationCanceledException) { }
             catch (Exception exc) {
                Trace.WriteLine(exc);
-               MLContext.WriteLog(exc.Message, nameof(Train));
+               MLContext.WriteLog(exc.Message, $"{nameof(TextMeaning)}.{nameof(Train)}");
             }
          }
       }
