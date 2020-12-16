@@ -16,9 +16,9 @@ namespace ML.Utilities.Predictors
    {
       #region Fields
       /// <summary>
-      /// Task di modello pronto
+      /// Task di valutazione modello
       /// </summary>
-      private TaskCompletionSource<ModelAndSchema> taskModel = new TaskCompletionSource<ModelAndSchema>();
+      private TaskCompletionSource<ModelAndSchema> taskModelEvaluation = new TaskCompletionSource<ModelAndSchema>();
       /// <summary>
       /// Task di salvataggio asincrono modello
       /// </summary>
@@ -36,15 +36,19 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Modello
       /// </summary>
-      public ITransformer Model { get { var t = taskModel.Task; return t.IsCompleted ? t.Result.Model : null; } }
+      public ITransformer Model { get { var t = TaskModelEvaluation; return t.IsCompleted ? t.Result.Model : null; } }
       /// <summary>
       /// Schema di input del modello
       /// </summary>
-      public DataViewSchema ModelInputSchema { get { var t = taskModel.Task; return t.IsCompleted ? t.Result.Schema : null; } }
+      public DataViewSchema ModelInputSchema { get { var t = TaskModelEvaluation; return t.IsCompleted ? t.Result.Schema : null; } }
       /// <summary>
       /// Gestore storage modello
       /// </summary>
       public IModelStorage ModelStorage{ get; set; }
+      /// <summary>
+      /// Task di valutazione modello
+      /// </summary>
+      public Task<ModelAndSchema> TaskModelEvaluation => taskModelEvaluation.Task;
       #endregion
       #region Methods
       /// <summary>
@@ -116,13 +120,13 @@ namespace ML.Utilities.Predictors
       {
          // Annulla il modello
          if (model == default) {
-            taskModel.TrySetCanceled();
-            taskModel = new TaskCompletionSource<ModelAndSchema>();
+            taskModelEvaluation.TrySetCanceled();
+            taskModelEvaluation = new TaskCompletionSource<ModelAndSchema>();
          }
          // Imposta il modello
-         else if (!taskModel.TrySetResult(new ModelAndSchema { Model = model, Schema = schema ?? ModelInputSchema })) {
-            taskModel.Task.Result.Model = model;
-            taskModel.Task.Result.Schema = schema ?? ModelInputSchema;
+         else if (!taskModelEvaluation.TrySetResult(new ModelAndSchema { Model = model, Schema = schema ?? ModelInputSchema })) {
+            taskModelEvaluation.Task.Result.Model = model;
+            taskModelEvaluation.Task.Result.Schema = schema ?? ModelInputSchema;
          }
       }
       #endregion
@@ -134,7 +138,7 @@ namespace ML.Utilities.Predictors
    public partial class Predictor
    {
       [Serializable]
-      private class ModelAndSchema
+      public class ModelAndSchema
       {
          #region Properties
          /// <summary>

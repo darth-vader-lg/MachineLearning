@@ -9,13 +9,13 @@ namespace ML.Utilities.Data
    /// Classe per lo storage di dati di tipo stringhe
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageString : IDataStorage, IDataTextProvider
+   public sealed partial class DataStorageString : IDataStorage, IDataTextProvider, ITextOptionsProvider
    {
       #region Properties
       /// <summary>
       /// Configurazione dei dati
       /// </summary>
-      public TextLoader.Options Config { get; set; } = new TextLoader.Options();
+      public TextLoader.Options TextOptions { get; set; } = new TextLoader.Options();
       /// <summary>
       /// Dati testuali
       /// </summary>
@@ -27,7 +27,7 @@ namespace ML.Utilities.Data
       /// </summary>
       /// <param name="mlContext">Contesto di machine learning</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(MLContext mlContext) => mlContext.Data.CreateTextLoader(Config ?? new TextLoader.Options()).Load(new Source(this));
+      public IDataView LoadData(MLContext mlContext) => mlContext.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(new Source(TextData));
       #endregion
    }
 
@@ -40,9 +40,9 @@ namespace ML.Utilities.Data
       {
          #region Fields
          /// <summary>
-         /// Oggetto di appartenenza
+         /// Testo
          /// </summary>
-         private readonly IDataTextProvider owner;
+         private readonly string text;
          #endregion
          #region Properties
          /// <summary>
@@ -54,8 +54,8 @@ namespace ML.Utilities.Data
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="owner">Oggetto di appartenenza</param>
-         public Source(IDataTextProvider owner) => this.owner = owner;
+         /// <param name="text">Testo</param>
+         public Source(string text) => this.text = text;
          /// <summary>
          /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
          /// </summary>
@@ -71,7 +71,7 @@ namespace ML.Utilities.Data
          {
             var memoryStream = new MemoryStream();
             using var writer = new StreamWriter(memoryStream);
-            writer.Write(owner.TextData ?? "");
+            writer.Write(text ?? "");
             memoryStream.Position = 0;
             return memoryStream;
          }
@@ -80,7 +80,7 @@ namespace ML.Utilities.Data
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public TextReader OpenTextReader(int index) => new StringReader(owner.TextData ?? "");
+         public TextReader OpenTextReader(int index) => new StringReader(text ?? "");
          #endregion
       }
    }

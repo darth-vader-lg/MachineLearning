@@ -22,6 +22,10 @@ namespace ML.Utilities.Predictors
       /// Nome della colonna label
       /// </summary>
       private string labelColumnName = "Label";
+      /// <summary>
+      /// Task di training
+      /// </summary>
+      private (Task Task, CancellationTokenSource Canc) taskTrain = (Task.CompletedTask, new CancellationTokenSource());
       #endregion
       #region Properties
       /// <summary>
@@ -63,7 +67,7 @@ namespace ML.Utilities.Predictors
       private void Init(IEnumerable<string> columns = null, string labelColumnName = "Label")
       {
          this.labelColumnName = string.IsNullOrWhiteSpace(labelColumnName) ? "Label" : labelColumnName;
-         var config = new TextLoader.Options
+         var textOptions = new TextLoader.Options
          {
             AllowQuoting = true,
             AllowSparse = false,
@@ -76,7 +80,49 @@ namespace ML.Utilities.Predictors
                new TextLoader.Column("Sentence", DataKind.String, 1),
             }
          };
-         DataStorage = new DataStorageString { Config = config };
+         DataStorage = new DataStorageString { TextOptions = textOptions };
+      }
+      /// <summary>
+      /// Predizione
+      /// </summary>
+      /// <param name="sentences">Linea con le sentenze da usare per la previsione</param>
+      /// <returns>Il task di predizione</returns>
+      public string Predict(string sentences) => PredictAsync(sentences, CancellationToken.None).Result;
+      /// <summary>
+      /// Predizione asincrona
+      /// </summary>
+      /// <param name="sentences">Elenco di sentenze da usare per la previsione</param>
+      /// <returns>Il task di predizione</returns>
+      public string Predict(IEnumerable<string> sentences) => PredictAsync(sentences, CancellationToken.None).Result;
+      /// <summary>
+      /// Predizione asincrona
+      /// </summary>
+      /// <param name="sentences">Linea con le sentenze da usare per la previsione</param>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il task di predizione</returns>
+      public async Task<string> PredictAsync(string sentences, CancellationToken cancellation)
+      {
+         // Verifica validita' dello storage di dati
+         if (DataStorage is not ITextOptionsProvider textOptionsProvider)
+            return null;
+         // Gestione avvio task di training
+         if (taskTrain.Canc.IsCancellationRequested)
+            await taskTrain.Task;
+         if (taskTrain.Task.IsCompleted) {
+            taskTrain.Canc = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+            taskTrain.Task = Task.Factory.StartNew(() => Train(taskTrain.Canc.Token), taskTrain.Canc.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+         }
+         // Crea una dataview con i dati di input
+         var dataView = LoadData(new DataStorageString() { TextData = sentences, TextOptions = textOptionsProvider.TextOptions });
+         cancellation.ThrowIfCancellationRequested();
+         // Attande il modello
+         var predictor = await TaskModelEvaluation;
+         cancellation.ThrowIfCancellationRequested();
+         // Effettua la predizione
+         var prediction = predictor.Model.Transform(dataView);
+         cancellation.ThrowIfCancellationRequested();
+         // Restituisce il risultato
+         return prediction.GetString("PredictedLabel");
       }
       /// <summary>
       /// Predizione asincrona
@@ -84,10 +130,45 @@ namespace ML.Utilities.Predictors
       /// <param name="sentences">Elenco di sentenze da usare per la previsione</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
-      public async Task<string> PredictAsync(IEnumerable<string> sentences, CancellationToken cancellation)
+      public Task<string> PredictAsync(IEnumerable<string> sentences, CancellationToken cancellation)
       {
-         await Task.CompletedTask;
-         return "";
+         // Linea da passare al modello
+         string inputLine;
+         // Costruzione in presenza di opzioni di testo
+         if (DataStorage is ITextOptionsProvider textOptionsProvider) {
+            var textOptions = textOptionsProvider.TextOptions;
+            var quote = textOptions.AllowQuoting ? "\"" : "";
+            var sb = new StringBuilder();
+            var sentencesEnumerator = sentences.GetEnumerator();
+            var separator = "";
+            for (var i = 0; i < textOptions.Columns.Length; i++) {
+               var c = textOptions.Columns[i];
+               if (c.Name == labelColumnName)
+                  sb.Append(separator);
+               else {
+                  var sentence = sentencesEnumerator.MoveNext() ? sentencesEnumerator.Current : "";
+                  var quoting = sentence.Trim().StartsWith(quote) ? "" : quote;
+                  sb.Append($"{separator}{quoting}{sentence}{quoting}");
+               }
+               separator = new string(new[] { textOptions.Separators[0] });
+               cancellation.ThrowIfCancellationRequested();
+            }
+            inputLine = sb.ToString();
+         }
+         // Costruzione senza opzioni di testo
+         else {
+            var separator = "";
+            var sb = new StringBuilder();
+            var quote = "\"";
+            foreach (var sentence in sentences) {
+               var quoting = sentence.Trim().StartsWith(quote) ? "" : quote;
+               sb.Append($"{separator}{quoting}{sentence}{quoting}");
+               separator = ",";
+               cancellation.ThrowIfCancellationRequested();
+            }
+            inputLine = sb.ToString();
+         }
+         return PredictAsync(inputLine, cancellation);
       }
       /// <summary>
       /// Routine di training continuo
@@ -113,7 +194,9 @@ namespace ML.Utilities.Predictors
          // Loop di training continuo
          var prevMetrics = default(MulticlassClassificationMetrics);
          var seed = 0;
-         while (!cancel.IsCancellationRequested) {
+         var iterationMax = 10;
+         var iteration = iterationMax;
+         while (!cancel.IsCancellationRequested && --iteration >= 0) {
             try {
                // Effettua il training
                dataView = MLContext.Data.ShuffleRows(dataView, seed++);
@@ -135,7 +218,10 @@ namespace ML.Utilities.Predictors
                   prevMetrics = metrics;
                   // Aggiorna il modello attuale
                   SetModel(model);
+                  iteration = iterationMax;
                }
+               // Ricarica i dati
+               dataView = LoadData();
             }
             catch (OperationCanceledException) { }
             catch (Exception exc) {
