@@ -2,6 +2,7 @@
 using Microsoft.ML.Data;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace ML.Utilities.Data
 {
@@ -28,6 +29,28 @@ namespace ML.Utilities.Data
       /// <param name="mlContext">Contesto di machine learning</param>
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(MLContext mlContext) => mlContext.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(new Source(TextData));
+      /// <summary>
+      /// Salva i dati
+      /// </summary>
+      /// <param name="mlContext">Contesto di machine learning</param>
+      /// <param name="data">L'accesso ai dati</param>
+      public void SaveData(MLContext mlContext, IDataView data)
+      {
+         // Oggetto per la scrittura dei dati in memoria
+         using var writer = new MemoryStream();
+         // Opzioni
+         var opt = TextOptions ?? new TextLoader.Options();
+         // Separatore di colonne
+         var separator = opt.Separators?.FirstOrDefault() ?? '\t';
+         separator = separator != default ? separator : '\t';
+         // Salva come testo i dati
+         mlContext.Data.SaveAsText(data, writer, separator, opt.HasHeader, false, false, false);
+         // Crea uno stream per la lettura
+         writer.Position = 0;
+         using var reader = new StreamReader(writer);
+         // Aggiorna la stringa
+         TextData = reader.ReadToEnd();
+      }
       #endregion
    }
 
