@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Data;
 using ML.Utilities.Data;
 using ML.Utilities.Models;
 using System;
@@ -20,15 +21,23 @@ namespace ML.Utilities.Predictors
       /// </summary>
       private TaskCompletionSource taskEvaluation = new TaskCompletionSource();
       /// <summary>
+      /// Task di salvataggio asincrono dati
+      /// </summary>
+      private (Task Task, CancellationTokenSource Cancellation, object Locker) taskSaveData = (Task.CompletedTask, new CancellationTokenSource(), new object());
+      /// <summary>
       /// Task di salvataggio asincrono modello
       /// </summary>
       private (Task Task, CancellationTokenSource Cancellation, object Locker) taskSaveModel = (Task.CompletedTask, new CancellationTokenSource(), new object());
       #endregion
       #region Properties
       /// <summary>
-      /// Gestore storage dati
+      /// Gestore storage dati principale
       /// </summary>
       public IDataStorage DataStorage { get; set; }
+      /// <summary>
+      /// Dati extra per retrain
+      /// </summary>
+      public DataStorageString ExtraData { get; set; }
       /// <summary>
       /// Valutazione
       /// </summary>
@@ -72,8 +81,9 @@ namespace ML.Utilities.Predictors
       /// Carica i dati
       /// </summary>
       /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
+      /// <param name="extra">Sorgenti extra</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(IDataStorage dataStorage = null) => (dataStorage ?? DataStorage).LoadData(MLContext);
+      public IDataView LoadData(IDataStorage dataStorage = null, params IMultiStreamSource[] extra) => (dataStorage ?? DataStorage).LoadData(MLContext, extra);
       /// <summary>
       /// Carica il modello
       /// </summary>
@@ -92,22 +102,33 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Salva i dati
       /// </summary>
-      /// <param name="data">Dati</param>
+      public void SaveData()
+      {
+         lock (taskSaveData.Locker) {
+            taskSaveData.Cancellation.Cancel();
+            taskSaveData.Task.Wait();
+            var cancellation = taskSaveData.Cancellation = new CancellationTokenSource();
+            taskSaveData.Task = Task.Run(() =>
+            {
+               try {
+                  cancellation.Token.ThrowIfCancellationRequested();
+                  SaveData(DataStorage);
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+                  throw;
+               }
+            }, cancellation.Token);
+         }
+      }
+      /// <summary>
+      /// Salva i dati
+      /// </summary>
       /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
       public void SaveData(IDataStorage dataStorage = null)
       {
-         lock (taskSaveModel.Locker)
+         lock (taskSaveData.Locker)
             (dataStorage ?? DataStorage)?.SaveData(MLContext, Evaluation.Data);
-      }
-      /// <summary>
-      /// Salva il modello
-      /// </summary>
-      /// <param name="model">Modello</param>
-      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      public void SaveModel(IModelStorage modelStorage = null)
-      {
-         lock (taskSaveModel.Locker)
-            (modelStorage ?? ModelStorage)?.SaveModel(MLContext, Evaluation.Model, Evaluation.Schema);
       }
       /// <summary>
       /// Funzione di salvataggio asincrono del modello
@@ -130,6 +151,16 @@ namespace ML.Utilities.Predictors
                }
             }, cancellation.Token);
          }
+      }
+      /// <summary>
+      /// Salva il modello
+      /// </summary>
+      /// <param name="model">Modello</param>
+      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
+      public void SaveModel(IModelStorage modelStorage = null)
+      {
+         lock (taskSaveModel.Locker)
+            (modelStorage ?? ModelStorage)?.SaveModel(MLContext, Evaluation.Model, Evaluation.Schema);
       }
       /// <summary>
       /// Imposta i dati di valutazione

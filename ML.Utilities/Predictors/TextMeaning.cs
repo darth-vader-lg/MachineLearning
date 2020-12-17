@@ -19,10 +19,6 @@ namespace ML.Utilities.Predictors
    {
       #region Fields
       /// <summary>
-      /// Nome della colonna label
-      /// </summary>
-      private string labelColumnName = "Label";
-      /// <summary>
       /// Task di training
       /// </summary>
       private (Task Task, CancellationTokenSource Canc) taskTrain = (Task.CompletedTask, new CancellationTokenSource());
@@ -37,17 +33,17 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Costruttore
       /// </summary>
-      public TextMeaning() => Init();
+      public TextMeaning() => DataStorage = new DataStorageString();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Contesto di machine learning</param>
-      public TextMeaning(int? seed) : base(seed) => Init();
+      public TextMeaning(int? seed) : base(seed) => DataStorage = new DataStorageString();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaning(MLContext ml) : base(ml) => Init();
+      public TextMeaning(MLContext ml) : base(ml) => DataStorage = new DataStorageString();
       /// <summary>
       /// Aggiunge una linea di dati
       /// </summary>
@@ -59,30 +55,6 @@ namespace ML.Utilities.Predictors
          sb.Append(TextData);
          sb.AppendLine(data);
          TextData = sb.ToString();
-      }
-      /// <summary>
-      /// Inizializzazione
-      /// </summary>
-      /// <param name="columns">Elenco dei nomi di colonne</param>
-      /// <param name="labelColumnName">Nome della colonna label</param>
-      private void Init(IEnumerable<string> columns = null, string labelColumnName = "Label")
-      {
-         // Nome colonna di label
-         this.labelColumnName = string.IsNullOrWhiteSpace(labelColumnName) ? "Label" : labelColumnName;
-         var textOptions = new TextLoader.Options
-         {
-            AllowQuoting = true,
-            AllowSparse = false,
-            Separators = new[] { ',' },
-            Columns = columns != default ?
-            columns.Select((c, i) => new TextLoader.Column(c, DataKind.String, i)).ToArray() :
-            new[]
-            {
-               new TextLoader.Column("Label", DataKind.String, 0),
-               new TextLoader.Column("Sentence", DataKind.String, 1),
-            }
-         };
-         DataStorage = new DataStorageString { TextOptions = textOptions };
       }
       /// <summary>
       /// Predizione
@@ -171,9 +143,9 @@ namespace ML.Utilities.Predictors
          var trainer = MLContext.MulticlassClassification.Trainers.SdcaNonCalibrated();
          // Pipe di trasformazione
          var pipe =
-            MLContext.Transforms.Conversion.MapValueToKey("Label", labelColumnName).
-            Append(MLContext.Transforms.Text.FeaturizeText("Sentence_tf", new TextFeaturizingEstimator.Options(), (from c in Evaluation.Schema where c.Name != "Label" select c.Name).ToArray())).
-            Append(MLContext.Transforms.CopyColumns("Features", "Sentence_tf")).
+            MLContext.Transforms.Conversion.MapValueToKey("Label").
+            Append(MLContext.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.Schema where c.Name != "Label" select c.Name).ToArray())).
+            Append(MLContext.Transforms.CopyColumns("Features", "FeaturizeText")).
             Append(MLContext.Transforms.NormalizeMinMax("Features")).
             AppendCacheCheckpoint(MLContext).
             Append(trainer).
