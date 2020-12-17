@@ -15,7 +15,7 @@ namespace ML.Utilities.Predictors
    /// <summary>
    /// Modello per l'interpretazione del significato si testi
    /// </summary>
-   public class TextMeaning : Predictor, IDataTextProvider
+   public sealed class TextMeaning : Predictor, IDataTextProvider
    {
       #region Fields
       /// <summary>
@@ -25,9 +25,13 @@ namespace ML.Utilities.Predictors
       #endregion
       #region Properties
       /// <summary>
+      /// Dati extra
+      /// </summary>
+      private DataStorageString ExtraData { get; } = new DataStorageString(); 
+      /// <summary>
       /// Dati
       /// </summary>
-      public string TextData { get => (DataStorage as IDataTextProvider)?.TextData; set => (DataStorage as IDataTextProvider).TextData = value; }
+      public string TextData { get => ExtraData.TextData; set => ExtraData.TextData = value; }
       #endregion
       #region Methods
       /// <summary>
@@ -136,7 +140,8 @@ namespace ML.Utilities.Predictors
          // Carica il modello
          var model = LoadModel(out var dataViewSchema);
          // Carica i dati
-         var data = LoadData();
+         ExtraData.TextOptions = (DataStorage as ITextOptionsProvider)?.TextOptions ?? ExtraData.TextOptions;
+         var data = LoadData(DataStorage, ExtraData);
          // Imposta la valutazione
          SetEvaluation(new Evaluator { Data = data, Model = model, Schema = data?.Schema ?? dataViewSchema });
          // Trainer
@@ -180,7 +185,7 @@ namespace ML.Utilities.Predictors
                   iteration = iterationMax;
                }
                // Ricarica i dati
-               data = LoadData();
+               data = LoadData(DataStorage, ExtraData);
             }
             catch (OperationCanceledException) { }
             catch (Exception exc) {

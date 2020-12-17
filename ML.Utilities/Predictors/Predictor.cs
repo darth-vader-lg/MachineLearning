@@ -35,10 +35,6 @@ namespace ML.Utilities.Predictors
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
-      /// Dati extra per retrain
-      /// </summary>
-      public DataStorageString ExtraData { get; set; }
-      /// <summary>
       /// Valutazione
       /// </summary>
       public Evaluator Evaluation { get; private set; }
