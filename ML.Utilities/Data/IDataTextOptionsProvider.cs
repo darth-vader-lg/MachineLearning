@@ -5,7 +5,7 @@ namespace ML.Utilities.Data
    /// <summary>
    /// Interfaccia per i providers di opzioni di testo
    /// </summary>
-   public interface ITextOptionsProvider
+   public interface IDataTextOptionsProvider
    {
       #region Properties
       /// <summary>

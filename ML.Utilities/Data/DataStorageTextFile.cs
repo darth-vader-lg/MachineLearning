@@ -11,7 +11,7 @@ namespace ML.Utilities.Data
    /// Classe per lo storage di dati di tipo file di testo
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageTextFile : IDataStorage, IMultiStreamSource, ITextOptionsProvider
+   public sealed partial class DataStorageTextFile : IDataStorage, IMultiStreamSource, IDataTextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -49,7 +49,7 @@ namespace ML.Utilities.Data
       /// <param name="allowQuoting"></param>
       public DataStorageTextFile(string filePath,  IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
       {
-         this.FilePath = filePath;
+         FilePath = filePath;
          TextOptions = new TextLoader.Options
          {
             AllowQuoting = allowQuoting,
@@ -98,7 +98,9 @@ namespace ML.Utilities.Data
       /// </summary>
       /// <param name="mlContext">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
-      public void SaveData(MLContext mlContext, IDataView data)
+      /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
+      /// <param name="extra">Eventuali altri stream di dati</param>
+      public void SaveData(MLContext mlContext, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
       {
          // Oggetto per la scrittura dei dati in memoria
          using var writer = File.OpenWrite(FilePath);
@@ -113,9 +115,22 @@ namespace ML.Utilities.Data
             stream: writer,
             separatorChar: separator,
             headerRow: opt.HasHeader,
-            schema: true/*@@@**/,
+            schema: schema,
             keepHidden: false,
             forceDense: false);
+         // Salva gli stream extra
+         foreach (var item in extra) {
+            var loader = mlContext.Data.CreateTextLoader(opt);
+            data = loader.Load(item);
+            mlContext.Data.SaveAsText(
+               data: data,
+               stream: writer,
+               separatorChar: separator,
+               headerRow: opt.HasHeader,
+               schema: schema,
+               keepHidden: false,
+               forceDense: false);
+         }
       }
       #endregion
    }

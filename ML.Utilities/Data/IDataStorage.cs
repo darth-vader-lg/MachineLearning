@@ -21,7 +21,9 @@ namespace ML.Utilities.Data
       /// </summary>
       /// <param name="mlContext">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
-      void SaveData(MLContext mlContext, IDataView data);
+      /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
+      /// <param name="extra">Sorgenti extra di dati da accodare</param>
+      void SaveData(MLContext mlContext, IDataView data, bool schema = false, params IMultiStreamSource[] extra);
       #endregion
    }
 }

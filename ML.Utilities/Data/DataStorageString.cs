@@ -11,7 +11,7 @@ namespace ML.Utilities.Data
    /// Classe per lo storage di dati di tipo stringhe
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageString : IDataStorage, IDataTextProvider, IMultiStreamSource, ITextOptionsProvider
+   public sealed partial class DataStorageString : IDataStorage, IDataTextProvider, IMultiStreamSource, IDataTextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -95,7 +95,9 @@ namespace ML.Utilities.Data
       /// </summary>
       /// <param name="mlContext">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
-      public void SaveData(MLContext mlContext, IDataView data)
+      /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
+      /// <param name="extra">Eventuali altri stream di dati</param>
+      public void SaveData(MLContext mlContext, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
       {
          // Oggetto per la scrittura dei dati in memoria
          using var writer = new MemoryStream();
@@ -105,7 +107,27 @@ namespace ML.Utilities.Data
          var separator = opt.Separators?.FirstOrDefault() ?? '\t';
          separator = separator != default ? separator : '\t';
          // Salva come testo i dati
-         mlContext.Data.SaveAsText(data, writer, separator, opt.HasHeader, false, false, false);
+         mlContext.Data.SaveAsText(
+            data: data,
+            stream: writer,
+            separatorChar: separator,
+            headerRow: opt.HasHeader,
+            schema: false,
+            keepHidden: false,
+            forceDense: false);
+         // Salva gli stream extra
+         foreach (var item in extra) {
+            var loader = mlContext.Data.CreateTextLoader(opt);
+            data = loader.Load(item);
+            mlContext.Data.SaveAsText(
+               data: data,
+               stream: writer,
+               separatorChar: separator,
+               headerRow: opt.HasHeader,
+               schema: schema,
+               keepHidden: false,
+               forceDense: false);
+         }
          // Crea uno stream per la lettura
          writer.Position = 0;
          using var reader = new StreamReader(writer);

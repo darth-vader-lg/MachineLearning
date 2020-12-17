@@ -98,65 +98,23 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Salva i dati
       /// </summary>
-      public void SaveData()
-      {
-         lock (taskSaveData.Locker) {
-            taskSaveData.Cancellation.Cancel();
-            taskSaveData.Task.Wait();
-            var cancellation = taskSaveData.Cancellation = new CancellationTokenSource();
-            taskSaveData.Task = Task.Run(() =>
-            {
-               try {
-                  cancellation.Token.ThrowIfCancellationRequested();
-                  SaveData(DataStorage);
-               }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-                  throw;
-               }
-            }, cancellation.Token);
-         }
-      }
-      /// <summary>
-      /// Salva i dati
-      /// </summary>
       /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
-      public void SaveData(IDataStorage dataStorage = null)
+      /// <param name="dataView">Dati</param>
+      public void SaveData(IDataStorage dataStorage = null, IDataView dataView = null)
       {
          lock (taskSaveData.Locker)
-            (dataStorage ?? DataStorage)?.SaveData(MLContext, Evaluation.Data);
-      }
-      /// <summary>
-      /// Funzione di salvataggio asincrono del modello
-      /// </summary>
-      protected void SaveModel()
-      {
-         lock (taskSaveModel.Locker) {
-            taskSaveModel.Cancellation.Cancel();
-            taskSaveModel.Task.Wait();
-            var cancellation = taskSaveModel.Cancellation = new CancellationTokenSource();
-            taskSaveModel.Task = Task.Run(() =>
-            {
-               try {
-                  cancellation.Token.ThrowIfCancellationRequested();
-                  SaveModel(ModelStorage);
-               }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-                  throw;
-               }
-            }, cancellation.Token);
-         }
+            (dataStorage ?? DataStorage)?.SaveData(MLContext, (dataView ?? Evaluation.Data));
       }
       /// <summary>
       /// Salva il modello
       /// </summary>
-      /// <param name="model">Modello</param>
       /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      public void SaveModel(IModelStorage modelStorage = null)
+      /// <param name="model">Eventuale modello</param>
+      /// <param name="schema">Eventuale schema dei dati</param>
+      public void SaveModel(IModelStorage modelStorage = null, ITransformer model = null, DataViewSchema schema = null)
       {
          lock (taskSaveModel.Locker)
-            (modelStorage ?? ModelStorage)?.SaveModel(MLContext, Evaluation.Model, Evaluation.Schema);
+            (modelStorage ?? ModelStorage)?.SaveModel(MLContext, model ?? Evaluation.Model, schema ?? Evaluation.Schema);
       }
       /// <summary>
       /// Imposta i dati di valutazione
@@ -175,6 +133,55 @@ namespace ML.Utilities.Predictors
             Evaluation = evaluation;
             if (evaluation.Model != default)
                taskEvaluation.TrySetResult();
+         }
+      }
+      /// <summary>
+      /// Funzione di salvataggio asincrono dei dati
+      /// </summary>
+      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
+      /// <param name="dataView">Dati</param>
+      protected Task TaskSaveData(IDataStorage dataStorage = null, IDataView dataView = null)
+      {
+         lock (taskSaveData.Locker) {
+            taskSaveData.Cancellation.Cancel();
+            taskSaveData.Task.Wait();
+            var cancellation = taskSaveData.Cancellation = new CancellationTokenSource();
+            return taskSaveData.Task = Task.Run(() =>
+            {
+               try {
+                  cancellation.Token.ThrowIfCancellationRequested();
+                  SaveData(dataStorage, dataView);
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+                  throw;
+               }
+            }, cancellation.Token);
+         }
+      }
+      /// <summary>
+      /// Funzione di salvataggio asincrono del modello
+      /// </summary>
+      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
+      /// <param name="model">Eventuale modello</param>
+      /// <param name="schema">Eventuale schema dei dati</param>
+      protected Task TaskSaveModel(IModelStorage modelStorage = null, ITransformer model = null, DataViewSchema schema = null)
+      {
+         lock (taskSaveModel.Locker) {
+            taskSaveModel.Cancellation.Cancel();
+            taskSaveModel.Task.Wait();
+            var cancellation = taskSaveModel.Cancellation = new CancellationTokenSource();
+            return taskSaveModel.Task = Task.Run(() =>
+            {
+               try {
+                  cancellation.Token.ThrowIfCancellationRequested();
+                  SaveModel(modelStorage, model, schema);
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+                  throw;
+               }
+            }, cancellation.Token);
          }
       }
       #endregion

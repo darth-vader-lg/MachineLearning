@@ -84,7 +84,7 @@ namespace ML.Utilities.Predictors
       public async Task<string> PredictAsync(string data, CancellationToken cancellation)
       {
          // Verifica validita' dello storage di dati
-         if (DataStorage is not ITextOptionsProvider textOptionsProvider)
+         if (DataStorage is not IDataTextOptionsProvider textOptionsProvider)
             return null;
          // Gestione avvio task di training
          if (taskTrain.Canc.IsCancellationRequested)
@@ -94,7 +94,7 @@ namespace ML.Utilities.Predictors
             taskTrain.Task = Task.Factory.StartNew(() => Train(taskTrain.Canc.Token), taskTrain.Canc.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
          }
          // Crea una dataview con i dati di input
-         var dataView = LoadData(new DataStorageString() { TextData = data, TextOptions = (DataStorage as ITextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
+         var dataView = LoadData(new DataStorageString() { TextData = data, TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello
          var predictor = await GetEvaluation();
@@ -117,9 +117,9 @@ namespace ML.Utilities.Predictors
          // Linea da passare al modello
          var inputLine = new StringBuilder();
          // Quotatura stringhe
-         var quote = ((DataStorage as ITextOptionsProvider)?.TextOptions?.AllowQuoting ?? true) ? "\"" : "";
+         var quote = ((DataStorage as IDataTextOptionsProvider)?.TextOptions?.AllowQuoting ?? true) ? "\"" : "";
          // Separatore di colonne
-         var separatorChar = (DataStorage as ITextOptionsProvider)?.TextOptions?.Separators?.FirstOrDefault() ?? ',';
+         var separatorChar = (DataStorage as IDataTextOptionsProvider)?.TextOptions?.Separators?.FirstOrDefault() ?? ',';
          // Loop di costruzione della linea di dati
          var separator = "";
          foreach (var item in data) {
@@ -140,7 +140,7 @@ namespace ML.Utilities.Predictors
          // Carica il modello
          var model = LoadModel(out var dataViewSchema);
          // Carica i dati
-         ExtraData.TextOptions = (DataStorage as ITextOptionsProvider)?.TextOptions ?? ExtraData.TextOptions;
+         ExtraData.TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? ExtraData.TextOptions;
          var data = LoadData(DataStorage, ExtraData);
          // Imposta la valutazione
          SetEvaluation(new Evaluator { Data = data, Model = model, Schema = data?.Schema ?? dataViewSchema });
@@ -160,6 +160,7 @@ namespace ML.Utilities.Predictors
          var seed = 0;
          var iterationMax = 10;
          var iteration = iterationMax;
+         var taskSaveModel = Task.CompletedTask;
          while (!cancel.IsCancellationRequested && --iteration >= 0) {
             try {
                // Effettua il training
@@ -178,7 +179,9 @@ namespace ML.Utilities.Predictors
                   MLContext.WriteLog(metrics.ToText(), $"{nameof(TextMeaning)}.{nameof(Train)}");
                   cancel.ThrowIfCancellationRequested();
                   // Salva il modello
-                  SaveModel();
+                  taskSaveModel.Wait(cancel);
+                  cancel.ThrowIfCancellationRequested();
+                  taskSaveModel = TaskSaveModel();
                   prevMetrics = metrics;
                   // Aggiorna la valutazione
                   SetEvaluation(new Evaluator { Data = data, Model = model, Schema = Evaluation.Schema });
