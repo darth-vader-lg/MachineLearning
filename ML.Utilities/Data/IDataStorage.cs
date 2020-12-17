@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Data;
 
 namespace ML.Utilities.Data
 {
@@ -12,8 +13,9 @@ namespace ML.Utilities.Data
       /// Carica i dati
       /// </summary>
       /// <param name="mlContext">Contesto di machine learning</param>
+      /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      IDataView LoadData(MLContext mlContext);
+      IDataView LoadData(MLContext mlContext, params IMultiStreamSource[] extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
