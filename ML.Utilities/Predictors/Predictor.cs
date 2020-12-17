@@ -4,7 +4,6 @@ using ML.Utilities.Data;
 using ML.Utilities.Models;
 using System;
 using System.Diagnostics;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace ML.Utilities.Predictors
@@ -17,17 +16,25 @@ namespace ML.Utilities.Predictors
    {
       #region Fields
       /// <summary>
+      /// Valutazione
+      /// </summary>
+      [NonSerialized]
+      private Evaluator _evaluation;
+      /// <summary>
       /// Task di valutazione modello
       /// </summary>
-      private TaskCompletionSource taskEvaluation = new TaskCompletionSource();
+      [NonSerialized]
+      private TaskCompletionSource _taskEvaluation;
       /// <summary>
       /// Task di salvataggio asincrono dati
       /// </summary>
-      private (Task Task, CancellationTokenSource Cancellation, object Locker) taskSaveData = (Task.CompletedTask, new CancellationTokenSource(), new object());
+      [NonSerialized]
+      private CancellableTask _taskSaveData;
       /// <summary>
       /// Task di salvataggio asincrono modello
       /// </summary>
-      private (Task Task, CancellationTokenSource Cancellation, object Locker) taskSaveModel = (Task.CompletedTask, new CancellationTokenSource(), new object());
+      [NonSerialized]
+      private CancellableTask _taskSaveModel;
       #endregion
       #region Properties
       /// <summary>
@@ -37,15 +44,27 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Valutazione
       /// </summary>
-      public Evaluator Evaluation { get; private set; }
+      public Evaluator Evaluation { get => _evaluation ??= new Evaluator(); private set => _evaluation = value; }
       /// <summary>
-      /// Contesto ML
+      /// Contesto di machine learning
       /// </summary>
-      public MLContext MLContext { get; }
+      public MachineLearningContext ML { get; }
       /// <summary>
       /// Gestore storage modello
       /// </summary>
       public IModelStorage ModelStorage{ get; set; }
+      /// <summary>
+      /// Task di salvataggio dati
+      /// </summary>
+      private TaskCompletionSource TaskEvaluation { get => _taskEvaluation ??= new TaskCompletionSource(); set => _taskEvaluation = value; }
+      /// <summary>
+      /// Task di salvataggio dati
+      /// </summary>
+      private CancellableTask TaskSaveData { get => _taskSaveData ??= new CancellableTask(); set => _taskSaveData = value; }
+      /// <summary>
+      /// Task di salvataggio modello
+      /// </summary>
+      private CancellableTask TaskSaveModel { get => _taskSaveModel ??= new CancellableTask(); set => _taskSaveModel = value; }
       #endregion
       #region Methods
       /// <summary>
@@ -56,12 +75,12 @@ namespace ML.Utilities.Predictors
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public Predictor(int? seed) => MLContext = new MLContext(seed);
+      public Predictor(int? seed) => ML = new MachineLearningContext(seed);
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public Predictor(MLContext ml) => MLContext = ml;
+      public Predictor(MachineLearningContext ml) => ML = ml;
       /// <summary>
       /// Restituisce un task di attesa della valutazione copleta
       /// </summary>
@@ -69,7 +88,7 @@ namespace ML.Utilities.Predictors
       public async Task<Evaluator> GetEvaluation()
       {
          // Attende la valutazione
-         await taskEvaluation.Task;
+         await TaskEvaluation.Task;
          // Restituisce la valutazione
          return Evaluation;
       }
@@ -79,12 +98,12 @@ namespace ML.Utilities.Predictors
       /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
       /// <param name="extra">Sorgenti extra</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(IDataStorage dataStorage = null, params IMultiStreamSource[] extra) => (dataStorage ?? DataStorage).LoadData(MLContext, extra);
+      public IDataView LoadData(IDataStorage dataStorage = null, params IMultiStreamSource[] extra) => (dataStorage ?? DataStorage).LoadData(ML, extra);
       /// <summary>
       /// Carica il modello
       /// </summary>
       /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      public ITransformer LoadModel(IModelStorage modelStorage = null) => (modelStorage ?? ModelStorage)?.LoadModel(MLContext, out _);
+      public ITransformer LoadModel(IModelStorage modelStorage = null) => (modelStorage ?? ModelStorage)?.LoadModel(ML, out _);
       /// <summary>
       /// Carica il modello
       /// </summary>
@@ -93,7 +112,7 @@ namespace ML.Utilities.Predictors
       public ITransformer LoadModel(out DataViewSchema schema, IModelStorage modelStorage = null)
       {
          schema = null;
-         return (modelStorage ?? ModelStorage)?.LoadModel(MLContext, out schema);
+         return (modelStorage ?? ModelStorage)?.LoadModel(ML, out schema);
       }
       /// <summary>
       /// Salva i dati
@@ -102,8 +121,8 @@ namespace ML.Utilities.Predictors
       /// <param name="dataView">Dati</param>
       public void SaveData(IDataStorage dataStorage = null, IDataView dataView = null)
       {
-         lock (taskSaveData.Locker)
-            (dataStorage ?? DataStorage)?.SaveData(MLContext, (dataView ?? Evaluation.Data));
+         lock (TaskSaveData)
+            (dataStorage ?? DataStorage)?.SaveData(ML, (dataView ?? Evaluation.Data));
       }
       /// <summary>
       /// Salva il modello
@@ -113,8 +132,8 @@ namespace ML.Utilities.Predictors
       /// <param name="schema">Eventuale schema dei dati</param>
       public void SaveModel(IModelStorage modelStorage = null, ITransformer model = null, DataViewSchema schema = null)
       {
-         lock (taskSaveModel.Locker)
-            (modelStorage ?? ModelStorage)?.SaveModel(MLContext, model ?? Evaluation.Model, schema ?? Evaluation.Schema);
+         lock (TaskSaveModel)
+            (modelStorage ?? ModelStorage)?.SaveModel(ML, model ?? Evaluation.Model, schema ?? Evaluation.Schema);
       }
       /// <summary>
       /// Imposta i dati di valutazione
@@ -125,14 +144,14 @@ namespace ML.Utilities.Predictors
       {
          // Annulla il modello
          if (evaluation == default) {
-            taskEvaluation.TrySetCanceled();
-            taskEvaluation = new TaskCompletionSource();
+            TaskEvaluation.TrySetCanceled();
+            TaskEvaluation = new TaskCompletionSource();
          }
          // Imposta il modello
          else {
             Evaluation = evaluation;
             if (evaluation.Model != default)
-               taskEvaluation.TrySetResult();
+               TaskEvaluation.TrySetResult();
          }
       }
       /// <summary>
@@ -140,24 +159,22 @@ namespace ML.Utilities.Predictors
       /// </summary>
       /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
       /// <param name="dataView">Dati</param>
-      protected Task TaskSaveData(IDataStorage dataStorage = null, IDataView dataView = null)
+      protected async Task SaveDataAsync(IDataStorage dataStorage = null, IDataView dataView = null)
       {
-         lock (taskSaveData.Locker) {
-            taskSaveData.Cancellation.Cancel();
-            taskSaveData.Task.Wait();
-            var cancellation = taskSaveData.Cancellation = new CancellationTokenSource();
-            return taskSaveData.Task = Task.Run(() =>
-            {
-               try {
-                  cancellation.Token.ThrowIfCancellationRequested();
+         TaskSaveData.Cancel();
+         await TaskSaveData;
+         await TaskSaveData.StartNew(cancel => Task.Run(() =>
+         {
+            try {
+               cancel.ThrowIfCancellationRequested();
+               lock (TaskSaveData)
                   SaveData(dataStorage, dataView);
-               }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-                  throw;
-               }
-            }, cancellation.Token);
-         }
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+               throw;
+            }
+         }, cancel));
       }
       /// <summary>
       /// Funzione di salvataggio asincrono del modello
@@ -165,24 +182,22 @@ namespace ML.Utilities.Predictors
       /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
       /// <param name="model">Eventuale modello</param>
       /// <param name="schema">Eventuale schema dei dati</param>
-      protected Task TaskSaveModel(IModelStorage modelStorage = null, ITransformer model = null, DataViewSchema schema = null)
+      protected async Task SaveModelAsync(IModelStorage modelStorage = null, ITransformer model = null, DataViewSchema schema = null)
       {
-         lock (taskSaveModel.Locker) {
-            taskSaveModel.Cancellation.Cancel();
-            taskSaveModel.Task.Wait();
-            var cancellation = taskSaveModel.Cancellation = new CancellationTokenSource();
-            return taskSaveModel.Task = Task.Run(() =>
-            {
-               try {
-                  cancellation.Token.ThrowIfCancellationRequested();
+         TaskSaveModel.Cancel();
+         await TaskSaveModel;
+         await TaskSaveModel.StartNew(cancel => Task.Run(() =>
+         {
+            try {
+               cancel.ThrowIfCancellationRequested();
+               lock (TaskSaveData)
                   SaveModel(modelStorage, model, schema);
-               }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-                  throw;
-               }
-            }, cancellation.Token);
-         }
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+               throw;
+            }
+         }, cancel));
       }
       #endregion
    }
@@ -190,7 +205,7 @@ namespace ML.Utilities.Predictors
    /// <summary>
    /// Dati di valutazione
    /// </summary>
-   public partial class Predictor
+   public partial class Predictor // Evaluator
    {
       [Serializable]
       public class Evaluator
@@ -211,5 +226,4 @@ namespace ML.Utilities.Predictors
          #endregion
       }
    }
-
 }

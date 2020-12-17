@@ -15,19 +15,29 @@ namespace ML.Utilities.Predictors
    /// <summary>
    /// Modello per l'interpretazione del significato si testi
    /// </summary>
+   [Serializable]
    public sealed class TextMeaning : Predictor, IDataTextProvider
    {
       #region Fields
       /// <summary>
+      /// Dati extra
+      /// </summary>
+      private DataStorageString _extraData;
+      /// <summary>
       /// Task di training
       /// </summary>
-      private (Task Task, CancellationTokenSource Canc) taskTrain = (Task.CompletedTask, new CancellationTokenSource());
+      [NonSerialized]
+      private CancellableTask _taskTrain;
       #endregion
       #region Properties
       /// <summary>
       /// Dati extra
       /// </summary>
-      private DataStorageString ExtraData { get; } = new DataStorageString(); 
+      private DataStorageString ExtraData => _extraData ??= new DataStorageString();
+      /// <summary>
+      /// Task di training
+      /// </summary>
+      private CancellableTask TaskTrain => _taskTrain ??= new CancellableTask();
       /// <summary>
       /// Dati
       /// </summary>
@@ -47,7 +57,7 @@ namespace ML.Utilities.Predictors
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaning(MLContext ml) : base(ml) => DataStorage = new DataStorageString();
+      public TextMeaning(MachineLearningContext ml) : base(ml) => DataStorage = new DataStorageString();
       /// <summary>
       /// Aggiunge una linea di dati
       /// </summary>
@@ -87,12 +97,10 @@ namespace ML.Utilities.Predictors
          if (DataStorage is not IDataTextOptionsProvider textOptionsProvider)
             return null;
          // Gestione avvio task di training
-         if (taskTrain.Canc.IsCancellationRequested)
-            await taskTrain.Task;
-         if (taskTrain.Task.IsCompleted) {
-            taskTrain.Canc = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-            taskTrain.Task = Task.Factory.StartNew(() => Train(taskTrain.Canc.Token), taskTrain.Canc.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-         }
+         if (TaskTrain.CancellationToken.IsCancellationRequested)
+            await TaskTrain;
+         if (TaskTrain.Task.IsCompleted)
+            _ = TaskTrain.StartNew(cancellation => Task.Factory.StartNew(() => Train(cancellation), cancellation, TaskCreationOptions.LongRunning, TaskScheduler.Default), cancellation);
          // Crea una dataview con i dati di input
          var dataView = LoadData(new DataStorageString() { TextData = data, TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
          cancellation.ThrowIfCancellationRequested();
@@ -145,16 +153,16 @@ namespace ML.Utilities.Predictors
          // Imposta la valutazione
          SetEvaluation(new Evaluator { Data = data, Model = model, Schema = data?.Schema ?? dataViewSchema });
          // Trainer
-         var trainer = MLContext.MulticlassClassification.Trainers.SdcaNonCalibrated();
+         var trainer = ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated();
          // Pipe di trasformazione
          var pipe =
-            MLContext.Transforms.Conversion.MapValueToKey("Label").
-            Append(MLContext.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.Schema where c.Name != "Label" select c.Name).ToArray())).
-            Append(MLContext.Transforms.CopyColumns("Features", "FeaturizeText")).
-            Append(MLContext.Transforms.NormalizeMinMax("Features")).
-            AppendCacheCheckpoint(MLContext).
+            ML.NET.Transforms.Conversion.MapValueToKey("Label").
+            Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.Schema where c.Name != "Label" select c.Name).ToArray())).
+            Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
+            Append(ML.NET.Transforms.NormalizeMinMax("Features")).
+            AppendCacheCheckpoint(ML.NET).
             Append(trainer).
-            Append(MLContext.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
+            Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
          // Loop di training continuo
          var prevMetrics = default(MulticlassClassificationMetrics);
          var seed = 0;
@@ -164,9 +172,9 @@ namespace ML.Utilities.Predictors
          while (!cancel.IsCancellationRequested && --iteration >= 0) {
             try {
                // Effettua il training
-               var dataView = MLContext.Data.ShuffleRows(data, seed++);
+               var dataView = ML.NET.Data.ShuffleRows(data, seed++);
                model = pipe.Fit(dataView);
-               var metrics = MLContext.MulticlassClassification.Evaluate(model.Transform(dataView));
+               var metrics = ML.NET.MulticlassClassification.Evaluate(model.Transform(dataView));
                //var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 5, "Label", null, seed++);
                //var best = crossValidation.Best();
                //var model = best.Model;
@@ -175,13 +183,13 @@ namespace ML.Utilities.Predictors
                // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
                if (prevMetrics == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
                   // Emette il log
-                  MLContext.WriteLog("Found best model", $"{nameof(TextMeaning)}.{nameof(Train)}");
-                  MLContext.WriteLog(metrics.ToText(), $"{nameof(TextMeaning)}.{nameof(Train)}");
+                  ML.NET.WriteLog("Found best model", $"{nameof(TextMeaning)}.{nameof(Train)}");
+                  ML.NET.WriteLog(metrics.ToText(), $"{nameof(TextMeaning)}.{nameof(Train)}");
                   cancel.ThrowIfCancellationRequested();
                   // Salva il modello
                   taskSaveModel.Wait(cancel);
                   cancel.ThrowIfCancellationRequested();
-                  taskSaveModel = TaskSaveModel();
+                  taskSaveModel = SaveModelAsync();
                   prevMetrics = metrics;
                   // Aggiorna la valutazione
                   SetEvaluation(new Evaluator { Data = data, Model = model, Schema = Evaluation.Schema });
@@ -193,7 +201,7 @@ namespace ML.Utilities.Predictors
             catch (OperationCanceledException) { }
             catch (Exception exc) {
                Trace.WriteLine(exc);
-               MLContext.WriteLog(exc.Message, $"{nameof(TextMeaning)}.{nameof(Train)}");
+               ML.NET.WriteLog(exc.Message, $"{nameof(TextMeaning)}.{nameof(Train)}");
             }
          }
       }

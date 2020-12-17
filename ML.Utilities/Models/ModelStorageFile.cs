@@ -12,30 +12,41 @@ namespace ML.Utilities.Models
    {
       #region Fields
       /// <summary>
+      /// Path del file
+      /// </summary>
+      private readonly string _filePath;
+      /// <summary>
       /// Storage di tipo stream
       /// </summary>
-      private readonly IModelStorage modelStorage;
+      [NonSerialized]
+      private IModelStorage _modelStorage;
+      #endregion
+      #region Properties
+      /// <summary>
+      /// Storage di tipo stream
+      /// </summary>
+      private IModelStorage Storage => _modelStorage ??= new ModelStorageStream(() => File.OpenRead(_filePath), () => File.OpenWrite(_filePath));
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="filePath">Path del file del modello</param>
-      public ModelStorageFile(string filePath) => modelStorage = new ModelStorageStream(() => File.OpenRead(filePath), () => File.OpenWrite(filePath));
+      public ModelStorageFile(string filePath) => _filePath = filePath;
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
-      /// <param name="mlContext">Contesto di machine learning</param>
+      /// <param name="ml">Contesto di machine learning</param>
       /// <param name="schema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(MLContext mlContext, out DataViewSchema schema) => modelStorage.LoadModel(mlContext, out schema);
+      public ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema schema) => Storage.LoadModel(ml, out schema);
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
       /// <param name="model">Modello da salvare</param>
-      /// <param name="mlContext">Contesto di machine learning</param>
       /// <param name="schema">Schema di input del modello</param>
-      public void SaveModel(MLContext mlContext, ITransformer model, DataViewSchema schema) => modelStorage.SaveModel(mlContext, model, schema);
+      public void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema schema) => Storage.SaveModel(ml, model, schema);
       #endregion
    }
 }

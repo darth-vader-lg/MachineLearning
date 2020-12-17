@@ -12,18 +12,18 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Carica i dati
       /// </summary>
-      /// <param name="mlContext">Contesto di machine learning</param>
+      /// <param name="ml">Contesto di machine learning</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      IDataView LoadData(MLContext mlContext, params IMultiStreamSource[] extra);
+      IDataView LoadData(MachineLearningContext ml, params IMultiStreamSource[] extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
-      /// <param name="mlContext">Contesto di machine learning</param>
+      /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Sorgenti extra di dati da accodare</param>
-      void SaveData(MLContext mlContext, IDataView data, bool schema = false, params IMultiStreamSource[] extra);
+      void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra);
       #endregion
    }
 }

@@ -17,13 +17,14 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Sorgente per il caricamento
       /// </summary>
-      private Source source;
+      [NonSerialized]
+      private Source _source;
       #endregion
       #region Properties
       /// <summary>
       /// Il numero di items
       /// </summary>
-      int IMultiStreamSource.Count => (source ??= new Source(TextData)).Count;
+      int IMultiStreamSource.Count => (_source ??= new Source(TextData)).Count;
       /// <summary>
       /// Dati testuali
       /// </summary>
@@ -31,7 +32,7 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Configurazione dei dati
       /// </summary>
-      public TextLoader.Options TextOptions { get; set; }
+      public TextLoaderOptions TextOptions { get; set; }
       #endregion
       #region Methods
       /// <summary>
@@ -67,37 +68,37 @@ namespace ML.Utilities.Data
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Il path</returns>
 
-      string IMultiStreamSource.GetPathOrNull(int index) => (source ??= new Source(TextData)).GetPathOrNull(index);
+      string IMultiStreamSource.GetPathOrNull(int index) => (_source ??= new Source(TextData)).GetPathOrNull(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      Stream IMultiStreamSource.Open(int index) => (source ??= new Source(TextData)).Open(index);
+      Stream IMultiStreamSource.Open(int index) => (_source ??= new Source(TextData)).Open(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      TextReader IMultiStreamSource.OpenTextReader(int index) => (source ??= new Source(TextData)).OpenTextReader(index);
+      TextReader IMultiStreamSource.OpenTextReader(int index) => (_source ??= new Source(TextData)).OpenTextReader(index);
       /// <summary>
       /// Carica i dati
       /// </summary>
-      /// <param name="mlContext">Contesto di machine learning</param>
+      /// <param name="ml">Contesto di machine learning</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(MLContext mlContext, params IMultiStreamSource[] extra)
+      public IDataView LoadData(MachineLearningContext ml, params IMultiStreamSource[] extra)
       {
-         return mlContext.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(source = new Source(TextData, extra));
+         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source = new Source(TextData, extra));
       }
       /// <summary>
       /// Salva i dati
       /// </summary>
-      /// <param name="mlContext">Contesto di machine learning</param>
+      /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Eventuali altri stream di dati</param>
-      public void SaveData(MLContext mlContext, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
+      public void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
       {
          // Oggetto per la scrittura dei dati in memoria
          using var writer = new MemoryStream();
@@ -107,7 +108,7 @@ namespace ML.Utilities.Data
          var separator = opt.Separators?.FirstOrDefault() ?? '\t';
          separator = separator != default ? separator : '\t';
          // Salva come testo i dati
-         mlContext.Data.SaveAsText(
+         ml.NET.Data.SaveAsText(
             data: data,
             stream: writer,
             separatorChar: separator,
@@ -117,9 +118,9 @@ namespace ML.Utilities.Data
             forceDense: false);
          // Salva gli stream extra
          foreach (var item in extra) {
-            var loader = mlContext.Data.CreateTextLoader(opt);
+            var loader = ml.NET.Data.CreateTextLoader(opt);
             data = loader.Load(item);
-            mlContext.Data.SaveAsText(
+            ml.NET.Data.SaveAsText(
                data: data,
                stream: writer,
                separatorChar: separator,
@@ -169,8 +170,10 @@ namespace ML.Utilities.Data
          public Source(string text, params IMultiStreamSource[] extra)
          {
             this.text = text ?? "";
-            var indices = new List<(IMultiStreamSource Source, int Index)>();
-            indices.Add((Source: this, Index: 0));
+            var indices = new List<(IMultiStreamSource Source, int Index)>
+            {
+               (Source: this, Index: 0)
+            };
             foreach (var e in extra) {
                foreach (var ix in Enumerable.Range(0, e.Count))
                   indices.Add((Source: e, Index: ix));
