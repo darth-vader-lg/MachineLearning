@@ -8,10 +8,10 @@ using System.Linq;
 namespace ML.Utilities.Data
 {
    /// <summary>
-   /// Classe per lo storage di dati di tipo stringhe
+   /// Classe per lo storage di dati di tipo file di testo
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageString : IDataStorage, IDataTextProvider, IMultiStreamSource, ITextOptionsProvider
+   public sealed partial class DataStorageTextFile : IDataStorage, IMultiStreamSource, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -23,11 +23,11 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Il numero di items
       /// </summary>
-      int IMultiStreamSource.Count => (source ??= new Source(TextData)).Count;
+      int IMultiStreamSource.Count => (source ??= new Source(null)).Count;
       /// <summary>
-      /// Dati testuali
+      /// Path del file
       /// </summary>
-      public string TextData { get; set; }
+      public string FilePath { get; private set; }
       /// <summary>
       /// Configurazione dei dati
       /// </summary>
@@ -37,16 +37,19 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataStorageString() : this(null) { }
+      /// <param name="filePath">Path del file</param>
+      public DataStorageTextFile(string filePath) : this(filePath, null) { }
       /// <summary>
       /// Costruttore
       /// </summary>
+      /// <param name="filePath">Path del file</param>
       /// <param name="columns"></param>
       /// <param name="separator"></param>
       /// <param name="labelColumnName"></param>
       /// <param name="allowQuoting"></param>
-      public DataStorageString(IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
+      public DataStorageTextFile(string filePath,  IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
       {
+         this.FilePath = filePath;
          TextOptions = new TextLoader.Options
          {
             AllowQuoting = allowQuoting,
@@ -67,19 +70,19 @@ namespace ML.Utilities.Data
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Il path</returns>
 
-      string IMultiStreamSource.GetPathOrNull(int index) => (source ??= new Source(TextData)).GetPathOrNull(index);
+      string IMultiStreamSource.GetPathOrNull(int index) => (source ??= new Source(FilePath)).GetPathOrNull(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      Stream IMultiStreamSource.Open(int index) => (source ??= new Source(TextData)).Open(index);
+      Stream IMultiStreamSource.Open(int index) => (source ??= new Source(FilePath)).Open(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      TextReader IMultiStreamSource.OpenTextReader(int index) => (source ??= new Source(TextData)).OpenTextReader(index);
+      TextReader IMultiStreamSource.OpenTextReader(int index) => (source ??= new Source(FilePath)).OpenTextReader(index);
       /// <summary>
       /// Carica i dati
       /// </summary>
@@ -88,7 +91,7 @@ namespace ML.Utilities.Data
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(MLContext mlContext, params IMultiStreamSource[] extra)
       {
-         return mlContext.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(source = new Source(TextData, extra));
+         return mlContext.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(source = new Source(FilePath, extra));
       }
       /// <summary>
       /// Salva i dati
@@ -98,19 +101,21 @@ namespace ML.Utilities.Data
       public void SaveData(MLContext mlContext, IDataView data)
       {
          // Oggetto per la scrittura dei dati in memoria
-         using var writer = new MemoryStream();
+         using var writer = File.OpenWrite(FilePath);
          // Opzioni
          var opt = TextOptions ?? new TextLoader.Options();
          // Separatore di colonne
          var separator = opt.Separators?.FirstOrDefault() ?? '\t';
          separator = separator != default ? separator : '\t';
          // Salva come testo i dati
-         mlContext.Data.SaveAsText(data, writer, separator, opt.HasHeader, false, false, false);
-         // Crea uno stream per la lettura
-         writer.Position = 0;
-         using var reader = new StreamReader(writer);
-         // Aggiorna la stringa
-         TextData = reader.ReadToEnd();
+         mlContext.Data.SaveAsText(
+            data: data,
+            stream: writer,
+            separatorChar: separator,
+            headerRow: opt.HasHeader,
+            schema: true/*@@@**/,
+            keepHidden: false,
+            forceDense: false);
       }
       #endregion
    }
@@ -118,7 +123,7 @@ namespace ML.Utilities.Data
    /// <summary>
    /// La sorgente dei dati
    /// </summary>
-   public partial class DataStorageString
+   public partial class DataStorageTextFile
    {
       private class Source : IMultiStreamSource
       {
@@ -130,7 +135,7 @@ namespace ML.Utilities.Data
          /// <summary>
          /// Testo
          /// </summary>
-         private readonly string text;
+         private readonly string filePath;
          #endregion
          #region Properties
          /// <summary>
@@ -142,11 +147,11 @@ namespace ML.Utilities.Data
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="text">Testo</param>
+         /// <param name="filePath">Path del file</param>
          /// <param name="extra">Sorgenti extra di dati</param>
-         public Source(string text, params IMultiStreamSource[] extra)
+         public Source(string filePath, params IMultiStreamSource[] extra)
          {
-            this.text = text ?? "";
+            this.filePath = filePath;
             var indices = new List<(IMultiStreamSource Source, int Index)>();
             indices.Add((Source: this, Index: 0));
             foreach (var e in extra) {
@@ -160,28 +165,19 @@ namespace ML.Utilities.Data
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Sempre null</returns>
-         public string GetPathOrNull(int index) => index == 0 ? default : total[index].Source.GetPathOrNull(total[index].Index);
+         public string GetPathOrNull(int index) => index == 0 ? filePath : total[index].Source.GetPathOrNull(total[index].Index);
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream leggibile.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public Stream Open(int index)
-         {
-            if (index > 0)
-               return total[index].Source.Open(total[index].Index);
-            var memoryStream = new MemoryStream();
-            using var writer = new StreamWriter(memoryStream);
-            writer.Write(text ?? "");
-            memoryStream.Position = 0;
-            return memoryStream;
-         }
+         public Stream Open(int index) => index == 0 ? File.OpenRead(filePath) : total[index].Source.Open(total[index].Index);
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public TextReader OpenTextReader(int index) => index == 0 ? new StringReader(text ?? "") : total[index].Source.OpenTextReader(total[index].Index);
+         public TextReader OpenTextReader(int index) => index == 0 ? new StreamReader(filePath) : total[index].Source.OpenTextReader(total[index].Index);
          #endregion
       }
    }
