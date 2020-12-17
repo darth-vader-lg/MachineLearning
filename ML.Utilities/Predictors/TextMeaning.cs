@@ -41,7 +41,19 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Dati
       /// </summary>
-      public string TextData { get => ExtraData.TextData; set => ExtraData.TextData = value; }
+      public string TextData
+      {
+         get => ExtraData.TextData;
+         set
+         {
+            // Stoppa il training
+            TaskTrain.Cancel();
+            // Invalida la valutazione
+            SetEvaluation(null);
+            // Aggiorna i dati
+            ExtraData.TextData = value;
+         }
+      }
       #endregion
       #region Methods
       /// <summary>
