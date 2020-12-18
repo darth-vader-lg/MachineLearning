@@ -23,6 +23,11 @@ namespace ML.Utilities.Predictors
       [NonSerialized]
       private TaskScheduler _creationTaskScheduler;
       /// <summary>
+      /// Thread di creazione dell'oggetto
+      /// </summary>
+      [NonSerialized]
+      private Thread _creationThread;
+      /// <summary>
       /// Gestore storage dati
       /// </summary>
       private IDataStorage _dataStorage;
@@ -74,6 +79,10 @@ namespace ML.Utilities.Predictors
       /// Valutazione
       /// </summary>
       public Evaluator Evaluation { get => _evaluation ??= new Evaluator(); private set => _evaluation = value; }
+      /// <summary>
+      /// Indica necessita' di invoke dal momento che non ci si trova nel contesto di creazione
+      /// </summary>
+      public bool InvokeRequired => Thread.CurrentThread != _creationThread;
       /// <summary>
       /// Contesto di machine learning
       /// </summary>
@@ -148,8 +157,9 @@ namespace ML.Utilities.Predictors
       {
          // Memorizza il contesto di machine learning
          ML = ml;
-         // Memorizza lo scheduler di creazione
-         _creationTaskScheduler = TaskScheduler.Default == TaskScheduler.Current ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext();
+         // Memorizza lo scheduler e il thread di creazione
+         _creationThread = Thread.CurrentThread;
+         _creationTaskScheduler = TaskScheduler.Default == TaskScheduler.Current ? TaskScheduler.Current : TaskScheduler.FromCurrentSynchronizationContext();
       }
       /// <summary>
       /// Restituisce un task di attesa della valutazione copleta
@@ -191,22 +201,22 @@ namespace ML.Utilities.Predictors
       protected virtual void OnDataStorageChanged(EventArgs e)
       {
          try {
-            InvokeOnCreationTask(() => DataStorageChanged?.Invoke(this, e));
+            DataStorageChanged?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
       }
       /// <summary>
-      /// Invoca un azione nel task di creazione oggetto
+      /// Invoca un azione nel thread di creazione oggetto
       /// </summary>
       /// <param name="Action">Azione</param>
-      protected void InvokeOnCreationTask(Action Action)
+      protected void Invoke(Action Action)
       {
-         if (TaskScheduler.Current.Id == CreationTaskScheduler.Id)
-            Action();
-         else
+         if (InvokeRequired)
             new Task(Action).Start(CreationTaskScheduler);
+         else
+            Action();
       }
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
@@ -215,7 +225,8 @@ namespace ML.Utilities.Predictors
       public virtual void OnDeserialization(object sender)
       {
          // Memorizza lo scheduler di creazione
-         _creationTaskScheduler = TaskScheduler.Default == TaskScheduler.Current ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext();
+         _creationThread = Thread.CurrentThread;
+         _creationTaskScheduler = TaskScheduler.Default == TaskScheduler.Current ? TaskScheduler.Current : TaskScheduler.FromCurrentSynchronizationContext();
       }
       /// <summary>
       /// Funzione di notifica della variazione del modello
@@ -224,7 +235,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnModelChanged(EventArgs e)
       {
          try {
-            InvokeOnCreationTask(() => ModelChanged?.Invoke(this, e));
+            ModelChanged?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -237,7 +248,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnModelStorageChanged(EventArgs e)
       {
          try {
-            InvokeOnCreationTask(() => ModelStorageChanged?.Invoke(this, e));
+            ModelStorageChanged?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -250,7 +261,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnTrainingEnded(EventArgs e)
       {
          try {
-            InvokeOnCreationTask(() => TrainingEnded?.Invoke(this, e));
+            TrainingEnded?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -263,7 +274,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnTrainingStarted(EventArgs e)
       {
          try {
-            InvokeOnCreationTask(() => TrainingStarted?.Invoke(this, e));
+            TrainingStarted?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);

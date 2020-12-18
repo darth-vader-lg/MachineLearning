@@ -189,7 +189,7 @@ namespace ML.Utilities.Predictors
       private void OnExtraDataChanged(EventArgs e)
       {
          try { CancelTraining(); } catch { }
-         try { InvokeOnCreationTask(() => ExtraDataChanged?.Invoke(this, e)); } catch { }
+         try { ExtraDataChanged?.Invoke(this, e); } catch (Exception exc) { Trace.WriteLine(exc); }
       }
       /// <summary>
       /// Funzione di notifica variazione storage del modello
@@ -347,6 +347,7 @@ namespace ML.Utilities.Predictors
                      // Emette il log
                      ML.NET.WriteLog("Found best model", $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
                      ML.NET.WriteLog(metrics.ToText(), $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
+                     ML.NET.WriteLog(metrics.ConfusionMatrix.GetFormattedConfusionTable(), $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
                      cancel.ThrowIfCancellationRequested();
                      // Eventuale salvataggio automatico modello
                      if (AutoSaveModel) {
