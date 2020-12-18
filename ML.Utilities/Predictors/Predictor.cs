@@ -4,6 +4,8 @@ using ML.Utilities.Data;
 using ML.Utilities.Models;
 using System;
 using System.Diagnostics;
+using System.Runtime.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ML.Utilities.Predictors
@@ -12,9 +14,14 @@ namespace ML.Utilities.Predictors
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class Predictor
+   public abstract partial class Predictor : IDeserializationCallback
    {
       #region Fields
+      /// <summary>
+      /// Scheduler di creazione dell'oggetto
+      /// </summary>
+      [NonSerialized]
+      private TaskScheduler _creationTaskScheduler;
       /// <summary>
       /// Gestore storage dati
       /// </summary>
@@ -45,6 +52,10 @@ namespace ML.Utilities.Predictors
       private CancellableTask _taskSaveModel;
       #endregion
       #region Properties
+      /// <summary>
+      /// Scheduler di creazione dell'oggetto
+      /// </summary>
+      protected TaskScheduler CreationTaskScheduler => _creationTaskScheduler;
       /// <summary>
       /// Gestore storage dati principale
       /// </summary>
@@ -103,9 +114,21 @@ namespace ML.Utilities.Predictors
       /// </summary>
       public event EventHandler DataStorageChanged;
       /// <summary>
+      /// Evento di variazione modello
+      /// </summary>
+      public event EventHandler ModelChanged;
+      /// <summary>
       /// Evento di variazione storage modello
       /// </summary>
       public event EventHandler ModelStorageChanged;
+      /// <summary>
+      /// Evento di segnalazione training terminato
+      /// </summary>
+      public event EventHandler TrainEnded;
+      /// <summary>
+      /// Evento di segnalazione training avviato
+      /// </summary>
+      public event EventHandler TrainStarted;
       #endregion
       #region Methods
       /// <summary>
@@ -116,12 +139,18 @@ namespace ML.Utilities.Predictors
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public Predictor(int? seed) => ML = new MachineLearningContext(seed);
+      public Predictor(int? seed) : this(new MachineLearningContext(seed)) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public Predictor(MachineLearningContext ml) => ML = ml;
+      public Predictor(MachineLearningContext ml)
+      {
+         // Memorizza il contesto di machine learning
+         ML = ml;
+         // Memorizza lo scheduler di creazione
+         _creationTaskScheduler = TaskScheduler.Default == TaskScheduler.Current ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext();
+      }
       /// <summary>
       /// Restituisce un task di attesa della valutazione copleta
       /// </summary>
@@ -162,7 +191,40 @@ namespace ML.Utilities.Predictors
       protected virtual void OnDataStorageChanged(EventArgs e)
       {
          try {
-            DataStorageChanged?.Invoke(this, e);
+            InvokeOnCreationTask(() => DataStorageChanged?.Invoke(this, e));
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Invoca un azione nel task di creazione oggetto
+      /// </summary>
+      /// <param name="Action">Azione</param>
+      protected void InvokeOnCreationTask(Action Action)
+      {
+         if (TaskScheduler.Current.Id == CreationTaskScheduler.Id)
+            Action();
+         else
+            new Task(Action).Start(CreationTaskScheduler);
+      }
+      /// <summary>
+      /// Funzione chiamata al termine della deserializzazione
+      /// </summary>
+      /// <param name="sender"></param>
+      public virtual void OnDeserialization(object sender)
+      {
+         // Memorizza lo scheduler di creazione
+         _creationTaskScheduler = TaskScheduler.Default == TaskScheduler.Current ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext();
+      }
+      /// <summary>
+      /// Funzione di notifica della variazione del modello
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected virtual void OnModelChanged(EventArgs e)
+      {
+         try {
+            InvokeOnCreationTask(() => ModelChanged?.Invoke(this, e));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -175,7 +237,33 @@ namespace ML.Utilities.Predictors
       protected virtual void OnModelStorageChanged(EventArgs e)
       {
          try {
-            ModelStorageChanged?.Invoke(this, e);
+            InvokeOnCreationTask(() => ModelStorageChanged?.Invoke(this, e));
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Funzione di notifica della fine del training
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected virtual void OnTrainingEnded(EventArgs e)
+      {
+         try {
+            InvokeOnCreationTask(() => TrainEnded?.Invoke(this, e));
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Funzione di notifica dello start del training
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected virtual void OnTrainingStarted(EventArgs e)
+      {
+         try {
+            InvokeOnCreationTask(() => TrainStarted?.Invoke(this, e));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -251,11 +339,24 @@ namespace ML.Utilities.Predictors
          }
          // Imposta il modello
          else {
+            // Imposta la nuova valutazione
             Evaluation = evaluation;
             if (evaluation.Model != default)
                TaskEvaluation.TrySetResult();
+            // Segnala la vartiazione del modello
+            OnModelChanged(EventArgs.Empty);
          }
       }
+      /// <summary>
+      /// Avvia il training del modello
+      /// </summary>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
+      public virtual async Task StartTrainingAsync(CancellationToken cancellation = default) => await Task.CompletedTask;
+      /// <summary>
+      /// Stoppa il training del modello
+      /// </summary>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
+      public virtual async Task StopTrainingAsync(CancellationToken cancellation = default) => await Task.CompletedTask;
       #endregion
    }
 

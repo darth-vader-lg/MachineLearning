@@ -108,6 +108,11 @@ namespace ML.Utilities.Predictors
          TextData = sb.ToString();
       }
       /// <summary>
+      /// Aggiunge una linea di dati
+      /// </summary>
+      /// <param name="data">Linea da aggiungere</param>
+      public void AppendData(params string[] data) => AppendData(FormatDataRow(data));
+      /// <summary>
       /// Stoppa il training ed annulla la validita' dei dati
       /// </summary>
       private void CancelTraining()
@@ -138,6 +143,29 @@ namespace ML.Utilities.Predictors
          });
       }
       /// <summary>
+      /// Formatta una riga di dati da un elenco di dati
+      /// </summary>
+      /// <param name="data"></param>
+      /// <returns></returns>
+      public string FormatDataRow(params string[] data)
+      {
+         // Linea da passare al modello
+         var inputLine = new StringBuilder();
+         // Quotatura stringhe
+         var quote = ((DataStorage as IDataTextOptionsProvider)?.TextOptions?.AllowQuoting ?? true) ? "\"" : "";
+         // Separatore di colonne
+         var separatorChar = (DataStorage as IDataTextOptionsProvider)?.TextOptions?.Separators?.FirstOrDefault() ?? ',';
+         // Loop di costruzione della linea di dati
+         var separator = "";
+         foreach (var item in data) {
+            var text = item ?? "";
+            var quoting = quote.Length > 0 && text.TrimStart().StartsWith(quote) && text.TrimEnd().EndsWith(quote) ? "" : quote;
+            inputLine.Append($"{separator}{quoting}{text}{quoting}");
+            separator = new string(separatorChar, 1);
+         }
+         return inputLine.ToString();
+      }
+      /// <summary>
       /// Funzione di inizializzazione
       /// </summary>
       private void Init()
@@ -161,7 +189,7 @@ namespace ML.Utilities.Predictors
       private void OnExtraDataChanged(EventArgs e)
       {
          try { CancelTraining(); } catch { }
-         try { ExtraDataChanged?.Invoke(this, e); } catch { }
+         try { InvokeOnCreationTask(() => ExtraDataChanged?.Invoke(this, e)); } catch { }
       }
       /// <summary>
       /// Funzione di notifica variazione storage del modello
@@ -193,13 +221,10 @@ namespace ML.Utilities.Predictors
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public async Task<string> PredictAsync(string data, CancellationToken cancellation)
+      public async Task<string> PredictAsync(string data, CancellationToken cancellation = default)
       {
          // Gestione avvio task di training
-         if (TaskTrain.CancellationToken.IsCancellationRequested)
-            await TaskTrain;
-         if (TaskTrain.Task.IsCompleted)
-            _ = TaskTrain.StartNew(cancellation => Task.Factory.StartNew(() => Train(cancellation), cancellation, TaskCreationOptions.LongRunning, TaskScheduler.Default), cancellation);
+         _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
          var dataView = LoadData(new DataStorageTextMemory() { TextData = data, TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
          cancellation.ThrowIfCancellationRequested();
@@ -220,36 +245,56 @@ namespace ML.Utilities.Predictors
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<string> PredictAsync(IEnumerable<string> data, CancellationToken cancellation)
+      public Task<string> PredictAsync(IEnumerable<string> data, CancellationToken cancellation = default) => PredictAsync(FormatDataRow(data.ToArray()), cancellation);
+      /// <summary>
+      /// Predizione asincrona
+      /// </summary>
+      /// <param name="data">Linea di dati da usare per la previsione</param>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il task di predizione</returns>
+      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
+      public Task<string> PredictAsync(CancellationToken cancellation = default, params string[] data) => PredictAsync(FormatDataRow(data), cancellation);
+      /// <summary>
+      /// Avvia il training del modello
+      /// </summary>
+      public void StartTraining() => StartTrainingAsync().Wait();
+      /// <summary>
+      /// Avvia il training del modello
+      /// </summary>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
+      public async override Task StartTrainingAsync(CancellationToken cancellation = default)
       {
-         // Linea da passare al modello
-         var inputLine = new StringBuilder();
-         // Quotatura stringhe
-         var quote = ((DataStorage as IDataTextOptionsProvider)?.TextOptions?.AllowQuoting ?? true) ? "\"" : "";
-         // Separatore di colonne
-         var separatorChar = (DataStorage as IDataTextOptionsProvider)?.TextOptions?.Separators?.FirstOrDefault() ?? ',';
-         // Loop di costruzione della linea di dati
-         var separator = "";
-         foreach (var item in data) {
-            var text = item ?? "";
-            var quoting = quote.Length > 0 && text.TrimStart().StartsWith(quote) && text.TrimEnd().EndsWith(quote) ? "" : quote;
-            inputLine.Append($"{separator}{quoting}{text}{quoting}");
-            separator = new string(separatorChar, 1);
-         }
-         // Ritorna il task di predizione asincrona
-         return PredictAsync(inputLine.ToString(), cancellation);
+         if (TaskTrain.CancellationToken.IsCancellationRequested)
+            await StopTrainingAsync(cancellation);
+         if (TaskTrain.Task.IsCompleted)
+            _ = TaskTrain.StartNew(c => Task.Factory.StartNew(() => Training(c), c, TaskCreationOptions.LongRunning, TaskScheduler.Default), cancellation);
+      }
+      /// <summary>
+      /// Stoppa il training del modello
+      /// </summary>
+      public void StopTraining() => StopTrainingAsync().Wait();
+      /// <summary>
+      /// Stoppa il training del modello
+      /// </summary>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
+      public async override Task StopTrainingAsync(CancellationToken cancellation = default)
+      {
+         TaskTrain.Cancel();
+         await Task.Run(() => TaskTrain.Task.Wait(cancellation));
       }
       /// <summary>
       /// Routine di training continuo
       /// </summary>
       /// <param name="cancel">Token di cancellazione</param>
-      private void Train(CancellationToken cancel)
+      private void Training(CancellationToken cancel)
       {
          try {
+            // Segnala lo start del training
+            OnTrainingStarted(EventArgs.Empty);
             // Carica il modello
             var model = default(ITransformer);
             var inputSchema = default(DataViewSchema);
-            try { model = LoadModel(out inputSchema); } catch (Exception) { }
+            try { model = !string.IsNullOrEmpty(ExtraData.TextData) ? default : LoadModel(out inputSchema); } catch (Exception) { }
             cancel.ThrowIfCancellationRequested();
             // Imposta le opzioni di testo per i dati extra in modo che siano uguali a quelli dello storage principale
             ExtraData.TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? ExtraData.TextOptions;
@@ -298,10 +343,10 @@ namespace ML.Utilities.Predictors
                   //var metrics = best.Metrics;
                   cancel.ThrowIfCancellationRequested();
                   // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
-                  if (prevMetrics == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
+                  if (prevMetrics == default || Evaluation?.Model == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
                      // Emette il log
-                     ML.NET.WriteLog("Found best model", $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
-                     ML.NET.WriteLog(metrics.ToText(), $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
+                     ML.NET.WriteLog("Found best model", $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
+                     ML.NET.WriteLog(metrics.ToText(), $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
                      cancel.ThrowIfCancellationRequested();
                      // Eventuale salvataggio automatico modello
                      if (AutoSaveModel) {
@@ -341,16 +386,18 @@ namespace ML.Utilities.Predictors
                }
                catch (OperationCanceledException) { }
                catch (Exception exc) {
-                  ML.NET.WriteLog(exc.Message, $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
+                  Trace.WriteLine(exc);
                   throw;
                }
             }
          }
          catch (OperationCanceledException) { }
          catch (Exception exc) {
-            ML.NET.WriteLog(exc.Message, $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
+            Trace.WriteLine(exc);
             throw;
          }
+         // Segnala la fine del training
+         OnTrainingEnded(EventArgs.Empty);
       }
       #endregion
    }
