@@ -124,11 +124,11 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Evento di segnalazione training terminato
       /// </summary>
-      public event EventHandler TrainEnded;
+      public event EventHandler TrainingEnded;
       /// <summary>
       /// Evento di segnalazione training avviato
       /// </summary>
-      public event EventHandler TrainStarted;
+      public event EventHandler TrainingStarted;
       #endregion
       #region Methods
       /// <summary>
@@ -250,7 +250,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnTrainingEnded(EventArgs e)
       {
          try {
-            InvokeOnCreationTask(() => TrainEnded?.Invoke(this, e));
+            InvokeOnCreationTask(() => TrainingEnded?.Invoke(this, e));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -263,7 +263,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnTrainingStarted(EventArgs e)
       {
          try {
-            InvokeOnCreationTask(() => TrainStarted?.Invoke(this, e));
+            InvokeOnCreationTask(() => TrainingStarted?.Invoke(this, e));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
