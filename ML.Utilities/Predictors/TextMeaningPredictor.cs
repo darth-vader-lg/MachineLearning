@@ -280,7 +280,7 @@ namespace ML.Utilities.Predictors
       public async override Task StopTrainingAsync(CancellationToken cancellation = default)
       {
          TaskTrain.Cancel();
-         await Task.Run(() => TaskTrain.Task.Wait(cancellation));
+         await Task.Run(() => TaskTrain.Task.Wait(cancellation), cancellation);
       }
       /// <summary>
       /// Routine di training continuo
@@ -296,6 +296,7 @@ namespace ML.Utilities.Predictors
             var inputSchema = default(DataViewSchema);
             try { model = !string.IsNullOrEmpty(ExtraData.TextData) ? default : LoadModel(out inputSchema); } catch (Exception) { }
             cancel.ThrowIfCancellationRequested();
+            ML.NET.WriteLog(model == default ? "No model present" : "Model loaded", Name);
             // Imposta le opzioni di testo per i dati extra in modo che siano uguali a quelli dello storage principale
             ExtraData.TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? ExtraData.TextOptions;
             // Carica i dati
@@ -308,7 +309,11 @@ namespace ML.Utilities.Predictors
                try {
                   TaskCommitData.Task.Wait(cancel);
                   if (!cancel.IsCancellationRequested) {
-                     TaskCommitData.StartNew(cancel => CommitDataAsync(), cancel).Wait();
+                     TaskCommitData.StartNew(cancel =>
+                     {
+                        ML.NET.WriteLog("Committing the new data", Name);
+                        return CommitDataAsync();
+                     }, cancel).Wait(cancel);
                      data = LoadData(DataStorage);
                   }
                }
@@ -327,13 +332,14 @@ namespace ML.Utilities.Predictors
                Append(trainer).
                Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
             // Loop di training continuo
-            var prevMetrics = model == default ? default(MulticlassClassificationMetrics) : ML.NET.MulticlassClassification.Evaluate(model.Transform(data));
+            var prevMetrics = model == default ? default : ML.NET.MulticlassClassification.Evaluate(model.Transform(data));
             var seed = 0;
             var iterationMax = 10;
             var iteration = iterationMax;
             while (!cancel.IsCancellationRequested && --iteration >= 0) {
                try {
                   // Effettua il training
+                  ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", Name);
                   var dataView = ML.NET.Data.ShuffleRows(data, seed++);
                   model = pipe.Fit(dataView);
                   var metrics = ML.NET.MulticlassClassification.Evaluate(model.Transform(dataView));
@@ -345,16 +351,20 @@ namespace ML.Utilities.Predictors
                   // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
                   if (prevMetrics == default || Evaluation?.Model == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
                      // Emette il log
-                     ML.NET.WriteLog("Found best model", $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
-                     ML.NET.WriteLog(metrics.ToText(), $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
-                     ML.NET.WriteLog(metrics.ConfusionMatrix.GetFormattedConfusionTable(), $"{nameof(TextMeaningPredictor)}.{nameof(Training)}");
+                     ML.NET.WriteLog("Found suitable model", Name);
+                     ML.NET.WriteLog(metrics.ToText(), Name);
+                     ML.NET.WriteLog(metrics.ConfusionMatrix.GetFormattedConfusionTable(), Name);
                      cancel.ThrowIfCancellationRequested();
                      // Eventuale salvataggio automatico modello
                      if (AutoSaveModel) {
                         try {
                            TaskSaveModel.Task.Wait(cancel);
                            if (!cancel.IsCancellationRequested)
-                              TaskSaveModel.StartNew(cancel => SaveModelAsync(default, model, Evaluation.InputSchema), cancel);
+                              TaskSaveModel.StartNew(cancel =>
+                              {
+                                 ML.NET.WriteLog("Saving the new model", Name);
+                                 return SaveModelAsync(default, model, Evaluation.InputSchema);
+                              }, cancel);
                         }
                         catch (Exception exc) { Debug.WriteLine(exc); }
                      }
@@ -371,12 +381,15 @@ namespace ML.Utilities.Predictors
                      try {
                         TaskCommitData.Task.Wait(cancel);
                         if (!cancel.IsCancellationRequested) {
-                           TaskCommitData.StartNew(cancel => CommitDataAsync(), cancel).Wait();
+                           TaskCommitData.StartNew(cancel =>
+                           {
+                              ML.NET.WriteLog("Committing the new data", Name);
+                              return CommitDataAsync();
+                           }, cancel).Wait(cancel);
                            data = LoadData(DataStorage);
                         }
                      }
-                     catch (Exception exc)
-                     {
+                     catch (Exception exc) {
                         Debug.WriteLine(exc);
                         data = LoadData(DataStorage, ExtraData);
                      }
@@ -397,8 +410,10 @@ namespace ML.Utilities.Predictors
             Trace.WriteLine(exc);
             throw;
          }
-         // Segnala la fine del training
-         OnTrainingEnded(EventArgs.Empty);
+         finally {
+            // Segnala la fine del training
+            OnTrainingEnded(EventArgs.Empty);
+         }
       }
       #endregion
    }

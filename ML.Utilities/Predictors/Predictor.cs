@@ -101,6 +101,10 @@ namespace ML.Utilities.Predictors
          }
       }
       /// <summary>
+      /// Nome dell'oggetto
+      /// </summary>
+      public string Name { get; set; }
+      /// <summary>
       /// Abilita il salvataggio del commento dello schema di ingresso dei dati nel file (efficace solo su file di testo)
       /// </summary>
       public bool SaveDataSchemaComment { get; set; }
@@ -235,6 +239,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnModelChanged(EventArgs e)
       {
          try {
+            ML.NET.WriteLog("Model setted", Name);
             ModelChanged?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -261,6 +266,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnTrainingEnded(EventArgs e)
       {
          try {
+            ML.NET.WriteLog("Training ended", Name);
             TrainingEnded?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -274,6 +280,7 @@ namespace ML.Utilities.Predictors
       protected virtual void OnTrainingStarted(EventArgs e)
       {
          try {
+            ML.NET.WriteLog("Training started", Name);
             TrainingStarted?.Invoke(this, e);
          }
          catch (Exception exc) {

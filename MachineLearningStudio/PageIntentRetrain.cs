@@ -93,16 +93,16 @@ namespace MachineLearningStudio
       private void Ml_Log(object sender, LoggingEventArgs e)
       {
          try {
-            if (e.Kind < ChannelMessageKind.Info)
+            if (e.Kind < ChannelMessageKind.Info || e.Source != textMeaningPredictor.Name)
                return;
             textBoxOutput.Invoke(new Action<LoggingEventArgs>(log =>
             {
                try {
-                  var sel = (resel: textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
+                  var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
                   var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
                   textBoxOutput.AppendText(log.Message + Environment.NewLine);
-                  if (sel.resel) {
-                     textBoxOutput.Select(sel.SelectionStart, sel.SelectionLength);
+                  if (resel) {
+                     textBoxOutput.Select(SelectionStart, SelectionLength);
                      textBoxOutput.ScrollToCaret();
                   }
                }
@@ -132,6 +132,7 @@ namespace MachineLearningStudio
                   columns: default,
                   separator: '|'),
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
+               Name = "Predictor",
             };
             // Aggancia il log
             textMeaningPredictor.ML.NET.Log += Ml_Log;
