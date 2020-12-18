@@ -30,23 +30,27 @@ namespace ML.Utilities.Models
       /// Funzione di caricamento modello
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="schema">Schema di input del modello</param>
+      /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema schema)
+      public ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema inputSchema)
       {
+         if (Bytes == default) {
+            inputSchema = default;
+            return default;
+         }
          using var memoryStream = new MemoryStream(Bytes);
-         return ml.NET.Model.Load(memoryStream, out schema);
+         return ml.NET.Model.Load(memoryStream, out inputSchema);
       }
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="model">Modello da salvare</param>
-      /// <param name="schema">Schema di input del modello</param>
-      public void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema schema)
+      /// <param name="inputSchema">Schema di input del modello</param>
+      public void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema inputSchema)
       {
          using var memoryStream = new MemoryStream();
-         ml.NET.Model.Save(model, schema, memoryStream);
+         ml.NET.Model.Save(model, inputSchema, memoryStream);
          Bytes = memoryStream.ToArray();
       }
       #endregion

@@ -12,16 +12,16 @@ namespace ML.Utilities.Models
       /// Funzione di caricamento modello
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="schema">Schema di input del modello</param>
+      /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema schema);
+      ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema inputSchema);
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="model">Modello da salvare</param>
-      /// <param name="schema">Schema di input del modello</param>
-      void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema schema);
+      /// <param name="inputSchema">Schema di input del modello</param>
+      void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema inputSchema);
       #endregion
    }
 }

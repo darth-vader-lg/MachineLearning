@@ -8,10 +8,10 @@ using System.Linq;
 namespace ML.Utilities.Data
 {
    /// <summary>
-   /// Classe per lo storage di dati di tipo stringhe
+   /// Classe per lo storage di dati di tipo testo in memoria
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageString : IDataStorage, IDataTextProvider, IMultiStreamSource, IDataTextOptionsProvider
+   public sealed partial class DataStorageTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, IDataTextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -24,7 +24,7 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Il numero di items
       /// </summary>
-      int IMultiStreamSource.Count => (_source ??= new Source(TextData)).Count;
+      int IMultiStreamSource.Count => (_source ??= new Source(this)).Count;
       /// <summary>
       /// Dati testuali
       /// </summary>
@@ -38,7 +38,7 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataStorageString() : this(null) { }
+      public DataStorageTextMemory() : this(null) { }
       /// <summary>
       /// Costruttore
       /// </summary>
@@ -46,7 +46,7 @@ namespace ML.Utilities.Data
       /// <param name="separator"></param>
       /// <param name="labelColumnName"></param>
       /// <param name="allowQuoting"></param>
-      public DataStorageString(IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
+      public DataStorageTextMemory(IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
       {
          TextOptions = new TextLoader.Options
          {
@@ -68,19 +68,19 @@ namespace ML.Utilities.Data
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Il path</returns>
 
-      string IMultiStreamSource.GetPathOrNull(int index) => (_source ??= new Source(TextData)).GetPathOrNull(index);
+      string IMultiStreamSource.GetPathOrNull(int index) => (_source ??= new Source(this)).GetPathOrNull(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      Stream IMultiStreamSource.Open(int index) => (_source ??= new Source(TextData)).Open(index);
+      Stream IMultiStreamSource.Open(int index) => (_source ??= new Source(this)).Open(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      TextReader IMultiStreamSource.OpenTextReader(int index) => (_source ??= new Source(TextData)).OpenTextReader(index);
+      TextReader IMultiStreamSource.OpenTextReader(int index) => (_source ??= new Source(this)).OpenTextReader(index);
       /// <summary>
       /// Carica i dati
       /// </summary>
@@ -89,7 +89,7 @@ namespace ML.Utilities.Data
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(MachineLearningContext ml, params IMultiStreamSource[] extra)
       {
-         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source = new Source(TextData, extra));
+         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source ??= new Source(this, extra));
       }
       /// <summary>
       /// Salva i dati
@@ -141,35 +141,32 @@ namespace ML.Utilities.Data
    /// <summary>
    /// La sorgente dei dati
    /// </summary>
-   public partial class DataStorageString
+   public partial class DataStorageTextMemory
    {
       private class Source : IMultiStreamSource
       {
          #region Fields
+         private readonly DataStorageTextMemory _owner;
          /// <summary>
          /// Sorgenti ed indici
          /// </summary>
-         private readonly (IMultiStreamSource Source, int Index)[] total;
-         /// <summary>
-         /// Testo
-         /// </summary>
-         private readonly string text;
+         private readonly (IMultiStreamSource Source, int Index)[] _total;
          #endregion
          #region Properties
          /// <summary>
          /// Il numero di items
          /// </summary>
-         public int Count => total.Length;
+         public int Count => _total.Length;
          #endregion
          #region Methods
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="text">Testo</param>
+         /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="extra">Sorgenti extra di dati</param>
-         public Source(string text, params IMultiStreamSource[] extra)
+         public Source(DataStorageTextMemory owner, params IMultiStreamSource[] extra)
          {
-            this.text = text ?? "";
+            _owner = owner;
             var indices = new List<(IMultiStreamSource Source, int Index)>
             {
                (Source: this, Index: 0)
@@ -178,14 +175,14 @@ namespace ML.Utilities.Data
                foreach (var ix in Enumerable.Range(0, e.Count))
                   indices.Add((Source: e, Index: ix));
             }
-            total = indices.ToArray();
+            _total = indices.ToArray();
          }
          /// <summary>
          /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Sempre null</returns>
-         public string GetPathOrNull(int index) => index == 0 ? default : total[index].Source.GetPathOrNull(total[index].Index);
+         public string GetPathOrNull(int index) => index == 0 ? default : _total[index].Source.GetPathOrNull(_total[index].Index);
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream leggibile.
          /// </summary>
@@ -194,10 +191,10 @@ namespace ML.Utilities.Data
          public Stream Open(int index)
          {
             if (index > 0)
-               return total[index].Source.Open(total[index].Index);
+               return _total[index].Source.Open(_total[index].Index);
             var memoryStream = new MemoryStream();
             using var writer = new StreamWriter(memoryStream);
-            writer.Write(text ?? "");
+            writer.Write(_owner.TextData ?? "");
             memoryStream.Position = 0;
             return memoryStream;
          }
@@ -206,7 +203,7 @@ namespace ML.Utilities.Data
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public TextReader OpenTextReader(int index) => index == 0 ? new StringReader(text ?? "") : total[index].Source.OpenTextReader(total[index].Index);
+         public TextReader OpenTextReader(int index) => index == 0 ? new StringReader(_owner.TextData ?? "") : _total[index].Source.OpenTextReader(_total[index].Index);
          #endregion
       }
    }

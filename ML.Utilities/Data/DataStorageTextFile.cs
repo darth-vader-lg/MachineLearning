@@ -104,25 +104,17 @@ namespace ML.Utilities.Data
       public void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
       {
          // Oggetto per la scrittura dei dati in memoria
-         using var writer = File.OpenWrite(FilePath);
-         // Opzioni
-         var opt = TextOptions ?? new TextLoader.Options();
-         // Separatore di colonne
-         var separator = opt.Separators?.FirstOrDefault() ?? '\t';
-         separator = separator != default ? separator : '\t';
-         // Salva come testo i dati
-         ml.NET.Data.SaveAsText(
-            data: data,
-            stream: writer,
-            separatorChar: separator,
-            headerRow: opt.HasHeader,
-            schema: schema,
-            keepHidden: false,
-            forceDense: false);
-         // Salva gli stream extra
-         foreach (var item in extra) {
-            var loader = ml.NET.Data.CreateTextLoader(opt);
-            data = loader.Load(item);
+         var tmpPath = default(string);
+         var writer = default(FileStream);
+         try {
+            tmpPath = Path.GetTempFileName();
+            writer = File.OpenWrite(tmpPath);
+            // Opzioni
+            var opt = TextOptions ?? new TextLoader.Options();
+            // Separatore di colonne
+            var separator = opt.Separators?.FirstOrDefault() ?? '\t';
+            separator = separator != default ? separator : '\t';
+            // Salva come testo i dati
             ml.NET.Data.SaveAsText(
                data: data,
                stream: writer,
@@ -131,6 +123,31 @@ namespace ML.Utilities.Data
                schema: schema,
                keepHidden: false,
                forceDense: false);
+            // Salva gli stream extra
+            foreach (var item in extra) {
+               var loader = ml.NET.Data.CreateTextLoader(opt);
+               data = loader.Load(item);
+               ml.NET.Data.SaveAsText(
+                  data: data,
+                  stream: writer,
+                  separatorChar: separator,
+                  headerRow: opt.HasHeader,
+                  schema: schema,
+                  keepHidden: false,
+                  forceDense: false);
+            }
+            writer.Close();
+            writer = default;
+            File.Copy(tmpPath, FilePath, true);
+         }
+         finally {
+            try {
+               if (writer != default)
+                  writer.Close();
+               if (tmpPath != default && File.Exists(tmpPath))
+                  File.Delete(tmpPath);
+            }
+            catch (Exception) { }
          }
       }
       #endregion

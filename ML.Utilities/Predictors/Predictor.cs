@@ -54,6 +54,10 @@ namespace ML.Utilities.Predictors
       /// </summary>
       public IModelStorage ModelStorage{ get; set; }
       /// <summary>
+      /// Abilita il salvataggio del commento dello schema di ingresso dei dati nel file (efficace solo su file di testo)
+      /// </summary>
+      public bool SaveDataSchemaComment { get; set; }
+      /// <summary>
       /// Task di salvataggio dati
       /// </summary>
       private TaskCompletionSource TaskEvaluation { get => _taskEvaluation ??= new TaskCompletionSource(); set => _taskEvaluation = value; }
@@ -85,7 +89,7 @@ namespace ML.Utilities.Predictors
       /// Restituisce un task di attesa della valutazione copleta
       /// </summary>
       /// <returns></returns>
-      public async Task<Evaluator> GetEvaluation()
+      public async Task<Evaluator> GetEvaluationAsync()
       {
          // Attende la valutazione
          await TaskEvaluation.Task;
@@ -98,31 +102,49 @@ namespace ML.Utilities.Predictors
       /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
       /// <param name="extra">Sorgenti extra</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(IDataStorage dataStorage = null, params IMultiStreamSource[] extra) => (dataStorage ?? DataStorage).LoadData(ML, extra);
+      public IDataView LoadData(IDataStorage dataStorage = default, params IMultiStreamSource[] extra) => (dataStorage ?? DataStorage).LoadData(ML, extra);
       /// <summary>
       /// Carica il modello
       /// </summary>
       /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      public ITransformer LoadModel(IModelStorage modelStorage = null) => (modelStorage ?? ModelStorage)?.LoadModel(ML, out _);
+      public ITransformer LoadModel(IModelStorage modelStorage = default) => (modelStorage ?? ModelStorage)?.LoadModel(ML, out _);
       /// <summary>
       /// Carica il modello
       /// </summary>
-      /// <param name="schema">Schema di input del modello</param>
+      /// <param name="inputSchema">Schema di input del modello</param>
       /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      public ITransformer LoadModel(out DataViewSchema schema, IModelStorage modelStorage = null)
+      public ITransformer LoadModel(out DataViewSchema inputSchema, IModelStorage modelStorage = default)
       {
-         schema = null;
-         return (modelStorage ?? ModelStorage)?.LoadModel(ML, out schema);
+         inputSchema = null;
+         return (modelStorage ?? ModelStorage)?.LoadModel(ML, out inputSchema);
       }
       /// <summary>
       /// Salva i dati
       /// </summary>
       /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
       /// <param name="dataView">Dati</param>
-      public void SaveData(IDataStorage dataStorage = null, IDataView dataView = null)
+      /// <param name="extra">Sorgenti extra di dati da accodare</param>
+      public void SaveData(IDataStorage dataStorage = default, IDataView dataView = default, params IMultiStreamSource[] extra)
       {
          lock (TaskSaveData)
-            (dataStorage ?? DataStorage)?.SaveData(ML, (dataView ?? Evaluation.Data));
+            (dataStorage ?? DataStorage)?.SaveData(ML, dataView ?? Evaluation.Data, SaveDataSchemaComment, extra);
+      }
+      /// <summary>
+      /// Funzione di salvataggio asincrono dei dati
+      /// </summary>
+      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
+      /// <param name="dataView">Dati</param>
+      /// <param name="extra">Sorgenti extra di dati da accodare</param>
+      protected async Task SaveDataAsync(IDataStorage dataStorage = default, IDataView dataView = default, params IMultiStreamSource[] extra)
+      {
+         TaskSaveData.Cancel();
+         await TaskSaveData;
+         await TaskSaveData.StartNew(cancel => Task.Run(() =>
+         {
+            cancel.ThrowIfCancellationRequested();
+            lock (TaskSaveData)
+               SaveData(dataStorage, dataView, extra);
+         }, cancel));
       }
       /// <summary>
       /// Salva il modello
@@ -130,10 +152,27 @@ namespace ML.Utilities.Predictors
       /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
       /// <param name="model">Eventuale modello</param>
       /// <param name="schema">Eventuale schema dei dati</param>
-      public void SaveModel(IModelStorage modelStorage = null, ITransformer model = null, DataViewSchema schema = null)
+      public void SaveModel(IModelStorage modelStorage = default, ITransformer model = default, DataViewSchema schema = default)
       {
          lock (TaskSaveModel)
-            (modelStorage ?? ModelStorage)?.SaveModel(ML, model ?? Evaluation.Model, schema ?? Evaluation.Schema);
+            (modelStorage ?? ModelStorage)?.SaveModel(ML, model ?? Evaluation.Model, schema ?? Evaluation.InputSchema);
+      }
+      /// <summary>
+      /// Funzione di salvataggio asincrono del modello
+      /// </summary>
+      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
+      /// <param name="model">Eventuale modello</param>
+      /// <param name="schema">Eventuale schema dei dati</param>
+      protected async Task SaveModelAsync(IModelStorage modelStorage = default, ITransformer model = default, DataViewSchema schema = default)
+      {
+         TaskSaveModel.Cancel();
+         await TaskSaveModel;
+         await TaskSaveModel.StartNew(cancel => Task.Run(() =>
+         {
+            cancel.ThrowIfCancellationRequested();
+            lock (TaskSaveData)
+               SaveModel(modelStorage, model, schema);
+         }, cancel));
       }
       /// <summary>
       /// Imposta i dati di valutazione
@@ -153,51 +192,6 @@ namespace ML.Utilities.Predictors
             if (evaluation.Model != default)
                TaskEvaluation.TrySetResult();
          }
-      }
-      /// <summary>
-      /// Funzione di salvataggio asincrono dei dati
-      /// </summary>
-      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
-      /// <param name="dataView">Dati</param>
-      protected async Task SaveDataAsync(IDataStorage dataStorage = null, IDataView dataView = null)
-      {
-         TaskSaveData.Cancel();
-         await TaskSaveData;
-         await TaskSaveData.StartNew(cancel => Task.Run(() =>
-         {
-            try {
-               cancel.ThrowIfCancellationRequested();
-               lock (TaskSaveData)
-                  SaveData(dataStorage, dataView);
-            }
-            catch (Exception exc) {
-               Trace.WriteLine(exc);
-               throw;
-            }
-         }, cancel));
-      }
-      /// <summary>
-      /// Funzione di salvataggio asincrono del modello
-      /// </summary>
-      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      /// <param name="model">Eventuale modello</param>
-      /// <param name="schema">Eventuale schema dei dati</param>
-      protected async Task SaveModelAsync(IModelStorage modelStorage = null, ITransformer model = null, DataViewSchema schema = null)
-      {
-         TaskSaveModel.Cancel();
-         await TaskSaveModel;
-         await TaskSaveModel.StartNew(cancel => Task.Run(() =>
-         {
-            try {
-               cancel.ThrowIfCancellationRequested();
-               lock (TaskSaveData)
-                  SaveModel(modelStorage, model, schema);
-            }
-            catch (Exception exc) {
-               Trace.WriteLine(exc);
-               throw;
-            }
-         }, cancel));
       }
       #endregion
    }
@@ -222,7 +216,7 @@ namespace ML.Utilities.Predictors
          /// <summary>
          /// Schema di input
          /// </summary>
-         public DataViewSchema Schema { get; set; }
+         public DataViewSchema InputSchema { get; set; }
          #endregion
       }
    }
