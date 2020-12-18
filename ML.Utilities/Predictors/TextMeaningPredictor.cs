@@ -17,7 +17,7 @@ namespace ML.Utilities.Predictors
    /// Modello per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed class TextMeaning : Predictor, IDataTextProvider
+   public sealed class TextMeaningPredictor : Predictor, IDataTextProvider
    {
       #region Fields
       /// <summary>
@@ -71,32 +71,30 @@ namespace ML.Utilities.Predictors
       public string TextData
       {
          get => ExtraData.TextData;
-         set
-         {
-            // Stoppa il training
-            TaskTrain.Cancel();
-            // Invalida la valutazione
-            SetEvaluation(null);
-            // Aggiorna i dati
-            ExtraData.TextData = value;
-         }
+         set { OnExtraDataChanged(EventArgs.Empty); ExtraData.TextData = value; }
       }
+      #endregion
+      #region Events
+      /// <summary>
+      /// Evento di variazione dati extra di training
+      /// </summary>
+      public event EventHandler ExtraDataChanged;
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      public TextMeaning() => Init();
+      public TextMeaningPredictor() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Contesto di machine learning</param>
-      public TextMeaning(int? seed) : base(seed) => Init();
+      public TextMeaningPredictor(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaning(MachineLearningContext ml) : base(ml) => Init();
+      public TextMeaningPredictor(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
       /// Aggiunge una linea di dati
       /// </summary>
@@ -108,6 +106,16 @@ namespace ML.Utilities.Predictors
          sb.Append(TextData);
          sb.AppendLine(data);
          TextData = sb.ToString();
+      }
+      /// <summary>
+      /// Stoppa il training ed annulla la validita' dei dati
+      /// </summary>
+      private void CancelTraining()
+      {
+         // Stoppa il training
+         TaskTrain.Cancel();
+         // Invalida la valutazione
+         SetEvaluation(null);
       }
       /// <summary>
       /// Commit dei dati
@@ -136,6 +144,33 @@ namespace ML.Utilities.Predictors
       {
          DataStorage = new DataStorageTextMemory();
          ModelStorage = new ModelStorageMemory();
+      }
+      /// <summary>
+      /// Funzione di notifica variazione storage dei dati
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected override void OnDataStorageChanged(EventArgs e)
+      {
+         try { CancelTraining(); } catch { }
+         base.OnDataStorageChanged(e);
+      }
+      /// <summary>
+      /// Funzione di notifica variazione dati extra di training
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      private void OnExtraDataChanged(EventArgs e)
+      {
+         try { CancelTraining(); } catch { }
+         try { ExtraDataChanged?.Invoke(this, e); } catch { }
+      }
+      /// <summary>
+      /// Funzione di notifica variazione storage del modello
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected override void OnModelStorageChanged(EventArgs e)
+      {
+         try { CancelTraining(); } catch { }
+         base.OnModelStorageChanged(e);
       }
       /// <summary>
       /// Predizione
@@ -229,7 +264,7 @@ namespace ML.Utilities.Predictors
                   TaskCommitData.Task.Wait(cancel);
                   if (!cancel.IsCancellationRequested) {
                      TaskCommitData.StartNew(cancel => CommitDataAsync(), cancel).Wait();
-                     data = LoadData(DataStorage, ExtraData);
+                     data = LoadData(DataStorage);
                   }
                }
                catch (Exception exc) { Debug.WriteLine(exc); }
@@ -265,8 +300,8 @@ namespace ML.Utilities.Predictors
                   // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
                   if (prevMetrics == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
                      // Emette il log
-                     ML.NET.WriteLog("Found best model", $"{nameof(TextMeaning)}.{nameof(Train)}");
-                     ML.NET.WriteLog(metrics.ToText(), $"{nameof(TextMeaning)}.{nameof(Train)}");
+                     ML.NET.WriteLog("Found best model", $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
+                     ML.NET.WriteLog(metrics.ToText(), $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
                      cancel.ThrowIfCancellationRequested();
                      // Eventuale salvataggio automatico modello
                      if (AutoSaveModel) {
@@ -285,30 +320,35 @@ namespace ML.Utilities.Predictors
                   }
                   // Ricarica i dati
                   cancel.ThrowIfCancellationRequested();
-                  data = LoadData(DataStorage, ExtraData);
                   // Effettua eventuale commit automatico
                   if (!string.IsNullOrEmpty(ExtraData.TextData) && AutoCommitData) {
                      try {
                         TaskCommitData.Task.Wait(cancel);
                         if (!cancel.IsCancellationRequested) {
                            TaskCommitData.StartNew(cancel => CommitDataAsync(), cancel).Wait();
-                           data = LoadData(DataStorage, ExtraData);
+                           data = LoadData(DataStorage);
                         }
                      }
-                     catch (Exception exc) { Debug.WriteLine(exc); }
+                     catch (Exception exc)
+                     {
+                        Debug.WriteLine(exc);
+                        data = LoadData(DataStorage, ExtraData);
+                     }
                   }
+                  else
+                     data = LoadData(DataStorage, ExtraData);
                   cancel.ThrowIfCancellationRequested();
                }
                catch (OperationCanceledException) { }
                catch (Exception exc) {
-                  ML.NET.WriteLog(exc.Message, $"{nameof(TextMeaning)}.{nameof(Train)}");
+                  ML.NET.WriteLog(exc.Message, $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
                   throw;
                }
             }
          }
          catch (OperationCanceledException) { }
          catch (Exception exc) {
-            ML.NET.WriteLog(exc.Message, $"{nameof(TextMeaning)}.{nameof(Train)}");
+            ML.NET.WriteLog(exc.Message, $"{nameof(TextMeaningPredictor)}.{nameof(Train)}");
             throw;
          }
       }

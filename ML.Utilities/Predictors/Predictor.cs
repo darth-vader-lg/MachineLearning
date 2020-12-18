@@ -16,10 +16,18 @@ namespace ML.Utilities.Predictors
    {
       #region Fields
       /// <summary>
+      /// Gestore storage dati
+      /// </summary>
+      private IDataStorage _dataStorage;
+      /// <summary>
       /// Valutazione
       /// </summary>
       [NonSerialized]
       private Evaluator _evaluation;
+      /// <summary>
+      /// Gestore storage modello
+      /// </summary>
+      private IModelStorage _modelStorage;
       /// <summary>
       /// Task di valutazione modello
       /// </summary>
@@ -40,7 +48,17 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Gestore storage dati principale
       /// </summary>
-      public IDataStorage DataStorage { get; set; }
+      public IDataStorage DataStorage
+      {
+         get => _dataStorage;
+         set
+         {
+            if (value != _dataStorage) {
+               _dataStorage = value;
+               OnDataStorageChanged(EventArgs.Empty);
+            }
+         }
+      }
       /// <summary>
       /// Valutazione
       /// </summary>
@@ -52,7 +70,16 @@ namespace ML.Utilities.Predictors
       /// <summary>
       /// Gestore storage modello
       /// </summary>
-      public IModelStorage ModelStorage{ get; set; }
+      public IModelStorage ModelStorage
+      {
+         get => _modelStorage;
+         set {
+            if (value != _modelStorage) {
+               _modelStorage = value;
+               OnModelStorageChanged(EventArgs.Empty);
+            }
+         }
+      }
       /// <summary>
       /// Abilita il salvataggio del commento dello schema di ingresso dei dati nel file (efficace solo su file di testo)
       /// </summary>
@@ -69,6 +96,16 @@ namespace ML.Utilities.Predictors
       /// Task di salvataggio modello
       /// </summary>
       private CancellableTask TaskSaveModel { get => _taskSaveModel ??= new CancellableTask(); set => _taskSaveModel = value; }
+      #endregion
+      #region Events
+      /// <summary>
+      /// Evento di variazione storage dati
+      /// </summary>
+      public event EventHandler DataStorageChanged;
+      /// <summary>
+      /// Evento di variazione storage modello
+      /// </summary>
+      public event EventHandler ModelStorageChanged;
       #endregion
       #region Methods
       /// <summary>
@@ -117,6 +154,32 @@ namespace ML.Utilities.Predictors
       {
          inputSchema = null;
          return (modelStorage ?? ModelStorage)?.LoadModel(ML, out inputSchema);
+      }
+      /// <summary>
+      /// Funzione di notifica variazione storage dei dati
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected virtual void OnDataStorageChanged(EventArgs e)
+      {
+         try {
+            DataStorageChanged?.Invoke(this, e);
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Funzione di notifica variazione storage del modello
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected virtual void OnModelStorageChanged(EventArgs e)
+      {
+         try {
+            ModelStorageChanged?.Invoke(this, e);
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
       }
       /// <summary>
       /// Salva i dati
