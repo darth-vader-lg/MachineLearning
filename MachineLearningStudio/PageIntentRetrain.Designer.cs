@@ -150,15 +150,17 @@ namespace MachineLearningStudio
          // textBoxOutput
          // 
          this.textBoxOutput.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.textBoxOutput.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
          this.textBoxOutput.Location = new System.Drawing.Point(4, 58);
          this.textBoxOutput.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxOutput.MaxLength = 0;
          this.textBoxOutput.Multiline = true;
          this.textBoxOutput.Name = "textBoxOutput";
          this.textBoxOutput.ReadOnly = true;
-         this.textBoxOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+         this.textBoxOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
          this.textBoxOutput.Size = new System.Drawing.Size(687, 485);
          this.textBoxOutput.TabIndex = 1;
+         this.textBoxOutput.WordWrap = false;
          // 
          // PageIntentRetrain
          // 

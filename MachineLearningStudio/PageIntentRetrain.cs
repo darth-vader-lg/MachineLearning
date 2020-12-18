@@ -98,10 +98,11 @@ namespace MachineLearningStudio
             textBoxOutput.Invoke(new Action<LoggingEventArgs>(log =>
             {
                try {
-                  var scroll = textBoxOutput.SelectionStart >= textBoxOutput.TextLength;
+                  var sel = (resel: textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
+                  var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
                   textBoxOutput.AppendText(log.Message + Environment.NewLine);
-                  if (scroll) {
-                     textBoxOutput.Select(textBoxOutput.TextLength, 0);
+                  if (sel.resel) {
+                     textBoxOutput.Select(sel.SelectionStart, sel.SelectionLength);
                      textBoxOutput.ScrollToCaret();
                   }
                }
