@@ -71,19 +71,19 @@ namespace ML.Utilities.Data
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Il path</returns>
 
-      string IMultiStreamSource.GetPathOrNull(int index) => (_source ??= new Source(FilePath)).GetPathOrNull(index);
+      string IMultiStreamSource.GetPathOrNull(int index) => (_source ??= new Source(this)).GetPathOrNull(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      Stream IMultiStreamSource.Open(int index) => (_source ??= new Source(FilePath)).Open(index);
+      Stream IMultiStreamSource.Open(int index) => (_source ??= new Source(this)).Open(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Lo stream di lettura</returns>
-      TextReader IMultiStreamSource.OpenTextReader(int index) => (_source ??= new Source(FilePath)).OpenTextReader(index);
+      TextReader IMultiStreamSource.OpenTextReader(int index) => (_source ??= new Source(this)).OpenTextReader(index);
       /// <summary>
       /// Carica i dati
       /// </summary>
@@ -92,7 +92,7 @@ namespace ML.Utilities.Data
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(MachineLearningContext ml, params IMultiStreamSource[] extra)
       {
-         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source = new Source(FilePath, extra));
+         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source = new Source(this, extra));
       }
       /// <summary>
       /// Salva i dati
@@ -164,27 +164,27 @@ namespace ML.Utilities.Data
          /// <summary>
          /// Sorgenti ed indici
          /// </summary>
-         private readonly (IMultiStreamSource Source, int Index)[] total;
+         private readonly (IMultiStreamSource Source, int Index)[] _total;
          /// <summary>
          /// Testo
          /// </summary>
-         private readonly string filePath;
+         private readonly DataStorageTextFile _owner;
          #endregion
          #region Properties
          /// <summary>
          /// Il numero di items
          /// </summary>
-         public int Count => total.Length;
+         public int Count => _total.Length;
          #endregion
          #region Methods
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="filePath">Path del file</param>
+         /// <param name="owner">Oggetto di appartenenzqa</param>
          /// <param name="extra">Sorgenti extra di dati</param>
-         public Source(string filePath, params IMultiStreamSource[] extra)
+         public Source(DataStorageTextFile owner, params IMultiStreamSource[] extra)
          {
-            this.filePath = filePath;
+            this._owner = owner;
             var indices = new List<(IMultiStreamSource Source, int Index)>
             {
                (Source: this, Index: 0)
@@ -193,26 +193,26 @@ namespace ML.Utilities.Data
                foreach (var ix in Enumerable.Range(0, e.Count))
                   indices.Add((Source: e, Index: ix));
             }
-            total = indices.ToArray();
+            _total = indices.ToArray();
          }
          /// <summary>
          /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Sempre null</returns>
-         public string GetPathOrNull(int index) => index == 0 ? filePath : total[index].Source.GetPathOrNull(total[index].Index);
+         public string GetPathOrNull(int index) => index == 0 ? _owner.FilePath : _total[index].Source.GetPathOrNull(_total[index].Index);
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream leggibile.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public Stream Open(int index) => index == 0 ? File.OpenRead(filePath) : total[index].Source.Open(total[index].Index);
+         public Stream Open(int index) => index == 0 ? File.OpenRead(_owner.FilePath) : _total[index].Source.Open(_total[index].Index);
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public TextReader OpenTextReader(int index) => index == 0 ? new StreamReader(filePath) : total[index].Source.OpenTextReader(total[index].Index);
+         public TextReader OpenTextReader(int index) => index == 0 ? new StreamReader(_owner.FilePath) : _total[index].Source.OpenTextReader(_total[index].Index);
          #endregion
       }
    }
