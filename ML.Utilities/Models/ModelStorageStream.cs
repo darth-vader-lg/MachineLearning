@@ -1,10 +1,6 @@
 ﻿using Microsoft.ML;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ML.Utilities.Models
 {
@@ -47,7 +43,8 @@ namespace ML.Utilities.Models
             inputSchema = default;
             return default;
          }
-         return ml.NET.Model.Load(ReadStreamGetter(), out inputSchema);
+         using var stream = ReadStreamGetter();
+         return ml.NET.Model.Load(stream, out inputSchema);
       }
       /// <summary>
       /// Funzione di salvataggio modello
@@ -59,7 +56,8 @@ namespace ML.Utilities.Models
       {
          if (WriteStreamGetter == default)
             return;
-         ml.NET.Model.Save(model, inputSchema, WriteStreamGetter());
+         using var stream = WriteStreamGetter();
+         ml.NET.Model.Save(model, inputSchema, stream);
       }
       #endregion
    }
