@@ -95,19 +95,16 @@ namespace MachineLearningStudio
          try {
             if (e.Kind < ChannelMessageKind.Info || e.Source != textMeaningPredictor.Name)
                return;
-            textBoxOutput.Invoke(new Action<LoggingEventArgs>(log =>
+            textMeaningPredictor.Post(() =>
             {
-               try {
-                  var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
-                  var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
-                  textBoxOutput.AppendText(log.Message + Environment.NewLine);
-                  if (resel) {
-                     textBoxOutput.Select(SelectionStart, SelectionLength);
-                     textBoxOutput.ScrollToCaret();
-                  }
+               var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
+               var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
+               textBoxOutput.AppendText(e.Message + Environment.NewLine);
+               if (resel) {
+                  textBoxOutput.Select(SelectionStart, SelectionLength);
+                  textBoxOutput.ScrollToCaret();
                }
-               catch (Exception) { }
-            }), e);
+            });
          }
          catch (Exception) { }
       }
@@ -159,16 +156,13 @@ namespace MachineLearningStudio
             await Task.Delay(delay, cancel);
             // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
-            if (forceRebuildModel)
-               textBoxOutput.Clear();
-            cancel.ThrowIfCancellationRequested();
             // Rilancia o avvia il task di training
             if (forceRebuildModel) {
-               await textMeaningPredictor.StopTrainingAsync(cancel);
-               await textMeaningPredictor.StartTrainingAsync(cancel);
+               await textMeaningPredictor.StopTrainingAsync();
+               _ = textMeaningPredictor.StartTrainingAsync(cancel);
             }
             cancel.ThrowIfCancellationRequested();
-            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : await Task.Run(() => textMeaningPredictor.PredictAsync(new[] { null, sentence }));
+            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : await textMeaningPredictor.PredictAsync(new[] { null, sentence });
             textBoxIntent.BackColor = textBoxBackColor;
          }
          catch (OperationCanceledException) { }
@@ -233,7 +227,7 @@ namespace MachineLearningStudio
                return;
             if (string.IsNullOrWhiteSpace(dataSetName))
                return;
-            textMeaningPredictor.AppendData(textBoxIntent.Text.Trim(), textBoxSentence.Text.Trim());
+            textMeaningPredictor.AddTrainingData(textBoxIntent.Text.Trim(), textBoxSentence.Text.Trim());
             MakePrediction(default, true);
          }
          catch (Exception exc) {
