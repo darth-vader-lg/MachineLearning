@@ -12,23 +12,23 @@ namespace MachineLearning
    /// Modello per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed class TextMeaningPredictor : Predictor
+   public sealed class PredictorTextMeaning : Predictor
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      public TextMeaningPredictor() => Init();
+      public PredictorTextMeaning() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Contesto di machine learning</param>
-      public TextMeaningPredictor(int? seed) : base(seed) => Init();
+      public PredictorTextMeaning(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaningPredictor(MachineLearningContext ml) : base(ml) => Init();
+      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) => Init();
       /// Funzione di inizializzazione
       /// </summary>
       private void Init()

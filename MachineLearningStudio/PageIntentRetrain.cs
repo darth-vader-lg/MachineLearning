@@ -36,7 +36,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Previsore di significato testi
       /// </summary>
-      private TextMeaningPredictor textMeaningPredictor;
+      private PredictorTextMeaning textMeaningPredictor;
       #endregion
       #region Methods
       /// <summary>
@@ -117,7 +117,7 @@ namespace MachineLearningStudio
             // Imposta il nome del file di dati
             textBoxDataSetName.Text = Settings.Default.PageIntent.DataSetName?.Trim();
             // Crea il previsore
-            textMeaningPredictor = new TextMeaningPredictor
+            textMeaningPredictor = new PredictorTextMeaning
             {
                AutoCommitData = true,
                AutoSaveModel = true,
