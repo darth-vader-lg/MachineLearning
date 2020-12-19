@@ -2,7 +2,7 @@
 using System;
 using System.Linq;
 
-namespace ML.Utilities
+namespace MachineLearning
 {
    /// <summary>
    /// Classe di wrapping delle TextLoader.Options di ML.NET che non sono serializzabili

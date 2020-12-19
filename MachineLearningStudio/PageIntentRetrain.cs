@@ -1,9 +1,6 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning;
+using Microsoft.ML;
 using Microsoft.ML.Runtime;
-using ML.Utilities;
-using ML.Utilities.Data;
-using ML.Utilities.Models;
-using ML.Utilities.Predictors;
 using System;
 using System.Diagnostics;
 using System.Drawing;

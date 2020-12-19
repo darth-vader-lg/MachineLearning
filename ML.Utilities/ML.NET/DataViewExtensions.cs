@@ -1,8 +1,7 @@
-﻿using Microsoft.ML;
-using System;
+﻿using System;
 using System.Linq;
 
-namespace ML.Utilities
+namespace Microsoft.ML
 {
    /// <summary>
    /// Estensioni per l'accesso ai gestori di dati

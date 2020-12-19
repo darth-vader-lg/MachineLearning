@@ -1,4 +1,4 @@
-﻿namespace ML.Utilities.Data
+﻿namespace MachineLearning
 {
    /// <summary>
    /// Interfaccia per i providers di opzioni di testo

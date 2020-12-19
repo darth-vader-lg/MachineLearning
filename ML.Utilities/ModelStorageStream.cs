@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 
-namespace ML.Utilities.Models
+namespace MachineLearning
 {
    /// <summary>
    /// Gestore dello storage su stream dei modelli

@@ -1,12 +1,10 @@
-﻿using Microsoft.ML;
-using Microsoft.ML.Data;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
-namespace ML.Utilities
+namespace Microsoft.ML.Data
 {
    /// <summary>
    /// Estensioni della categoria di clusterizzazione

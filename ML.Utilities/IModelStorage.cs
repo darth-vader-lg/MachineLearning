@@ -1,6 +1,6 @@
 ﻿using Microsoft.ML;
 
-namespace ML.Utilities.Models
+namespace MachineLearning
 {
    /// <summary>
    /// Interfaccia per i gestori di storage dei modelli

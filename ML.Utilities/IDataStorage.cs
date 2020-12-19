@@ -1,7 +1,7 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
 
-namespace ML.Utilities.Data
+namespace MachineLearning
 {
    /// <summary>
    /// Interfaccia per lo storage di dati

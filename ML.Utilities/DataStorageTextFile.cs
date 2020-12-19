@@ -5,13 +5,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace ML.Utilities.Data
+namespace MachineLearning
 {
    /// <summary>
-   /// Classe per lo storage di dati di tipo testo in memoria
+   /// Classe per lo storage di dati di tipo file di testo
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, IDataTextOptionsProvider
+   public sealed partial class DataStorageTextFile : IDataStorage, IMultiStreamSource, IDataTextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -24,11 +24,11 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Il numero di items
       /// </summary>
-      int IMultiStreamSource.Count => (_source ??= new Source(this)).Count;
+      int IMultiStreamSource.Count => (_source ??= new Source(null)).Count;
       /// <summary>
-      /// Dati testuali
+      /// Path del file
       /// </summary>
-      public string TextData { get; set; }
+      public string FilePath { get; private set; }
       /// <summary>
       /// Configurazione dei dati
       /// </summary>
@@ -38,16 +38,19 @@ namespace ML.Utilities.Data
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataStorageTextMemory() : this(null) { }
+      /// <param name="filePath">Path del file</param>
+      public DataStorageTextFile(string filePath) : this(filePath, null) { }
       /// <summary>
       /// Costruttore
       /// </summary>
+      /// <param name="filePath">Path del file</param>
       /// <param name="columns"></param>
       /// <param name="separator"></param>
       /// <param name="labelColumnName"></param>
       /// <param name="allowQuoting"></param>
-      public DataStorageTextMemory(IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
+      public DataStorageTextFile(string filePath,  IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
       {
+         FilePath = filePath;
          TextOptions = new TextLoader.Options
          {
             AllowQuoting = allowQuoting,
@@ -89,7 +92,7 @@ namespace ML.Utilities.Data
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(MachineLearningContext ml, params IMultiStreamSource[] extra)
       {
-         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source ??= new Source(this, extra));
+         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source = new Source(this, extra));
       }
       /// <summary>
       /// Salva i dati
@@ -101,25 +104,17 @@ namespace ML.Utilities.Data
       public void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
       {
          // Oggetto per la scrittura dei dati in memoria
-         using var writer = new MemoryStream();
-         // Opzioni
-         var opt = TextOptions ?? new TextLoader.Options();
-         // Separatore di colonne
-         var separator = opt.Separators?.FirstOrDefault() ?? '\t';
-         separator = separator != default ? separator : '\t';
-         // Salva come testo i dati
-         ml.NET.Data.SaveAsText(
-            data: data,
-            stream: writer,
-            separatorChar: separator,
-            headerRow: opt.HasHeader,
-            schema: false,
-            keepHidden: false,
-            forceDense: false);
-         // Salva gli stream extra
-         foreach (var item in extra) {
-            var loader = ml.NET.Data.CreateTextLoader(opt);
-            data = loader.Load(item);
+         var tmpPath = default(string);
+         var writer = default(FileStream);
+         try {
+            tmpPath = Path.GetTempFileName();
+            writer = File.OpenWrite(tmpPath);
+            // Opzioni
+            var opt = TextOptions ?? new TextLoader.Options();
+            // Separatore di colonne
+            var separator = opt.Separators?.FirstOrDefault() ?? '\t';
+            separator = separator != default ? separator : '\t';
+            // Salva come testo i dati
             ml.NET.Data.SaveAsText(
                data: data,
                stream: writer,
@@ -128,12 +123,32 @@ namespace ML.Utilities.Data
                schema: schema,
                keepHidden: false,
                forceDense: false);
+            // Salva gli stream extra
+            foreach (var item in extra) {
+               var loader = ml.NET.Data.CreateTextLoader(opt);
+               data = loader.Load(item);
+               ml.NET.Data.SaveAsText(
+                  data: data,
+                  stream: writer,
+                  separatorChar: separator,
+                  headerRow: opt.HasHeader,
+                  schema: schema,
+                  keepHidden: false,
+                  forceDense: false);
+            }
+            writer.Close();
+            writer = default;
+            File.Copy(tmpPath, FilePath, true);
          }
-         // Crea uno stream per la lettura
-         writer.Position = 0;
-         using var reader = new StreamReader(writer);
-         // Aggiorna la stringa
-         TextData = reader.ReadToEnd();
+         finally {
+            try {
+               if (writer != default)
+                  writer.Close();
+               if (tmpPath != default && File.Exists(tmpPath))
+                  File.Delete(tmpPath);
+            }
+            catch (Exception) { }
+         }
       }
       #endregion
    }
@@ -141,16 +156,19 @@ namespace ML.Utilities.Data
    /// <summary>
    /// La sorgente dei dati
    /// </summary>
-   public partial class DataStorageTextMemory
+   public partial class DataStorageTextFile
    {
       private class Source : IMultiStreamSource
       {
          #region Fields
-         private readonly DataStorageTextMemory _owner;
          /// <summary>
          /// Sorgenti ed indici
          /// </summary>
          private readonly (IMultiStreamSource Source, int Index)[] _total;
+         /// <summary>
+         /// Testo
+         /// </summary>
+         private readonly DataStorageTextFile _owner;
          #endregion
          #region Properties
          /// <summary>
@@ -162,11 +180,11 @@ namespace ML.Utilities.Data
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="owner">Oggetto di appartenenza</param>
+         /// <param name="owner">Oggetto di appartenenzqa</param>
          /// <param name="extra">Sorgenti extra di dati</param>
-         public Source(DataStorageTextMemory owner, params IMultiStreamSource[] extra)
+         public Source(DataStorageTextFile owner, params IMultiStreamSource[] extra)
          {
-            _owner = owner;
+            this._owner = owner;
             var indices = new List<(IMultiStreamSource Source, int Index)>
             {
                (Source: this, Index: 0)
@@ -182,28 +200,19 @@ namespace ML.Utilities.Data
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Sempre null</returns>
-         public string GetPathOrNull(int index) => index == 0 ? default : _total[index].Source.GetPathOrNull(_total[index].Index);
+         public string GetPathOrNull(int index) => index == 0 ? _owner.FilePath : _total[index].Source.GetPathOrNull(_total[index].Index);
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream leggibile.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public Stream Open(int index)
-         {
-            if (index > 0)
-               return _total[index].Source.Open(_total[index].Index);
-            var memoryStream = new MemoryStream();
-            using var writer = new StreamWriter(memoryStream);
-            writer.Write(_owner.TextData ?? "");
-            memoryStream.Position = 0;
-            return memoryStream;
-         }
+         public Stream Open(int index) => index == 0 ? File.OpenRead(_owner.FilePath) : _total[index].Source.Open(_total[index].Index);
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public TextReader OpenTextReader(int index) => index == 0 ? new StringReader(_owner.TextData ?? "") : _total[index].Source.OpenTextReader(_total[index].Index);
+         public TextReader OpenTextReader(int index) => index == 0 ? new StreamReader(_owner.FilePath) : _total[index].Source.OpenTextReader(_total[index].Index);
          #endregion
       }
    }

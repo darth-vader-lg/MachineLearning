@@ -1,8 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.Text;
-using ML.Utilities.Data;
-using ML.Utilities.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,7 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ML.Utilities.Predictors
+namespace MachineLearning
 {
    /// <summary>
    /// Classe base per i predittori

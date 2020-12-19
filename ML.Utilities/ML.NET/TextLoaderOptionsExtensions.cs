@@ -1,8 +1,8 @@
-﻿using Microsoft.ML.Data;
+﻿using MachineLearning;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace ML.Utilities
+namespace Microsoft.ML.Data
 {
    /// <summary>
    /// Estensioni alla classe TextLoader.Options

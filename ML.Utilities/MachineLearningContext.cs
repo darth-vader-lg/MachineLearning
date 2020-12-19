@@ -1,7 +1,7 @@
 ﻿using Microsoft.ML;
 using System;
 
-namespace ML.Utilities
+namespace MachineLearning
 {
    /// <summary>
    /// Contesto di machine learning

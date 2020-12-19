@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ML.Utilities
+namespace MachineLearning
 {
    /// <summary>
    /// Task cancellabile

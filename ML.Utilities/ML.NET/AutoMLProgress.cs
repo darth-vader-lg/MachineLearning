@@ -1,10 +1,8 @@
-﻿using Microsoft.ML;
-using Microsoft.ML.AutoML;
-using Microsoft.ML.Runtime;
+﻿using Microsoft.ML.Runtime;
 using System;
 using System.Diagnostics;
 
-namespace ML.Utilities
+namespace Microsoft.ML.AutoML
 {
    /// <summary>
    /// Gestore del progress di auto machine learning

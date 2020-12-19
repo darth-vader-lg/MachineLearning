@@ -1,9 +1,8 @@
-﻿using Microsoft.ML.Data;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Text;
 
-namespace ML.Utilities
+namespace Microsoft.ML.Data
 {
    /// <summary>
    /// Estensioni della categoria rilevazioni anomalie

@@ -1,4 +1,4 @@
-﻿using Microsoft.ML;
+﻿using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using System;
@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
-namespace ML.Utilities
+namespace Microsoft.ML
 {
    /// <summary>
    /// Estensioni generiche

@@ -1,4 +1,4 @@
-﻿namespace ML.Utilities.Data
+﻿namespace MachineLearning
 {
    /// <summary>
    /// Provider di dati di tipo testuale
