@@ -662,48 +662,83 @@ namespace MachineLearning
             // Segnala lo start del training
             cancel.ThrowIfCancellationRequested();
             OnTrainingStarted(EventArgs.Empty);
-            // Carica il modello
+            // Definizioni
             var model = default(ITransformer);
             var inputSchema = default(DataViewSchema);
-            var loadExistingModel = string.IsNullOrEmpty(TrainingData.TextData);
-            try { model = !loadExistingModel ? default : LoadModel(out inputSchema); } catch (Exception) { }
-            cancel.ThrowIfCancellationRequested();
-            ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
-            // Imposta le opzioni di testo per i dati extra in modo che siano uguali a quelli dello storage principale
-            TrainingData.TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? TrainingData.TextOptions;
-            // Carica i dati
-            var data = LoadData(DataStorage, TrainingData);
-            cancel.ThrowIfCancellationRequested();
-            // Imposta la valutazione
-            SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema });
-            // Effettua eventuale commit automatico
+            var data = default(IDataView);
             var taskCommit = Task.CompletedTask;
-            if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
-               ML.NET.WriteLog("Committing the new data", Name);
-               taskCommit = CommitDataAsyncInternal();
-            }
-            cancel.ThrowIfCancellationRequested();
-            // Trainer
-            var trainer = ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated();
-            // Pipe di trasformazione
-            var pipe =
-               ML.NET.Transforms.Conversion.MapValueToKey("Label").
-               Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema where c.Name != "Label" select c.Name).ToArray())).
-               Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
-               Append(ML.NET.Transforms.NormalizeMinMax("Features")).
-               AppendCacheCheckpoint(ML.NET).
-               Append(trainer).
-               Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
-            // Loop di training continuo
-            taskCommit.ConfigureAwait(false).GetAwaiter().GetResult();
-            cancel.ThrowIfCancellationRequested();
-            var prevMetrics = model == default ? default : ML.NET.MulticlassClassification.Evaluate(model.Transform(data));
+            var trainer = default(IEstimator<ITransformer>);
+            var pipe = default(IEstimator<ITransformer>);
+            var prevMetrics = default(MulticlassClassificationMetrics);
             var seed = 0;
             var iterationMax = 10;
             var iteration = iterationMax;
+            var firstRun = true;
+            // Loop di training continuo
             while (!cancel.IsCancellationRequested && --iteration >= 0) {
                try {
+                  // Primo giro
+                  if (firstRun) {
+                     firstRun = false;
+                     // Carica il modello
+                     var loadExistingModel = string.IsNullOrEmpty(TrainingData.TextData);
+                     try { model = !loadExistingModel ? default : LoadModel(out inputSchema); } catch (Exception) { }
+                     cancel.ThrowIfCancellationRequested();
+                     ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
+                     // Imposta le opzioni di testo per i dati extra in modo che siano uguali a quelli dello storage principale
+                     TrainingData.TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? TrainingData.TextOptions;
+                     // Carica i dati
+                     data = LoadData(DataStorage, TrainingData);
+                     cancel.ThrowIfCancellationRequested();
+                     // Imposta la valutazione
+                     SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema });
+                     // Effettua eventuale commit automatico
+                     cancel.ThrowIfCancellationRequested();
+                     if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
+                        ML.NET.WriteLog("Committing the new data", Name);
+                        taskCommit = CommitDataAsyncInternal();
+                     }
+                     cancel.ThrowIfCancellationRequested();
+                     // Trainer
+                     trainer = ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated();
+                     // Pipe di trasformazione
+                     pipe =
+                        ML.NET.Transforms.Conversion.MapValueToKey("Label").
+                        Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema where c.Name != "Label" select c.Name).ToArray())).
+                        Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
+                        Append(ML.NET.Transforms.NormalizeMinMax("Features")).
+                        AppendCacheCheckpoint(ML.NET).
+                        Append(trainer).
+                        Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
+                     // Loop di training continuo
+                     cancel.ThrowIfCancellationRequested();
+                     taskCommit.ConfigureAwait(false).GetAwaiter().GetResult();
+                     cancel.ThrowIfCancellationRequested();
+                     prevMetrics = model == default ? default : ML.NET.MulticlassClassification.Evaluate(model.Transform(data));
+                  }
+                  // Ricarica i dati
+                  else {
+                     // Effettua eventuale commit automatico
+                     if (!string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
+                        try {
+                           ML.NET.WriteLog("Committing the new data", Name);
+                           CommitDataAsyncInternal().ConfigureAwait(false).GetAwaiter().GetResult();
+                           cancel.ThrowIfCancellationRequested();
+                           data = LoadData(DataStorage);
+                        }
+                        catch (OperationCanceledException) {
+                           throw;
+                        }
+                        catch (Exception exc) {
+                           Debug.WriteLine(exc);
+                           data = LoadData(DataStorage, TrainingData);
+                        }
+                     }
+                     else
+                        data = LoadData(DataStorage, TrainingData);
+                  }
                   // Effettua il training
+                  cancel.ThrowIfCancellationRequested();
                   ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", Name);
                   var dataView = ML.NET.Data.ShuffleRows(data, seed++);
                   model = pipe.Fit(dataView);
@@ -713,7 +748,7 @@ namespace MachineLearning
                   //var model = best.Model;
                   //var metrics = best.Metrics;
                   cancel.ThrowIfCancellationRequested();
-                  // Verifica se c'e' un miglioramento; se affermativo salva il nuovo modello
+                  // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
                   if (prevMetrics == default || Evaluation?.Model == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
                      // Emette il log
                      ML.NET.WriteLog("Found suitable model", Name);
@@ -731,27 +766,6 @@ namespace MachineLearning
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = Evaluation.InputSchema });
                      iteration = iterationMax;
                   }
-                  // Ricarica i dati
-                  cancel.ThrowIfCancellationRequested();
-                  // Effettua eventuale commit automatico
-                  if (!string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
-                     try {
-                        ML.NET.WriteLog("Committing the new data", Name);
-                        CommitDataAsyncInternal().ConfigureAwait(false).GetAwaiter().GetResult(); ;
-                        cancel.ThrowIfCancellationRequested();
-                        data = LoadData(DataStorage);
-                     }
-                     catch (OperationCanceledException) {
-                        throw;
-                     }
-                     catch (Exception exc) {
-                        Debug.WriteLine(exc);
-                        data = LoadData(DataStorage, TrainingData);
-                     }
-                  }
-                  else
-                     data = LoadData(DataStorage, TrainingData);
-                  cancel.ThrowIfCancellationRequested();
                }
                catch (OperationCanceledException) { }
                catch (Exception exc) {
