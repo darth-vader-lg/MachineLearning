@@ -313,6 +313,14 @@ namespace MachineLearning
          return inputLine.ToString();
       }
       /// <summary>
+      /// Funzione di restituzione della migliore fra due valutazioni modello
+      /// </summary>
+      /// <param name="modelEvaluation1">Prima valutazione</param>
+      /// <param name="modelEvaluation2">Seconda valutazione</param>
+      /// <returns>La migliore delle due valutazioni</returns>
+      /// <remarks>Tenere conto che le valutazioni potrebbero essere null</remarks>
+      protected virtual object GetBestModelEvaluation(object modelEvaluation1, object modelEvaluation2) => modelEvaluation1;
+      /// <summary>
       /// Restituisce l'evaluator
       /// </summary>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
@@ -343,6 +351,25 @@ namespace MachineLearning
             throw new OperationCanceledException();
          return Evaluation;
       }
+      /// <summary>
+      /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
+      /// </summary>
+      /// <param name="model">Modello da valutare</param>
+      /// <param name="data">Dati attuali caricati</param>
+      /// <returns>Il risultato della valutazione</returns>
+      /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
+      protected virtual object GetModelEvaluation(ITransformer model, IDataView data) => null;
+      /// <summary>
+      /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
+      /// </summary>
+      /// <param name="modelEvaluation">Il risultato della valutazione di un modello</param>
+      /// <returns>Il risultato della valutazione in formato testo</returns>
+      protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
+      /// <summary>
+      /// Restituisce la pipe di training. E' necessario effettuare l'override nelle classi derivate per la fornitura di una pipe effettiva
+      /// </summary>
+      /// <returns></returns>
+      protected virtual IEstimator<ITransformer> GetPipe() => default;
       /// <summary>
       /// Predizione asincrona
       /// </summary>
@@ -663,19 +690,17 @@ namespace MachineLearning
             cancel.ThrowIfCancellationRequested();
             OnTrainingStarted(EventArgs.Empty);
             // Definizioni
-            var model = default(ITransformer);
-            var inputSchema = default(DataViewSchema);
             var data = default(IDataView);
-            var taskCommit = Task.CompletedTask;
-            var trainer = default(IEstimator<ITransformer>);
-            var pipe = default(IEstimator<ITransformer>);
-            var prevMetrics = default(MulticlassClassificationMetrics);
-            var seed = 0;
-            var iterationMax = 10;
-            var iteration = iterationMax;
+            var eval2 = default(object);
             var firstRun = true;
+            var inputSchema = default(DataViewSchema);
+            var model = default(ITransformer);
+            var pipe = default(IEstimator<ITransformer>);
+            var seed = 0;
+            var taskEval1 = default(Task<object>);
+            var taskCommit = Task.CompletedTask;
             // Loop di training continuo
-            while (!cancel.IsCancellationRequested && --iteration >= 0) {
+            while (!cancel.IsCancellationRequested) {
                try {
                   // Primo giro
                   if (firstRun) {
@@ -697,24 +722,12 @@ namespace MachineLearning
                      if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
                         ML.NET.WriteLog("Committing the new data", Name);
                         taskCommit = CommitDataAsyncInternal();
+                        taskCommit.ConfigureAwait(false).GetAwaiter().GetResult();
                      }
+                     // Valuta il modello attuale
                      cancel.ThrowIfCancellationRequested();
-                     // Trainer
-                     trainer = ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated();
-                     // Pipe di trasformazione
-                     pipe =
-                        ML.NET.Transforms.Conversion.MapValueToKey("Label").
-                        Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema where c.Name != "Label" select c.Name).ToArray())).
-                        Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
-                        Append(ML.NET.Transforms.NormalizeMinMax("Features")).
-                        AppendCacheCheckpoint(ML.NET).
-                        Append(trainer).
-                        Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
-                     // Loop di training continuo
-                     cancel.ThrowIfCancellationRequested();
-                     taskCommit.ConfigureAwait(false).GetAwaiter().GetResult();
-                     cancel.ThrowIfCancellationRequested();
-                     prevMetrics = model == default ? default : ML.NET.MulticlassClassification.Evaluate(model.Transform(data));
+                     taskEval1 = model == default ? default : Task.Run(() => GetModelEvaluation(model, data), cancel);
+                     // Attende il termine del commit
                   }
                   // Ricarica i dati
                   else {
@@ -737,34 +750,38 @@ namespace MachineLearning
                      else
                         data = LoadData(DataStorage, TrainingData);
                   }
+                  // Ottiene la pipe dalle classi derivate. Esce dal training se nessuna pipe viene restituita
+                  cancel.ThrowIfCancellationRequested();
+                  if ((pipe = GetPipe()) == default)
+                     return;
                   // Effettua il training
                   cancel.ThrowIfCancellationRequested();
                   ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", Name);
                   var dataView = ML.NET.Data.ShuffleRows(data, seed++);
                   model = pipe.Fit(dataView);
-                  var metrics = ML.NET.MulticlassClassification.Evaluate(model.Transform(dataView));
+                  eval2 = GetModelEvaluation(model, dataView);
                   //var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 5, "Label", null, seed++);
                   //var best = crossValidation.Best();
                   //var model = best.Model;
                   //var metrics = best.Metrics;
                   cancel.ThrowIfCancellationRequested();
                   // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
-                  if (prevMetrics == default || Evaluation?.Model == default || (metrics.MicroAccuracy >= prevMetrics.MicroAccuracy && metrics.LogLoss < prevMetrics.LogLoss)) {
+                  if (Evaluation?.Model == default || (taskEval1 != default && GetBestModelEvaluation(taskEval1.ConfigureAwait(false).GetAwaiter().GetResult(), eval2) == eval2)) {
                      // Emette il log
                      ML.NET.WriteLog("Found suitable model", Name);
-                     ML.NET.WriteLog(metrics.ToText(), Name);
-                     ML.NET.WriteLog(metrics.ConfusionMatrix.GetFormattedConfusionTable(), Name);
+                     var evalInfo = GetModelEvaluationInfo(eval2);
+                     if (!string.IsNullOrEmpty(evalInfo))
+                        ML.NET.WriteLog(evalInfo, Name);
                      cancel.ThrowIfCancellationRequested();
                      // Eventuale salvataggio automatico modello
                      if (model != default && AutoSaveModel) {
                         ML.NET.WriteLog("Saving the new model", Name);
                         SaveModelAsyncInternal(default, model, Evaluation.InputSchema);
                      }
-                     prevMetrics = metrics;
+                     taskEval1 = Task.FromResult(eval2);
                      // Aggiorna la valutazione
                      cancel.ThrowIfCancellationRequested();
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = Evaluation.InputSchema });
-                     iteration = iterationMax;
                   }
                }
                catch (OperationCanceledException) { }
