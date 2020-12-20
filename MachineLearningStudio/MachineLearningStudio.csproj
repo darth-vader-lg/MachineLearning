@@ -192,7 +192,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ML.Utilities\MachineLearning.csproj" />
+    <ProjectReference Include="..\MachineLearning\MachineLearning.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Properties\Settings.settings">
