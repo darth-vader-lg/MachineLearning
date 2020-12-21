@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Classe per lo storage di dati di tipo testo in memoria
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, IDataTextOptionsProvider
+   public sealed partial class DataStorageTextMemory : IDataStorage, IDataTextOptionsProvider, IDataTextProvider, IMultiStreamSource, ITimestamp
    {
       #region Fields
       /// <summary>
@@ -19,6 +19,10 @@ namespace MachineLearning
       /// </summary>
       [NonSerialized]
       private Source _source;
+      /// <summary>
+      /// Dati testuali
+      /// </summary>
+      private string _textData;
       #endregion
       #region Properties
       /// <summary>
@@ -28,11 +32,15 @@ namespace MachineLearning
       /// <summary>
       /// Dati testuali
       /// </summary>
-      public string TextData { get; set; }
+      public string TextData { get => _textData; set { _textData = value; Timestamp = DateTime.UtcNow; } }
       /// <summary>
       /// Configurazione dei dati
       /// </summary>
       public TextLoaderOptions TextOptions { get; set; }
+      /// <summary>
+      /// Data e ora dell'oggetto
+      /// </summary>
+      public DateTime Timestamp { get; private set; }
       #endregion
       #region Methods
       /// <summary>
@@ -100,6 +108,8 @@ namespace MachineLearning
       /// <param name="extra">Eventuali altri stream di dati</param>
       public void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
       {
+         // Data e ora
+         var timestamp = DateTime.UtcNow;
          // Oggetto per la scrittura dei dati in memoria
          using var writer = new MemoryStream();
          // Opzioni
@@ -134,6 +144,7 @@ namespace MachineLearning
          using var reader = new StreamReader(writer);
          // Aggiorna la stringa
          TextData = reader.ReadToEnd();
+         Timestamp = timestamp;
       }
       #endregion
    }

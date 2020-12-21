@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Classe per lo storage di dati di tipo file di testo
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageTextFile : IDataStorage, IMultiStreamSource, IDataTextOptionsProvider
+   public sealed partial class DataStorageTextFile : IDataStorage, IDataTextOptionsProvider, IMultiStreamSource, ITimestamp
    {
       #region Fields
       /// <summary>
@@ -33,6 +33,10 @@ namespace MachineLearning
       /// Configurazione dei dati
       /// </summary>
       public TextLoaderOptions TextOptions { get; set; }
+      /// <summary>
+      /// Data e ora dell'oggetto
+      /// </summary>
+      public DateTime Timestamp => File.GetLastWriteTimeUtc(FilePath);
       #endregion
       #region Methods
       /// <summary>

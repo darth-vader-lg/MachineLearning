@@ -8,13 +8,9 @@ namespace MachineLearning
    /// Gestore su file dello storage dei modelli
    /// </summary>
    [Serializable]
-   public sealed class ModelStorageFile : IModelStorage
+   public sealed class ModelStorageFile : IModelStorage, ITimestamp
    {
       #region Fields
-      /// <summary>
-      /// Path del file
-      /// </summary>
-      private readonly string _filePath;
       /// <summary>
       /// Storage di tipo stream
       /// </summary>
@@ -23,16 +19,24 @@ namespace MachineLearning
       #endregion
       #region Properties
       /// <summary>
+      /// Path del file
+      /// </summary>
+      public string FilePath { get; private set; }
+      /// <summary>
       /// Storage di tipo stream
       /// </summary>
-      private IModelStorage Storage => _modelStorage ??= new ModelStorageStream(() => File.OpenRead(_filePath), () => File.OpenWrite(_filePath));
+      private IModelStorage Storage => _modelStorage ??= new ModelStorageStream(() => File.OpenRead(FilePath), () => File.OpenWrite(FilePath));
+      /// <summary>
+      /// Data e ora dell'oggetto
+      /// </summary>
+      public DateTime Timestamp => File.GetLastWriteTimeUtc(FilePath);
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="filePath">Path del file del modello</param>
-      public ModelStorageFile(string filePath) => _filePath = filePath;
+      public ModelStorageFile(string filePath) => FilePath = filePath;
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>

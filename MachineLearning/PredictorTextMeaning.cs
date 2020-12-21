@@ -53,15 +53,12 @@ namespace MachineLearning
       /// <remarks>Tenere conto che le valutazioni potrebbero essere null</remarks>
       protected override object GetBestModelEvaluation(object modelEvaluation1, object modelEvaluation2)
       {
-         if (modelEvaluation1 is not MulticlassClassificationMetrics metrics1)
-            return modelEvaluation2;
-         if (modelEvaluation2 is not MulticlassClassificationMetrics metrics2)
-            return modelEvaluation1;
-         if (metrics2.MicroAccuracy >= metrics1.MicroAccuracy && metrics2.LogLoss < metrics1.LogLoss) {
+         var best = modelEvaluation2;
+         if (modelEvaluation1 is MulticlassClassificationMetrics metrics1 && modelEvaluation2 is MulticlassClassificationMetrics metrics2)
+            best = metrics2.MicroAccuracy >= metrics1.MicroAccuracy && metrics2.LogLoss < metrics1.LogLoss ? modelEvaluation2 : modelEvaluation1;
+         if (best == modelEvaluation2)
             _retrainCount = 0;
-            return metrics2;
-         }
-         return metrics1;
+         return best;
       }
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
@@ -110,7 +107,7 @@ namespace MachineLearning
       protected override void OnTrainingStarted(EventArgs e)
       {
          base.OnTrainingStarted(e);
-         _retrainCount = 0;
+         //@@@_retrainCount = 0;
       }
       /// <summary>
       /// Funzione di inizializzazione

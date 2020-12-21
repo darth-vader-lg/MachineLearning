@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
-using Microsoft.ML.Transforms.Text;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -416,8 +415,9 @@ namespace MachineLearning
       /// <returns>La previsione</returns>
       public async Task<T> GetPredictionAsync(string data, CancellationToken cancellation = default)
       {
-         // Avvia il task di training
-         _ = StartTrainingAsync(cancellation);
+         // Avvia il task di training se necessario
+         if (TrainingData.Timestamp > Evaluation.Timestamp || (DataStorage as ITimestamp)?.Timestamp > Evaluation.Timestamp)
+            _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
          var dataView = LoadData(new DataStorageTextMemory() { TextData = data, TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
          cancellation.ThrowIfCancellationRequested();
@@ -634,7 +634,6 @@ namespace MachineLearning
             if ((modelStorage ??= ModelStorage) == default || (model ??= Evaluation?.Model) == default)
                return Task.CompletedTask;
             return TaskSaveModel.StartNew(c => Task.Run(() => modelStorage.SaveModel(ML, model, schema ?? Evaluation?.InputSchema), c));
-
          }
       }
       /// <summary>
@@ -645,8 +644,10 @@ namespace MachineLearning
       protected void SetEvaluation(Evaluator evaluation)
       {
          // Annulla il modello
-         if (evaluation == default)
+         if (evaluation == default) {
+            Evaluation.Timestamp = default;
             EvaluationAvailable.Reset();
+         }
          // Imposta il modello
          else {
             // Imposta la nuova valutazione
@@ -691,14 +692,14 @@ namespace MachineLearning
             OnTrainingStarted(EventArgs.Empty);
             // Definizioni
             var data = default(IDataView);
+            var eval1 = default(object);
             var eval2 = default(object);
             var firstRun = true;
             var inputSchema = default(DataViewSchema);
             var model = default(ITransformer);
             var pipe = default(IEstimator<ITransformer>);
             var seed = 0;
-            var taskEval1 = default(Task<object>);
-            var taskCommit = Task.CompletedTask;
+            var timestamp = default(DateTime);
             // Loop di training continuo
             while (!cancel.IsCancellationRequested) {
                try {
@@ -706,8 +707,16 @@ namespace MachineLearning
                   if (firstRun) {
                      firstRun = false;
                      // Carica il modello
-                     var loadExistingModel = string.IsNullOrEmpty(TrainingData.TextData);
-                     try { model = !loadExistingModel ? default : LoadModel(out inputSchema); } catch (Exception) { }
+                     var loadExistingModel = (ModelStorage as ITimestamp).Timestamp >= (DataStorage as ITimestamp).Timestamp && (ModelStorage as ITimestamp).Timestamp >= (TrainingData as ITimestamp).Timestamp;
+                     if (loadExistingModel) {
+                        try {
+                           timestamp = DateTime.UtcNow;
+                           model = LoadModel(out inputSchema);
+                        }
+                        catch (Exception) {
+                           timestamp = default;
+                        }
+                     }
                      cancel.ThrowIfCancellationRequested();
                      ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
                      // Imposta le opzioni di testo per i dati extra in modo che siano uguali a quelli dello storage principale
@@ -716,18 +725,20 @@ namespace MachineLearning
                      data = LoadData(DataStorage, TrainingData);
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
-                     SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema });
+                     SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
                      if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
                         ML.NET.WriteLog("Committing the new data", Name);
-                        taskCommit = CommitDataAsyncInternal();
-                        taskCommit.ConfigureAwait(false).GetAwaiter().GetResult();
+                        CommitDataAsyncInternal().ConfigureAwait(false).GetAwaiter().GetResult();
                      }
                      // Valuta il modello attuale
                      cancel.ThrowIfCancellationRequested();
-                     taskEval1 = model == default ? default : Task.Run(() => GetModelEvaluation(model, data), cancel);
-                     // Attende il termine del commit
+                     eval2 = model == default ? default : GetModelEvaluation(model, data);
+                     // Verifica se deve ricalcolare il modello
+                     if (GetBestModelEvaluation(eval1, eval2) != eval2)
+                        return;
+                     eval1 = eval2;
                   }
                   // Ricarica i dati
                   else {
@@ -752,6 +763,7 @@ namespace MachineLearning
                   }
                   // Ottiene la pipe dalle classi derivate. Esce dal training se nessuna pipe viene restituita
                   cancel.ThrowIfCancellationRequested();
+                  timestamp = DateTime.UtcNow;
                   if ((pipe = GetPipe()) == default)
                      return;
                   // Effettua il training
@@ -766,7 +778,7 @@ namespace MachineLearning
                   //var metrics = best.Metrics;
                   cancel.ThrowIfCancellationRequested();
                   // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
-                  if (Evaluation?.Model == default || (taskEval1 != default && GetBestModelEvaluation(taskEval1.ConfigureAwait(false).GetAwaiter().GetResult(), eval2) == eval2)) {
+                  if (GetBestModelEvaluation(eval1, eval2) == eval2 || Evaluation?.Model == default) {
                      // Emette il log
                      ML.NET.WriteLog("Found suitable model", Name);
                      var evalInfo = GetModelEvaluationInfo(eval2);
@@ -778,10 +790,10 @@ namespace MachineLearning
                         ML.NET.WriteLog("Saving the new model", Name);
                         SaveModelAsyncInternal(default, model, Evaluation.InputSchema);
                      }
-                     taskEval1 = Task.FromResult(eval2);
+                     eval1 = eval2;
                      // Aggiorna la valutazione
                      cancel.ThrowIfCancellationRequested();
-                     SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = Evaluation.InputSchema });
+                     SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = Evaluation.InputSchema, Timestamp = timestamp });
                   }
                }
                catch (OperationCanceledException) { }
@@ -818,13 +830,17 @@ namespace MachineLearning
          /// </summary>
          public IDataView Data { get; set; }
          /// <summary>
+         /// Schema di input
+         /// </summary>
+         public DataViewSchema InputSchema { get; set; }
+         /// <summary>
          /// Modello
          /// </summary>
          public ITransformer Model { get; set; }
          /// <summary>
-         /// Schema di input
+         /// Data e ora dell'evaluator
          /// </summary>
-         public DataViewSchema InputSchema { get; set; }
+         public DateTime Timestamp { get; set; }
          #endregion
       }
    }

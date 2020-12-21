@@ -8,13 +8,17 @@ namespace MachineLearning
    /// Gestore dello storage in memoria dei modelli
    /// </summary>
    [Serializable]
-   public sealed class ModelStorageMemory : IModelStorage
+   public sealed class ModelStorageMemory : IModelStorage, ITimestamp
    {
       #region Properties
       /// <summary>
       /// Bytes del modello
       /// </summary>
       public byte[] Bytes { get; private set; }
+      /// <summary>
+      /// Data e ora dell'oggetto
+      /// </summary>
+      public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
       #endregion
       #region Methods
       /// <summary>
@@ -49,9 +53,11 @@ namespace MachineLearning
       /// <param name="inputSchema">Schema di input del modello</param>
       public void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema inputSchema)
       {
+         var timestamp = DateTime.UtcNow;
          using var memoryStream = new MemoryStream();
          ml.NET.Model.Save(model, inputSchema, memoryStream);
          Bytes = memoryStream.ToArray();
+         Timestamp = timestamp;
       }
       #endregion
    }
