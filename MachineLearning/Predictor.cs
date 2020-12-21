@@ -29,10 +29,6 @@ namespace MachineLearning
       [NonSerialized]
       private Thread _creationThread;
       /// <summary>
-      /// Gestore storage dati
-      /// </summary>
-      private IDataStorage _dataStorage;
-      /// <summary>
       /// Valutazione
       /// </summary>
       [NonSerialized]
@@ -42,25 +38,6 @@ namespace MachineLearning
       /// </summary>
       [NonSerialized]
       private EventWaitHandle _evaluationAvailable;
-      /// <summary>
-      /// Gestore storage modello
-      /// </summary>
-      private IModelStorage _modelStorage;
-      /// <summary>
-      /// Task di commit dei dati di training dati
-      /// </summary>
-      [NonSerialized]
-      private CancellableTask _taskCommitData;
-      /// <summary>
-      /// Task di salvataggio dati
-      /// </summary>
-      [NonSerialized]
-      private CancellableTask _taskSaveData;
-      /// <summary>
-      /// Task di salvataggio modello
-      /// </summary>
-      [NonSerialized]
-      private CancellableTask _taskSaveModel;
       /// <summary>
       /// Task di training
       /// </summary>
@@ -83,17 +60,7 @@ namespace MachineLearning
       /// <summary>
       /// Gestore storage dati principale
       /// </summary>
-      public IDataStorage DataStorage
-      {
-         get => _dataStorage;
-         set
-         {
-            if (value != _dataStorage) {
-               _dataStorage = value;
-               OnDataStorageChanged(EventArgs.Empty);
-            }
-         }
-      }
+      private IDataStorage DataStorage => (this as IDataStorageProvider)?.DataStorage ?? this as IDataStorage;
       /// <summary>
       /// Valutazione
       /// </summary>
@@ -113,16 +80,7 @@ namespace MachineLearning
       /// <summary>
       /// Gestore storage modello
       /// </summary>
-      public IModelStorage ModelStorage
-      {
-         get => _modelStorage;
-         set {
-            if (value != _modelStorage) {
-               _modelStorage = value;
-               OnModelStorageChanged(EventArgs.Empty);
-            }
-         }
-      }
+      private IModelStorage ModelStorage => (this as IModelStorageProvider)?.ModelStorage ?? this as IModelStorage;
       /// <summary>
       /// Nome dell'oggetto
       /// </summary>
@@ -140,18 +98,6 @@ namespace MachineLearning
       /// </summary>
       public bool SaveDataSchemaComment { get; set; }
       /// <summary>
-      /// Task di commit dei dati di training
-      /// </summary>
-      private CancellableTask TaskCommitData => _taskCommitData ??= new CancellableTask();
-      /// <summary>
-      /// Task di salvataggio dati
-      /// </summary>
-      private CancellableTask TaskSaveData => _taskSaveData ??= new CancellableTask();
-      /// <summary>
-      /// Task di salvataggio modello
-      /// </summary>
-      private CancellableTask TaskSaveModel => _taskSaveModel ??= new CancellableTask();
-      /// <summary>
       /// Task di training
       /// </summary>
       private CancellableTask TaskTraining => _taskTraining ??= new CancellableTask();
@@ -162,17 +108,9 @@ namespace MachineLearning
       #endregion
       #region Events
       /// <summary>
-      /// Evento di variazione storage dati
-      /// </summary>
-      public event EventHandler DataStorageChanged;
-      /// <summary>
       /// Evento di variazione modello
       /// </summary>
       public event EventHandler ModelChanged;
-      /// <summary>
-      /// Evento di variazione storage modello
-      /// </summary>
-      public event EventHandler ModelStorageChanged;
       /// <summary>
       /// Evento di variazione dati di training
       /// </summary>
@@ -259,34 +197,12 @@ namespace MachineLearning
       /// <summary>
       /// Commit dei dati
       /// </summary>
-      public void CommitData() => CommitDataAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-      /// <summary>
-      /// Commit asincrono dei dati
-      /// </summary>
       /// <returns>Il Task</returns>
-      public async Task CommitDataAsync()
+      private void CommitData()
       {
-         if (string.IsNullOrWhiteSpace(TrainingData.TextData))
-            return;
-         await CancelTrainingAsync();
-         await TaskTraining;
-         await CommitDataAsyncInternal();
-      }
-      /// <summary>
-      /// Commit asincrono dei dati interno
-      /// </summary>
-      /// <returns>Il Task</returns>
-      private Task CommitDataAsyncInternal()
-      {
-         lock (TaskCommitData) {
-            TaskCommitData.Task.ConfigureAwait(false).GetAwaiter().GetResult();
-            return TaskCommitData.StartNew(c => Task.Run(async () =>
-            {
-               var data = LoadData(DataStorage, TrainingData);
-               await SaveDataAsyncInternal(DataStorage, data);
-               TrainingData.TextData = null;
-            }, c));
-         }
+         var data = DataStorage?.LoadData(ML, TrainingData);
+         DataStorage?.SaveData(ML, data, SaveDataSchemaComment);
+         TrainingData.TextData = null;
       }
       /// <summary>
       /// Formatta una riga di dati di input da un elenco di dati di input
@@ -419,7 +335,7 @@ namespace MachineLearning
          if (TrainingData.Timestamp > Evaluation.Timestamp || (DataStorage as ITimestamp)?.Timestamp > Evaluation.Timestamp)
             _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
-         var dataView = LoadData(new DataStorageTextMemory() { TextData = data, TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? new TextLoader.Options() });
+         var dataView = new DataStorageTextMemory() { TextData = data, TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? new TextLoader.Options() }.LoadData(ML);
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello od un eventuale errore di training
          var evaluator = await GetEvaluatorAsync(cancellation);
@@ -438,42 +354,6 @@ namespace MachineLearning
             return (T)(object)prediction.GetString(PredictionColumnName);
          // Previsione non ricostruibile
          return default;
-      }
-      /// <summary>
-      /// Carica i dati
-      /// </summary>
-      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
-      /// <param name="extra">Sorgenti extra</param>
-      /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(IDataStorage dataStorage = default, params IMultiStreamSource[] extra) => (dataStorage ?? DataStorage).LoadData(ML, extra);
-      /// <summary>
-      /// Carica il modello
-      /// </summary>
-      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      public ITransformer LoadModel(IModelStorage modelStorage = default) => (modelStorage ?? ModelStorage)?.LoadModel(ML, out _);
-      /// <summary>
-      /// Carica il modello
-      /// </summary>
-      /// <param name="inputSchema">Schema di input del modello</param>
-      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      public ITransformer LoadModel(out DataViewSchema inputSchema, IModelStorage modelStorage = default)
-      {
-         inputSchema = null;
-         return (modelStorage ?? ModelStorage)?.LoadModel(ML, out inputSchema);
-      }
-      /// <summary>
-      /// Funzione di notifica variazione storage dei dati
-      /// </summary>
-      /// <param name="e">Argomenti dell'evento</param>
-      protected virtual void OnDataStorageChanged(EventArgs e)
-      {
-         try {
-            CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-            DataStorageChanged?.Invoke(this, e);
-         }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
       }
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
@@ -496,20 +376,6 @@ namespace MachineLearning
             if (Evaluation.Model != default)
                ML.NET.WriteLog("Model setted", Name);
             ModelChanged?.Invoke(this, e);
-         }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
-      }
-      /// <summary>
-      /// Funzione di notifica variazione storage del modello
-      /// </summary>
-      /// <param name="e">Argomenti dell'evento</param>
-      protected virtual void OnModelStorageChanged(EventArgs e)
-      {
-         try {
-            CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-            ModelStorageChanged?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -569,74 +435,6 @@ namespace MachineLearning
             Action();
       }
       /// <summary>
-      /// Salva i dati
-      /// </summary>
-      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
-      /// <param name="dataView">Dati</param>
-      /// <param name="extra">Sorgenti extra di dati da accodare</param>
-      public void SaveData(IDataStorage dataStorage = default, IDataView dataView = default, params IMultiStreamSource[] extra) => SaveDataAsync(dataStorage, dataView, extra).ConfigureAwait(false).GetAwaiter().GetResult();
-      /// <summary>
-      /// Funzione di salvataggio asincrono dei dati
-      /// </summary>
-      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
-      /// <param name="dataView">Dati</param>
-      /// <param name="extra">Sorgenti extra di dati da accodare</param>
-      public async Task SaveDataAsync(IDataStorage dataStorage = default, IDataView dataView = default, params IMultiStreamSource[] extra)
-      {
-         await StopTrainingAsync();
-         await TaskTraining;
-         await SaveDataAsyncInternal(dataStorage, dataView, extra);
-      }
-      /// <summary>
-      /// Funzione di salvataggio asincrono dei dati interna
-      /// </summary>
-      /// <param name="dataStorage">Eventuale oggetto di archiviazione dati</param>
-      /// <param name="dataView">Dati</param>
-      /// <param name="extra">Sorgenti extra di dati da accodare</param>
-      private Task SaveDataAsyncInternal(IDataStorage dataStorage = default, IDataView dataView = default, params IMultiStreamSource[] extra)
-      {
-         lock (TaskSaveData) {
-            TaskSaveData.Task.ConfigureAwait(false).GetAwaiter().GetResult();
-            if ((dataStorage ??= DataStorage) == default || (dataView ??= Evaluation?.Data) == default)
-               return Task.CompletedTask;
-            return TaskSaveData.StartNew(c => Task.Run(() => dataStorage.SaveData(ML, dataView, SaveDataSchemaComment, extra), c));
-         }
-      }
-      /// <summary>
-      /// Salva il modello
-      /// </summary>
-      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      /// <param name="model">Eventuale modello</param>
-      /// <param name="schema">Eventuale schema dei dati</param>
-      public void SaveModel(IModelStorage modelStorage = default, ITransformer model = default, DataViewSchema schema = default) => SaveModelAsync(modelStorage, model, schema).ConfigureAwait(false).GetAwaiter().GetResult();
-      /// <summary>
-      /// Funzione di salvataggio asincrono del modello
-      /// </summary>
-      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      /// <param name="model">Eventuale modello</param>
-      /// <param name="schema">Eventuale schema dei dati</param>
-      public async Task SaveModelAsync(IModelStorage modelStorage = default, ITransformer model = default, DataViewSchema schema = default)
-      {
-         await StopTrainingAsync();
-         await TaskTraining;
-         await SaveModelAsyncInternal(modelStorage, model, schema);
-      }
-      /// <summary>
-      /// Funzione di salvataggio asincrono del modello
-      /// </summary>
-      /// <param name="modelStorage">Eventuale oggetto di archiviazione modello</param>
-      /// <param name="model">Eventuale modello</param>
-      /// <param name="schema">Eventuale schema dei dati</param>
-      protected Task SaveModelAsyncInternal(IModelStorage modelStorage = default, ITransformer model = default, DataViewSchema schema = default)
-      {
-         lock (TaskSaveModel) {
-            TaskSaveModel.Task.ConfigureAwait(false).GetAwaiter().GetResult();
-            if ((modelStorage ??= ModelStorage) == default || (model ??= Evaluation?.Model) == default)
-               return Task.CompletedTask;
-            return TaskSaveModel.StartNew(c => Task.Run(() => modelStorage.SaveModel(ML, model, schema ?? Evaluation?.InputSchema), c));
-         }
-      }
-      /// <summary>
       /// Imposta i dati di valutazione
       /// </summary>
       /// <param name="evaluation">Dati di valutazione</param>
@@ -686,6 +484,8 @@ namespace MachineLearning
       /// <param name="cancel">Token di cancellazione</param>
       protected void Training(CancellationToken cancel)
       {
+         // Task di salvataggio modello
+         var taskSaveModel = Task.CompletedTask;
          try {
             // Segnala lo start del training
             cancel.ThrowIfCancellationRequested();
@@ -711,7 +511,7 @@ namespace MachineLearning
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;
-                           model = LoadModel(out inputSchema);
+                           model = ModelStorage?.LoadModel(ML, out inputSchema);
                         }
                         catch (Exception) {
                            timestamp = default;
@@ -722,7 +522,7 @@ namespace MachineLearning
                      // Imposta le opzioni di testo per i dati extra in modo che siano uguali a quelli dello storage principale
                      TrainingData.TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? TrainingData.TextOptions;
                      // Carica i dati
-                     data = LoadData(DataStorage, TrainingData);
+                     data = DataStorage?.LoadData(ML, TrainingData);
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });
@@ -730,7 +530,7 @@ namespace MachineLearning
                      cancel.ThrowIfCancellationRequested();
                      if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
                         ML.NET.WriteLog("Committing the new data", Name);
-                        CommitDataAsyncInternal().ConfigureAwait(false).GetAwaiter().GetResult();
+                        CommitData();
                      }
                      // Valuta il modello attuale
                      cancel.ThrowIfCancellationRequested();
@@ -746,20 +546,20 @@ namespace MachineLearning
                      if (!string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
-                           CommitDataAsyncInternal().ConfigureAwait(false).GetAwaiter().GetResult();
+                           CommitData();
                            cancel.ThrowIfCancellationRequested();
-                           data = LoadData(DataStorage);
+                           data = DataStorage?.LoadData(ML);
                         }
                         catch (OperationCanceledException) {
                            throw;
                         }
                         catch (Exception exc) {
                            Debug.WriteLine(exc);
-                           data = LoadData(DataStorage, TrainingData);
+                           data = DataStorage?.LoadData(ML, TrainingData);
                         }
                      }
                      else
-                        data = LoadData(DataStorage, TrainingData);
+                        data = DataStorage?.LoadData(ML, TrainingData);
                   }
                   // Ottiene la pipe dalle classi derivate. Esce dal training se nessuna pipe viene restituita
                   cancel.ThrowIfCancellationRequested();
@@ -788,7 +588,8 @@ namespace MachineLearning
                      // Eventuale salvataggio automatico modello
                      if (model != default && AutoSaveModel) {
                         ML.NET.WriteLog("Saving the new model", Name);
-                        SaveModelAsyncInternal(default, model, Evaluation.InputSchema);
+                        taskSaveModel.ConfigureAwait(false).GetAwaiter().GetResult();
+                        taskSaveModel = Task.Run(() => ModelStorage?.SaveModel(ML, model, Evaluation.InputSchema), CancellationToken.None);
                      }
                      eval1 = eval2;
                      // Aggiorna la valutazione
@@ -809,6 +610,8 @@ namespace MachineLearning
             throw;
          }
          finally {
+            // Attende il termine del salvataggio modello
+            try { taskSaveModel.ConfigureAwait(false).GetAwaiter().GetResult(); } catch { }
             // Segnala la fine del training
             OnTrainingEnded(EventArgs.Empty);
          }

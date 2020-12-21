@@ -7,7 +7,7 @@ namespace MachineLearning
    /// </summary>
    public interface ITimestamp
    {
-      #region Methods
+      #region Properties
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>

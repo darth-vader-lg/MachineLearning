@@ -62,12 +62,14 @@ namespace MachineLearning
       /// <param name="inputSchema">Schema di input del modello</param>
       public void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema inputSchema)
       {
-         var timestamp = DateTime.UtcNow;
-         if (_writeStreamGetter == default)
-            return;
-         using var stream = _writeStreamGetter();
-         ml.NET.Model.Save(model, inputSchema, stream);
-         Timestamp = timestamp;
+         lock (this) {
+            var timestamp = DateTime.UtcNow;
+            if (_writeStreamGetter == default)
+               return;
+            using var stream = _writeStreamGetter();
+            ml.NET.Model.Save(model, inputSchema, stream);
+            Timestamp = timestamp;
+         }
       }
       #endregion
    }

@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Modello per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor<string>
+   public sealed partial class PredictorTextMeaning : Predictor<string>, IDataStorageProvider, IModelStorageProvider
    {
       #region Fields
       /// <summary>
@@ -25,25 +25,33 @@ namespace MachineLearning
       #endregion
       #region Properties
       /// <summary>
+      /// Storage dei dati
+      /// </summary>
+      public IDataStorage DataStorage { get; set; }
+      /// <summary>
       /// Numero massimo di tentativi di retrain del modello
       /// </summary>
       public int MaxRetrain { get; set; } = 1;
+      /// <summary>
+      /// Storage del modello
+      /// </summary>
+      public IModelStorage ModelStorage { get; set; }
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorTextMeaning() => Init();
+      public PredictorTextMeaning() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Contesto di machine learning</param>
-      public PredictorTextMeaning(int? seed) : base(seed) => Init();
+      public PredictorTextMeaning(int? seed) : base(seed) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) => Init();
+      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) { }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
@@ -99,24 +107,6 @@ namespace MachineLearning
             AppendCacheCheckpoint(ML.NET).
             Append(ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated()).
             Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel"));
-      }
-      /// <summary>
-      /// Funzione di notifica dello start del training
-      /// </summary>
-      /// <param name="e">Argomenti dell'evento</param>
-      protected override void OnTrainingStarted(EventArgs e)
-      {
-         base.OnTrainingStarted(e);
-         //@@@_retrainCount = 0;
-      }
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init()
-      {
-         DataStorage = new DataStorageTextMemory();
-         ModelStorage = new ModelStorageMemory();
-         PredictionColumnName = "PredictedLabel";
       }
       #endregion
    }

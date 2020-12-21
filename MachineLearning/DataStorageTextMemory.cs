@@ -108,43 +108,45 @@ namespace MachineLearning
       /// <param name="extra">Eventuali altri stream di dati</param>
       public void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
       {
-         // Data e ora
-         var timestamp = DateTime.UtcNow;
-         // Oggetto per la scrittura dei dati in memoria
-         using var writer = new MemoryStream();
-         // Opzioni
-         var opt = TextOptions ?? new TextLoader.Options();
-         // Separatore di colonne
-         var separator = opt.Separators?.FirstOrDefault() ?? '\t';
-         separator = separator != default ? separator : '\t';
-         // Salva come testo i dati
-         ml.NET.Data.SaveAsText(
-            data: data,
-            stream: writer,
-            separatorChar: separator,
-            headerRow: opt.HasHeader,
-            schema: false,
-            keepHidden: false,
-            forceDense: false);
-         // Salva gli stream extra
-         foreach (var item in extra) {
-            var loader = ml.NET.Data.CreateTextLoader(opt);
-            data = loader.Load(item);
+         lock (this) {
+            // Data e ora
+            var timestamp = DateTime.UtcNow;
+            // Oggetto per la scrittura dei dati in memoria
+            using var writer = new MemoryStream();
+            // Opzioni
+            var opt = TextOptions ?? new TextLoader.Options();
+            // Separatore di colonne
+            var separator = opt.Separators?.FirstOrDefault() ?? '\t';
+            separator = separator != default ? separator : '\t';
+            // Salva come testo i dati
             ml.NET.Data.SaveAsText(
                data: data,
                stream: writer,
                separatorChar: separator,
                headerRow: opt.HasHeader,
-               schema: schema,
+               schema: false,
                keepHidden: false,
                forceDense: false);
+            // Salva gli stream extra
+            foreach (var item in extra) {
+               var loader = ml.NET.Data.CreateTextLoader(opt);
+               data = loader.Load(item);
+               ml.NET.Data.SaveAsText(
+                  data: data,
+                  stream: writer,
+                  separatorChar: separator,
+                  headerRow: opt.HasHeader,
+                  schema: schema,
+                  keepHidden: false,
+                  forceDense: false);
+            }
+            // Crea uno stream per la lettura
+            writer.Position = 0;
+            using var reader = new StreamReader(writer);
+            // Aggiorna la stringa
+            TextData = reader.ReadToEnd();
+            Timestamp = timestamp;
          }
-         // Crea uno stream per la lettura
-         writer.Position = 0;
-         using var reader = new StreamReader(writer);
-         // Aggiorna la stringa
-         TextData = reader.ReadToEnd();
-         Timestamp = timestamp;
       }
       #endregion
    }
