@@ -4,23 +4,26 @@ using Microsoft.ML.Transforms.Text;
 using System;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace MachineLearning
 {
    /// <summary>
-   /// Modello per l'interpretazione del significato si testi
+   /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
    public sealed partial class PredictorTextMeaning : Predictor<string>, IDataStorageProvider, IModelStorageProvider, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
-      /// Pipe di valutazione
+      /// Pipe di training
       /// </summary>
+      [NonSerialized]
       private IEstimator<ITransformer> _pipe;
       /// <summary>
       /// Contatore di retrain
       /// </summary>
+      [NonSerialized]
       private int _retrainCount;
       #endregion
       #region Properties
@@ -36,6 +39,14 @@ namespace MachineLearning
       /// Storage del modello
       /// </summary>
       public IModelStorage ModelStorage { get; set; }
+      /// <summary>
+      /// Pipe di training
+      /// </summary>
+      public IEstimator<ITransformer> Pipe { get => _pipe; set => _pipe = value; }
+      /// <summary>
+      /// Seme per le operazioni random
+      /// </summary>
+      private int Seed { get; set; }
       /// <summary>
       /// Opzioni di caricamento dati testuali
       /// </summary>
@@ -95,13 +106,18 @@ namespace MachineLearning
          return sb.ToString();
       }
       /// <summary>
-      /// La pipe di stima del modello
+      /// Restituisce il modello effettuando il training. Da implementare nelle classi derivate
       /// </summary>
-      /// <returns>La pipe</returns>
-      protected override IEstimator<ITransformer> GetPipe()
+      /// <param name="dataView">Datidi training</param>
+      /// <param name="cancellation">Token di annullamento</param>
+      /// <returns>Il modello appreso</returns>
+      protected override ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation)
       {
+         // Verifica numero di tentativi massimi di retrain raggiunto
+         if (++_retrainCount > MaxRetrain)
+            return null;
          // Pipe di trasformazione
-         return ++_retrainCount > MaxRetrain ? null : _pipe ??=
+         Pipe ??=
             ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
             Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
                                                                                                                   where c.Name != LabelColumnName
@@ -111,6 +127,9 @@ namespace MachineLearning
             AppendCacheCheckpoint(ML.NET).
             Append(ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated()).
             Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel"));
+         // Mischia le linee
+         var data = ML.NET.Data.ShuffleRows(dataView, Seed++);
+         return Pipe.Fit(data);
       }
       #endregion
    }

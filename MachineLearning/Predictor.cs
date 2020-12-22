@@ -290,11 +290,6 @@ namespace MachineLearning
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
       /// <summary>
-      /// Restituisce la pipe di training. E' necessario effettuare l'override nelle classi derivate per la fornitura di una pipe effettiva
-      /// </summary>
-      /// <returns></returns>
-      protected virtual IEstimator<ITransformer> GetPipe() => default;
-      /// <summary>
       /// Predizione asincrona
       /// </summary>
       /// <param name="data">Linea di dati da usare per la previsione</param>
@@ -364,6 +359,13 @@ namespace MachineLearning
          // Previsione non ricostruibile
          return default;
       }
+      /// <summary>
+      /// Restituisce il modello effettuando il training. Da implementare nelle classi derivate
+      /// </summary>
+      /// <param name="dataView">Datidi training</param>
+      /// <param name="cancellation">Token di annullamento</param>
+      /// <returns>Il modello appreso</returns>
+      protected virtual ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation) => default;
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
       /// </summary>
@@ -473,7 +475,7 @@ namespace MachineLearning
       {
          if (TaskTraining.Task.IsCompleted) {
             EvaluationAvailable.Reset();
-            await TaskTraining.StartNew(c => Task.Factory.StartNew(() => Training(c), c, TaskCreationOptions.LongRunning, TaskScheduler.Default), cancellation);
+            await TaskTraining.StartNew(c => Task.Factory.StartNew(async () => await TrainingAsync(c).ConfigureAwait(false), c, TaskCreationOptions.LongRunning, TaskScheduler.Default), cancellation);
          }
          else
             await TaskTraining;
@@ -491,7 +493,7 @@ namespace MachineLearning
       /// Routine di training continuo
       /// </summary>
       /// <param name="cancel">Token di cancellazione</param>
-      protected void Training(CancellationToken cancel)
+      protected async Task TrainingAsync(CancellationToken cancel)
       {
          // Task di salvataggio modello
          var taskSaveModel = Task.CompletedTask;
@@ -506,8 +508,6 @@ namespace MachineLearning
             var firstRun = true;
             var inputSchema = default(DataViewSchema);
             var model = default(ITransformer);
-            var pipe = default(IEstimator<ITransformer>);
-            var seed = 0;
             var timestamp = default(DateTime);
             // Loop di training continuo
             while (!cancel.IsCancellationRequested) {
@@ -520,7 +520,7 @@ namespace MachineLearning
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;
-                           model = ModelStorage?.LoadModel(ML, out inputSchema);
+                           model = await Task.Run(() => ModelStorage?.LoadModel(ML, out inputSchema), cancel);
                         }
                         catch (Exception) {
                            timestamp = default;
@@ -537,11 +537,11 @@ namespace MachineLearning
                      cancel.ThrowIfCancellationRequested();
                      if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && DataStorage != default && AutoCommitData) {
                         ML.NET.WriteLog("Committing the new data", Name);
-                        CommitData();
+                        await Task.Run(() => CommitData(), cancel);
                      }
                      // Valuta il modello attuale
                      cancel.ThrowIfCancellationRequested();
-                     eval2 = model == default ? default : GetModelEvaluation(model, data);
+                     eval2 = model == default ? default : await Task.Run(() => GetModelEvaluation(model, data), cancel);
                      // Verifica se deve ricalcolare il modello
                      if (GetBestModelEvaluation(eval1, eval2) != eval2)
                         return;
@@ -553,7 +553,7 @@ namespace MachineLearning
                      if (!string.IsNullOrEmpty(TrainingData.TextData) && DataStorage != default && AutoCommitData) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
-                           CommitData();
+                           await Task.Run(() => CommitData(), cancel);
                            cancel.ThrowIfCancellationRequested();
                            data = DataStorage?.LoadData(ML);
                         }
@@ -568,22 +568,28 @@ namespace MachineLearning
                      else
                         data = DataStorage != null ? DataStorage.LoadData(ML, TextLoaderOptions, TrainingData) : TrainingData.LoadData(ML, TextLoaderOptions);
                   }
-                  // Ottiene la pipe dalle classi derivate. Esce dal training se nessuna pipe viene restituita
-                  cancel.ThrowIfCancellationRequested();
+                  // Timestamp attuale
                   timestamp = DateTime.UtcNow;
-                  if ((pipe = GetPipe()) == default)
-                     return;
                   // Effettua il training
                   cancel.ThrowIfCancellationRequested();
-                  ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", Name);
-                  var dataView = ML.NET.Data.ShuffleRows(data, seed++);
-                  model = pipe.Fit(dataView);
-                  eval2 = GetModelEvaluation(model, dataView);
-                  //var crossValidation = ml.MulticlassClassification.CrossValidate(dataView, pipe, 5, "Label", null, seed++);
-                  //var best = crossValidation.Best();
-                  //var model = best.Model;
-                  //var metrics = best.Metrics;
+                  var taskTrain = Task.Run(() => GetTrainedModel(data, cancel));
+                  // Messaggio di training ritardato
                   cancel.ThrowIfCancellationRequested();
+                  var taskTrainingMessage = Task.Run(async () =>
+                  {
+                     await Task.WhenAny(Task.Delay(250, cancel), taskTrain);
+                     if (taskTrain.IsCompleted && taskTrain.Result == default)
+                        return;
+                     cancel.ThrowIfCancellationRequested();
+                     ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", Name);
+                  }, cancel);
+                  // Ottiene il risultato del training
+                  cancel.ThrowIfCancellationRequested();
+                  if ((model = await taskTrain) == default)
+                     return;
+                  // Attende output log
+                  await taskTrainingMessage;
+                  eval2 = await Task.Run(() => GetModelEvaluation(model, data));
                   // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
                   if (GetBestModelEvaluation(eval1, eval2) == eval2 || Evaluation?.Model == default) {
                      // Emette il log
@@ -595,7 +601,8 @@ namespace MachineLearning
                      // Eventuale salvataggio automatico modello
                      if (model != default && AutoSaveModel) {
                         ML.NET.WriteLog("Saving the new model", Name);
-                        taskSaveModel.ConfigureAwait(false).GetAwaiter().GetResult();
+                        await taskSaveModel;
+                        cancel.ThrowIfCancellationRequested();
                         taskSaveModel = Task.Run(() => ModelStorage?.SaveModel(ML, model, Evaluation.InputSchema), CancellationToken.None);
                      }
                      eval1 = eval2;
@@ -604,7 +611,7 @@ namespace MachineLearning
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = Evaluation.InputSchema, Timestamp = timestamp });
                   }
                }
-               catch (OperationCanceledException) { }
+               catch (OperationCanceledException) { throw; }
                catch (Exception exc) {
                   Trace.WriteLine(exc);
                   throw;
@@ -617,8 +624,8 @@ namespace MachineLearning
             throw;
          }
          finally {
-            // Attende il termine del salvataggio modello
-            try { taskSaveModel.ConfigureAwait(false).GetAwaiter().GetResult(); } catch { }
+            // Attende il termine dei task
+            try { await taskSaveModel; } catch { }
             // Segnala la fine del training
             OnTrainingEnded(EventArgs.Empty);
          }
