@@ -13,17 +13,19 @@ namespace MachineLearning
       /// Carica i dati
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="opt">Opzioni di testo</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      IDataView LoadData(MachineLearningContext ml, params IMultiStreamSource[] extra);
+      IDataView LoadData(MachineLearningContext ml, TextLoaderOptions opt = default, params IMultiStreamSource[] extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
+      /// <param name="opt">Opzioni di testo</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Sorgenti extra di dati da accodare</param>
-      void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra);
+      void SaveData(MachineLearningContext ml, IDataView data, TextLoaderOptions opt = default, bool schema = false, params IMultiStreamSource[] extra);
       #endregion
    }
 }

@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Classe per lo storage di dati di tipo testo in memoria
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageTextMemory : IDataStorage, IDataTextOptionsProvider, IDataTextProvider, IMultiStreamSource, ITimestamp
+   public sealed partial class DataStorageTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, ITimestamp
    {
       #region Fields
       /// <summary>
@@ -34,10 +34,6 @@ namespace MachineLearning
       /// </summary>
       public string TextData { get => _textData; set { _textData = value; Timestamp = DateTime.UtcNow; } }
       /// <summary>
-      /// Configurazione dei dati
-      /// </summary>
-      public TextLoaderOptions TextOptions { get; set; }
-      /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
       public DateTime Timestamp { get; private set; }
@@ -46,30 +42,7 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataStorageTextMemory() : this(null) { }
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="columns"></param>
-      /// <param name="separator"></param>
-      /// <param name="labelColumnName"></param>
-      /// <param name="allowQuoting"></param>
-      public DataStorageTextMemory(IEnumerable<string> columns = null, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
-      {
-         TextOptions = new TextLoader.Options
-         {
-            AllowQuoting = allowQuoting,
-            AllowSparse = false,
-            Separators = new[] { separator },
-            Columns = columns != default ?
-            columns.Select((c, i) => new TextLoader.Column(c == labelColumnName ? "Label" : c, DataKind.String, i)).ToArray() :
-            new[]
-            {
-               new TextLoader.Column("Label", DataKind.String, 0),
-               new TextLoader.Column("Text", DataKind.String, 1),
-            }
-         };
-      }
+      public DataStorageTextMemory() { }
       /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
       /// </summary>
@@ -93,20 +66,22 @@ namespace MachineLearning
       /// Carica i dati
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="opt">Opzioni di testo</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(MachineLearningContext ml, params IMultiStreamSource[] extra)
+      public IDataView LoadData(MachineLearningContext ml, TextLoaderOptions opt = default, params IMultiStreamSource[] extra)
       {
-         return ml.NET.Data.CreateTextLoader(TextOptions ?? new TextLoader.Options()).Load(_source ??= new Source(this, extra));
+         return ml.NET.Data.CreateTextLoader(opt ?? new TextLoaderOptions()).Load(_source ??= new Source(this, extra));
       }
       /// <summary>
       /// Salva i dati
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
+      /// <param name="opt">Opzioni di testo</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Eventuali altri stream di dati</param>
-      public void SaveData(MachineLearningContext ml, IDataView data, bool schema = false, params IMultiStreamSource[] extra)
+      public void SaveData(MachineLearningContext ml, IDataView data, TextLoaderOptions opt = default, bool schema = false, params IMultiStreamSource[] extra)
       {
          lock (this) {
             // Data e ora
@@ -114,7 +89,7 @@ namespace MachineLearning
             // Oggetto per la scrittura dei dati in memoria
             using var writer = new MemoryStream();
             // Opzioni
-            var opt = TextOptions ?? new TextLoader.Options();
+            opt ??= new TextLoaderOptions();
             // Separatore di colonne
             var separator = opt.Separators?.FirstOrDefault() ?? '\t';
             separator = separator != default ? separator : '\t';

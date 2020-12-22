@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML.Data;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace MachineLearning
@@ -61,12 +62,40 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public TextLoaderOptions() : this(new TextLoader.Options()) { }
+      public TextLoaderOptions() : this(columns: default) { }
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="columns"></param>
+      /// <param name="separator"></param>
+      /// <param name="labelColumnName"></param>
+      /// <param name="allowQuoting"></param>
+      public TextLoaderOptions(IEnumerable<string> columns, char separator = ',', string labelColumnName = "Label", bool allowQuoting = true)
+      {
+         Fill(new TextLoader.Options
+         {
+            AllowQuoting = allowQuoting,
+            AllowSparse = false,
+            Separators = new[] { separator },
+            Columns = columns != default ?
+            columns.Select((c, i) => new TextLoader.Column(c == labelColumnName ? "Label" : c, DataKind.String, i)).ToArray() :
+            new[]
+            {
+               new TextLoader.Column("Label", DataKind.String, 0),
+               new TextLoader.Column("Text", DataKind.String, 1),
+            }
+         });
+      }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="opt"></param>
-      public TextLoaderOptions(TextLoader.Options opt)
+      public TextLoaderOptions(TextLoader.Options opt) => Fill(opt);
+      /// <summary>
+      /// Riempe conil contenuto di una TextLoader.Opions
+      /// </summary>
+      /// <param name="opt">Sorgente</param>
+      private void Fill(TextLoader.Options opt)
       {
          AllowQuoting = opt.AllowQuoting;
          AllowSparse = opt.AllowSparse;

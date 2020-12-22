@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Modello per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor<string>, IDataStorageProvider, IModelStorageProvider
+   public sealed partial class PredictorTextMeaning : Predictor<string>, IDataStorageProvider, IModelStorageProvider, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -36,6 +36,10 @@ namespace MachineLearning
       /// Storage del modello
       /// </summary>
       public IModelStorage ModelStorage { get; set; }
+      /// <summary>
+      /// Opzioni di caricamento dati testuali
+      /// </summary>
+      public TextLoaderOptions TextOptions { get; set; }
       #endregion
       #region Methods
       /// <summary>

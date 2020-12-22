@@ -44,6 +44,10 @@ namespace MachineLearning
       [NonSerialized]
       private CancellableTask _taskTraining;
       /// <summary>
+      /// Opzioni di caricamento testi di default
+      /// </summary>
+      private TextLoaderOptions _textLoaderOptionsDefault;
+      /// <summary>
       /// Dati aggiuntivi di training
       /// </summary>
       private DataStorageTextMemory _trainingData;
@@ -101,6 +105,10 @@ namespace MachineLearning
       /// Task di training
       /// </summary>
       private CancellableTask TaskTraining => _taskTraining ??= new CancellableTask();
+      /// <summary>
+      /// Gestore storage dati principale
+      /// </summary>
+      private TextLoaderOptions TextLoaderOptions => (this as ITextOptionsProvider)?.TextOptions ?? (_textLoaderOptionsDefault ??= new TextLoaderOptions());
       /// <summary>
       /// Dati aggiuntivi di training
       /// </summary>
@@ -200,8 +208,9 @@ namespace MachineLearning
       /// <returns>Il Task</returns>
       private void CommitData()
       {
-         var data = DataStorage?.LoadData(ML, TrainingData);
-         DataStorage?.SaveData(ML, data, SaveDataSchemaComment);
+         var opt = (this as ITextOptionsProvider)?.TextOptions;
+         var data = DataStorage?.LoadData(ML, opt, TrainingData);
+         DataStorage?.SaveData(ML, data, opt, SaveDataSchemaComment);
          TrainingData.TextData = null;
       }
       /// <summary>
@@ -214,9 +223,9 @@ namespace MachineLearning
          // Linea da passare al modello
          var inputLine = new StringBuilder();
          // Quotatura stringhe
-         var quote = ((DataStorage as IDataTextOptionsProvider)?.TextOptions?.AllowQuoting ?? true) ? "\"" : "";
+         var quote = TextLoaderOptions.AllowQuoting ? "\"" : "";
          // Separatore di colonne
-         var separatorChar = (DataStorage as IDataTextOptionsProvider)?.TextOptions?.Separators?.FirstOrDefault() ?? ',';
+         var separatorChar = TextLoaderOptions.Separators?.FirstOrDefault() ?? ',';
          // Loop di costruzione della linea di dati
          var separator = "";
          foreach (var item in data) {
@@ -335,7 +344,7 @@ namespace MachineLearning
          if (TrainingData.Timestamp > Evaluation.Timestamp || (DataStorage as ITimestamp)?.Timestamp > Evaluation.Timestamp)
             _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
-         var dataView = new DataStorageTextMemory() { TextData = data, TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? new TextLoader.Options() }.LoadData(ML);
+         var dataView = new DataStorageTextMemory() { TextData = data }.LoadData(ML, TextLoaderOptions);
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello od un eventuale errore di training
          var evaluator = await GetEvaluatorAsync(cancellation);
@@ -507,7 +516,7 @@ namespace MachineLearning
                   if (firstRun) {
                      firstRun = false;
                      // Carica il modello
-                     var loadExistingModel = (ModelStorage as ITimestamp).Timestamp >= (DataStorage as ITimestamp).Timestamp && (ModelStorage as ITimestamp).Timestamp >= (TrainingData as ITimestamp).Timestamp;
+                     var loadExistingModel = (ModelStorage as ITimestamp)?.Timestamp >= (DataStorage as ITimestamp)?.Timestamp && (ModelStorage as ITimestamp)?.Timestamp >= TrainingData.Timestamp;
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;
@@ -519,16 +528,14 @@ namespace MachineLearning
                      }
                      cancel.ThrowIfCancellationRequested();
                      ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
-                     // Imposta le opzioni di testo per i dati extra in modo che siano uguali a quelli dello storage principale
-                     TrainingData.TextOptions = (DataStorage as IDataTextOptionsProvider)?.TextOptions ?? TrainingData.TextOptions;
                      // Carica i dati
-                     data = DataStorage?.LoadData(ML, TrainingData);
+                     data = DataStorage != null ? DataStorage.LoadData(ML, TextLoaderOptions, TrainingData) : TrainingData.LoadData(ML, TextLoaderOptions);
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
-                     if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
+                     if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && DataStorage != default && AutoCommitData) {
                         ML.NET.WriteLog("Committing the new data", Name);
                         CommitData();
                      }
@@ -543,7 +550,7 @@ namespace MachineLearning
                   // Ricarica i dati
                   else {
                      // Effettua eventuale commit automatico
-                     if (!string.IsNullOrEmpty(TrainingData.TextData) && AutoCommitData) {
+                     if (!string.IsNullOrEmpty(TrainingData.TextData) && DataStorage != default && AutoCommitData) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
                            CommitData();
@@ -555,11 +562,11 @@ namespace MachineLearning
                         }
                         catch (Exception exc) {
                            Debug.WriteLine(exc);
-                           data = DataStorage?.LoadData(ML, TrainingData);
+                           data = DataStorage?.LoadData(ML, TextLoaderOptions, TrainingData);
                         }
                      }
                      else
-                        data = DataStorage?.LoadData(ML, TrainingData);
+                        data = DataStorage != null ? DataStorage.LoadData(ML, TextLoaderOptions, TrainingData) : TrainingData.LoadData(ML, TextLoaderOptions);
                   }
                   // Ottiene la pipe dalle classi derivate. Esce dal training se nessuna pipe viene restituita
                   cancel.ThrowIfCancellationRequested();
