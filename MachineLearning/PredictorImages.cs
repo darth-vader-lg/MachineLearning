@@ -140,11 +140,9 @@ namespace MachineLearning
          // Pipe di training
          Pipe ??=
             ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
-            Append(ML.NET.Transforms.LoadRawImageBytes("ImageSource_featurized", null, (from c in TextOptions.Columns where c.Name != LabelColumnName select c.Name).First())).
-            Append(ML.NET.Transforms.CopyColumns("Features", "ImageSource_featurized")).
-            Append(
-               ML.NET.MulticlassClassification.Trainers.ImageClassification(labelColumnName: "Label", featureColumnName: "Features").
-               Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel")));
+            Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, (from c in TextOptions.Columns where c.Name != LabelColumnName select c.Name).First())).
+            Append(ML.NET.MulticlassClassification.Trainers.ImageClassification(labelColumnName: "Label", featureColumnName: "Features")).
+            Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel"));
          // Training
          return Pipe.Fit(dataView);
       }
