@@ -1,5 +1,7 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning;
+using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System;
 using System.ComponentModel;
 using System.Data;
@@ -33,21 +35,9 @@ namespace MachineLearningStudio
       /// </summary>
       private bool initialized;
       /// <summary>
-      /// Contesto ML
+      /// Previsore di immagini
       /// </summary>
-      private MLContext mlContext;
-      /// <summary>
-      /// Modello di apprendimento
-      /// </summary>
-      private ITransformer model;
-      /// <summary>
-      /// Path del modello di autoapprendimento dei piedi
-      /// </summary>
-      private static readonly string modelPath = Path.Combine(Environment.CurrentDirectory, "Data", "ImageClassigication.zip");
-      /// <summary>
-      /// Previsore di piedi
-      /// </summary>
-      private PredictionEngine<PageImageClassificationData, PageImageClassificationPrediction> predictor;
+      private PredictorImages predictor;
       /// <summary>
       /// Task di previsione
       /// </summary>
@@ -56,13 +46,6 @@ namespace MachineLearningStudio
       /// Colore di background dei testi
       /// </summary>
       private readonly Color textBoxBackColor;
-      #endregion
-      #region Properties
-      /// <summary>
-      /// Abilitazione al salvataggio del modello di training
-      /// </summary>
-      [Category("Behavior"), DefaultValue(false)]
-      public bool SaveModel { get; set; }
       #endregion
       #region Methods
       /// <summary>
@@ -74,7 +57,7 @@ namespace MachineLearningStudio
          textBoxBackColor = textBoxImageSetName.BackColor;
       }
       /// <summary>
-      /// Click sul pulsante di training
+      /// Click sul pulsante di loading dell'immagine
       /// </summary>
       /// <param name="sender"></param>
       /// <param name="e"></param>
@@ -106,7 +89,6 @@ namespace MachineLearningStudio
                Settings.Default.PageImageClassification.CrossValidate = crossValidate;
                Settings.Default.Save();
             }
-            mlContext = null;
             MakePrediction();
          }
          catch (Exception exc) {
@@ -116,7 +98,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
-      private async void MakePrediction()
+      private void MakePrediction()
       {
          try {
             // Verifica che il controllo sia inizializzato
@@ -124,13 +106,35 @@ namespace MachineLearningStudio
                return;
             // Avvia un nuovo task di previsione
             taskPrediction.cancellation.Cancel();
-            await taskPrediction.task;
             taskPrediction.cancellation = new CancellationTokenSource();
             taskPrediction.task = TaskPrediction(taskPrediction.cancellation.Token);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
+      }
+      /// <summary>
+      /// Log del machine learning
+      /// </summary>
+      /// <param name="sender"></param>
+      /// <param name="e"></param>
+      private void Ml_Log(object sender, LoggingEventArgs e)
+      {
+         try {
+            //if (e.Kind < ChannelMessageKind.Info || e.Source != predictor.Name)
+            //   return;
+            predictor.Post(() =>
+            {
+               var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
+               var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
+               textBoxOutput.AppendText(e.Message + Environment.NewLine);
+               if (resel) {
+                  textBoxOutput.Select(SelectionStart, SelectionLength);
+                  textBoxOutput.ScrollToCaret();
+               }
+            });
+         }
+         catch (Exception) { }
       }
       /// <summary>
       /// Funzione di caricamento del controllo
@@ -141,6 +145,14 @@ namespace MachineLearningStudio
          // Metodo base
          try {
             base.OnLoad(e);
+            // Crea il previsore
+            predictor = new PredictorImages
+            {
+               AutoSaveModel = true,
+               ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxImageSetName.Text, "model.zip"))),
+               Name = "Predictor",
+            };
+            predictor.ML.NET.Log += Ml_Log;
             textBoxImageSetName.Text = Settings.Default.PageImageClassification.DataSetDir?.Trim();
             initialized = true;
          }
@@ -156,141 +168,19 @@ namespace MachineLearningStudio
       private async Task TaskPrediction(CancellationToken cancel)
       {
          try {
+            // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
-            var dataSetPath = dataSetDir != null ? Path.Combine(Environment.CurrentDirectory, "Data", dataSetDir) : null;
-            var enableCrossValidation = crossValidate;
-            var ui = TaskScheduler.FromCurrentSynchronizationContext();
-            await Task.Run(async () =>
-            {
-               try {
-                  cancel.ThrowIfCancellationRequested();
-                  // Verifica che non sia gia' stato calcolato il modello
-                  if (mlContext != null)
-                     return;
-                  // Verifica che il path esista
-                  if (!Directory.Exists(dataSetPath))
-                     return;
-                  // Crea il contesto
-                  mlContext = new MLContext(seed: 1);
-                  // Visualizzatore elaborazione
-                  var sb = new StringBuilder();
-                  // Dati
-                  var dirs = from item in Directory.GetDirectories(dataSetPath, "*.*", SearchOption.TopDirectoryOnly)
-                             where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
-                             select item;
-                  var data = from dir in dirs
-                             from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
-                             let ext = Path.GetExtension(file).ToLower()
-                             where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
-                             select new PageImageClassificationData { Label = Path.GetFileName(dir), ImageSource = file };
-                  cancel.ThrowIfCancellationRequested();
-                  var dataView = mlContext.Data.LoadFromEnumerable(data);
-                  // Data process configuration with pipeline data transformations 
-                  cancel.ThrowIfCancellationRequested();
-                  var dataProcessPipeline =
-                     mlContext.Transforms.Conversion.MapValueToKey(nameof(PageImageClassificationData.Label), nameof(PageImageClassificationData.Label)).
-                     Append(mlContext.Transforms.LoadRawImageBytes("ImageSource_featurized", null, nameof(PageImageClassificationData.ImageSource))).
-                     Append(mlContext.Transforms.CopyColumns("Features", "ImageSource_featurized"));
-                  // Set the training algorithm 
-                  cancel.ThrowIfCancellationRequested();
-                  var trainer =
-                     mlContext.MulticlassClassification.Trainers.ImageClassification(labelColumnName: nameof(PageImageClassificationData.Label), featureColumnName: "Features").
-                     Append(mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
-                  var trainingPipeline = dataProcessPipeline.Append(trainer);
-                  sb.AppendLine("=============== Training  model ===============");
-                  var text = sb.ToString();
-                  cancel.ThrowIfCancellationRequested();
-                  await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                  model = await Task.Run(() => trainingPipeline.Fit(dataView));
-                  sb.AppendLine("=============== End of training process ===============");
-                  text = sb.ToString();
-                  cancel.ThrowIfCancellationRequested();
-                  await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                  // Salva il modello
-                  if (SaveModel) {
-                     cancel.ThrowIfCancellationRequested();
-                     sb.AppendLine("================== Saving the model ===================");
-                     text = sb.ToString();
-                     cancel.ThrowIfCancellationRequested();
-                     await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                     cancel.ThrowIfCancellationRequested();
-                     using (var fileStream = new FileStream(modelPath, FileMode.Create, FileAccess.Write, FileShare.Write))
-                        mlContext.Model.Save(model, dataView.Schema, fileStream);
-                     sb.AppendLine("==================== Model saved ======================");
-                     text = sb.ToString();
-                     cancel.ThrowIfCancellationRequested();
-                     await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                  }
-                  if (enableCrossValidation) {
-                     sb.AppendLine("=============== Cross-validating to get model's accuracy metrics ===============");
-                     text = sb.ToString();
-                     cancel.ThrowIfCancellationRequested();
-                     await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                     var crossValidationResults = mlContext.MulticlassClassification.CrossValidate(dataView, trainingPipeline, numberOfFolds: 5, labelColumnName: nameof(PageImageClassificationData.Label));
-                     model = (from result in crossValidationResults
-                              orderby result.Metrics.LogLoss
-                              select result.Model).First();
-                     var metricsInMultipleFolds = crossValidationResults.Select(r => r.Metrics);
-                     var microAccuracyValues = metricsInMultipleFolds.Select(m => m.MicroAccuracy);
-                     var microAccuracyAverage = microAccuracyValues.Average();
-                     var sumOfSquaresOfDifferences = microAccuracyValues.Select(val => (val - microAccuracyAverage) * (val - microAccuracyAverage)).Sum();
-                     var microAccuraciesStdDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (microAccuracyValues.Count() - 1));
-                     var microAccuraciesConfidenceInterval95 = 1.96 * microAccuraciesStdDeviation / Math.Sqrt((microAccuracyValues.Count() - 1));
-                     var macroAccuracyValues = metricsInMultipleFolds.Select(m => m.MacroAccuracy);
-                     var macroAccuracyAverage = macroAccuracyValues.Average();
-                     sumOfSquaresOfDifferences = macroAccuracyValues.Select(val => (val - macroAccuracyAverage) * (val - macroAccuracyAverage)).Sum();
-                     var macroAccuraciesStdDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (macroAccuracyValues.Count() - 1));
-                     var macroAccuraciesConfidenceInterval95 = 1.96 * macroAccuraciesStdDeviation / Math.Sqrt((macroAccuracyValues.Count() - 1));
-                     var logLossValues = metricsInMultipleFolds.Select(m => m.LogLoss);
-                     var logLossAverage = logLossValues.Average();
-                     sumOfSquaresOfDifferences = logLossValues.Select(val => (val - logLossAverage) * (val - logLossAverage)).Sum();
-                     var logLossStdDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (logLossValues.Count() - 1));
-                     var logLossConfidenceInterval95 = 1.96 * logLossStdDeviation / Math.Sqrt((logLossValues.Count() - 1));
-                     var logLossReductionValues = metricsInMultipleFolds.Select(m => m.LogLossReduction);
-                     var logLossReductionAverage = logLossReductionValues.Average();
-                     sumOfSquaresOfDifferences = logLossReductionValues.Select(val => (val - logLossReductionAverage) * (val - logLossReductionAverage)).Sum();
-                     var logLossReductionStdDeviation = Math.Sqrt(sumOfSquaresOfDifferences / (logLossReductionValues.Count() - 1));
-                     var logLossReductionConfidenceInterval95 = 1.96 * logLossReductionStdDeviation / Math.Sqrt((logLossReductionValues.Count() - 1));
-                     sb.AppendLine($"*************************************************************************************************************");
-                     sb.AppendLine($"*       Metrics for Multi-class Classification model      ");
-                     sb.AppendLine($"*------------------------------------------------------------------------------------------------------------");
-                     sb.AppendLine($"*       Average MicroAccuracy:    {microAccuracyAverage:0.###}  - Standard deviation: ({microAccuraciesStdDeviation:#.###})  - Confidence Interval 95%: ({microAccuraciesConfidenceInterval95:#.###})");
-                     sb.AppendLine($"*       Average MacroAccuracy:    {macroAccuracyAverage:0.###}  - Standard deviation: ({macroAccuraciesStdDeviation:#.###})  - Confidence Interval 95%: ({macroAccuraciesConfidenceInterval95:#.###})");
-                     sb.AppendLine($"*       Average LogLoss:          {logLossAverage:#.###}  - Standard deviation: ({logLossStdDeviation:#.###})  - Confidence Interval 95%: ({logLossConfidenceInterval95:#.###})");
-                     sb.AppendLine($"*       Average LogLossReduction: {logLossReductionAverage:#.###}  - Standard deviation: ({logLossReductionStdDeviation:#.###})  - Confidence Interval 95%: ({logLossReductionConfidenceInterval95:#.###})");
-                     sb.AppendLine($"*************************************************************************************************************");
-                     text = sb.ToString();
-                     cancel.ThrowIfCancellationRequested();
-                     await Task.Factory.StartNew(() => textBoxOutput.Text = text, CancellationToken.None, TaskCreationOptions.None, ui);
-                  }
-                  cancel.ThrowIfCancellationRequested();
-                  predictor = mlContext.Model.CreatePredictionEngine<PageImageClassificationData, PageImageClassificationPrediction>(model);
-               }
-               catch (OperationCanceledException)
-               {
-                  mlContext = null;
-               }
-               catch (Exception) {
-                  mlContext = null;
-                  throw;
-               }
-               await Task.CompletedTask;
-            }, cancel);
-            cancel.ThrowIfCancellationRequested();
-            if (!string.IsNullOrWhiteSpace(openFileDialog.FileName) && File.Exists(openFileDialog.FileName)) {
-               var prediction = predictor.Predict(new PageImageClassificationData { ImageSource = openFileDialog.FileName });
-               var labelBuffer = default(VBuffer<ReadOnlyMemory<char>>);
-               predictor.OutputSchema["Score"].Annotations.GetValue("SlotNames", ref labelBuffer);
-               var scoreIx = labelBuffer.Items().FirstOrDefault(item => item.Value.ToString() == prediction.Prediction).Key;
-               labelClassResult.Text = $"{prediction.Prediction} ({(int)(prediction.Score[scoreIx] * 100f)}%)";
-            }
+            if (!string.IsNullOrWhiteSpace(openFileDialog.FileName) && File.Exists(openFileDialog.FileName))
+               labelClassResult.Text = await predictor.GetPredictionAsync(cancel, null, $"\"{openFileDialog.FileName}\"");
             else
                labelClassResult.Text = "";
+            labelClassResult.BackColor = textBoxBackColor;
          }
          catch (OperationCanceledException) { }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            labelClassResult.Text = "???";
+            labelClassResult.Text = "";
+            labelClassResult.BackColor = Color.Red;
          }
       }
       /// <summary>
@@ -303,6 +193,7 @@ namespace MachineLearningStudio
          try {
             if (sender is not TextBox tb)
                return;
+            predictor.ClearTrainingData();
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
             if (!Directory.Exists(path)) {
                dataSetDir = null;
@@ -315,9 +206,9 @@ namespace MachineLearningStudio
                   Settings.Default.PageImageClassification.DataSetDir = dataSetDir;
                   Settings.Default.Save();
                }
+               predictor.AddTrainingData(PredictorImages.GetTrainingDataFromPath(path));
+               MakePrediction();
             }
-            mlContext = null;
-            MakePrediction();
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);

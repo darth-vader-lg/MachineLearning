@@ -203,6 +203,17 @@ namespace MachineLearning
          SetEvaluation(null);
       }
       /// <summary>
+      /// Cancella l'elenco di dati di training
+      /// </summary>
+      public void ClearTrainingData()
+      {
+         // Annulla il training
+         CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+         // Cancella i dati di training
+         TrainingData.TextData = "";
+         OnTrainingDataChanged(EventArgs.Empty);
+      }
+      /// <summary>
       /// Commit dei dati
       /// </summary>
       /// <returns>Il Task</returns>
@@ -475,7 +486,7 @@ namespace MachineLearning
       {
          if (TaskTraining.Task.IsCompleted) {
             EvaluationAvailable.Reset();
-            await TaskTraining.StartNew(c => Task.Factory.StartNew(async () => await TrainingAsync(c).ConfigureAwait(false), c, TaskCreationOptions.LongRunning, TaskScheduler.Default), cancellation);
+            await TaskTraining.StartNew(c => Task.Factory.StartNew(async () => await TrainingAsync(c).ConfigureAwait(false), c, TaskCreationOptions.None, TaskScheduler.Default), cancellation);
          }
          else
             await TaskTraining;

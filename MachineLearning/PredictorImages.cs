@@ -1,7 +1,8 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
-using Microsoft.ML.Transforms.Text;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -12,7 +13,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor<string>, IDataStorageProvider, IModelStorageProvider, ITextOptionsProvider
+   public class PredictorImages : Predictor<string>, IModelStorageProvider, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -25,6 +26,10 @@ namespace MachineLearning
       /// </summary>
       [NonSerialized]
       private int _retrainCount;
+      /// <summary>
+      /// Formato dati di training
+      /// </summary>
+      private TextLoaderOptions _textOptions;
       #endregion
       #region Properties
       /// <summary>
@@ -48,25 +53,41 @@ namespace MachineLearning
       /// </summary>
       private int Seed { get; set; }
       /// <summary>
-      /// Opzioni di caricamento dati testuali
+      /// Formato dati di training
       /// </summary>
-      public TextLoaderOptions TextOptions { get; set; }
+      public TextLoaderOptions TextOptions
+      {
+         get
+         {
+            return _textOptions ??= new TextLoaderOptions(new TextLoader.Options()
+            {
+               AllowQuoting = true,
+               Separators = new[] { ',' },
+               Columns = new[]
+               {
+                  new TextLoader.Column(LabelColumnName, DataKind.String, 0),
+                  new TextLoader.Column(PredictionColumnName, DataKind.String, 1),
+               }
+            });
+         }
+         set => _textOptions = value;
+      }
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorTextMeaning() { }
+      public PredictorImages() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public PredictorTextMeaning(int? seed) : base(seed) { }
+      public PredictorImages(int? seed) : base(seed) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) { }
+      public PredictorImages(MachineLearningContext ml) : base(ml) { }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
@@ -119,17 +140,32 @@ namespace MachineLearning
          // Pipe di training
          Pipe ??=
             ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
-            Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
-                                                                                                                  where c.Name != LabelColumnName
-                                                                                                                  select c.Name).ToArray())).
-            Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
-            Append(ML.NET.Transforms.NormalizeMinMax("Features")).
-            AppendCacheCheckpoint(ML.NET).
-            Append(ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated()).
-            Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel"));
-         // Mischia le linee
-         var data = ML.NET.Data.ShuffleRows(dataView, Seed++);
-         return Pipe.Fit(data);
+            Append(ML.NET.Transforms.LoadRawImageBytes("ImageSource_featurized", null, (from c in TextOptions.Columns where c.Name != LabelColumnName select c.Name).First())).
+            Append(ML.NET.Transforms.CopyColumns("Features", "ImageSource_featurized")).
+            Append(
+               ML.NET.MulticlassClassification.Trainers.ImageClassification(labelColumnName: "Label", featureColumnName: "Features").
+               Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel")));
+         // Training
+         return Pipe.Fit(dataView);
+      }
+      /// <summary>
+      /// Ottiene un elenco di dati di training data la directory radice delle immagini.
+      /// L'elenco puo' essere passato alla funzione di aggiunta di dati di training
+      /// </summary>
+      /// <param name="path">La directory radice delle immagini</param>
+      /// <returns>La lista di dati di training</returns>
+      /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
+      public static IEnumerable<string> GetTrainingDataFromPath(string path)
+      {
+         var dirs = from item in Directory.GetDirectories(path, "*.*", SearchOption.TopDirectoryOnly)
+                    where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
+                    select item;
+         var data = from dir in dirs
+                    from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
+                    let ext = Path.GetExtension(file).ToLower()
+                    where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
+                    select $"\"{Path.GetFileName(dir)}\",\"{file}\"";
+         return data;
       }
       #endregion
    }

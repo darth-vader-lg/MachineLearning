@@ -19,7 +19,7 @@ namespace MachineLearning
          public string Name;
          public Range[] Source;
          public KeyCount KeyCount;
-         public byte DataKind { get; set; }
+         public byte DataKind { get; set; } // @@@ Vedere se e' serializzabile con il DataKind delle ML.NET
          #endregion
       }
       #endregion
