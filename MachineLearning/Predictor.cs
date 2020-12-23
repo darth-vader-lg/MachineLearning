@@ -15,7 +15,7 @@ namespace MachineLearning
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class Predictor<T> : IDeserializationCallback
+   public abstract partial class Predictor : IDeserializationCallback
    {
       #region Fields
       /// <summary>
@@ -301,50 +301,48 @@ namespace MachineLearning
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
       /// <summary>
-      /// Predizione asincrona
-      /// </summary>
-      /// <param name="data">Linea di dati da usare per la previsione</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il task di predizione</returns>
-      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public T GetPrediction(CancellationToken cancellation = default, params string[] data) => GetPredictionAsync(cancellation, data).ConfigureAwait(false).GetAwaiter().GetResult();
-      /// <summary>
-      /// Predizione asincrona
+      /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Elenco di dati da usare per la previsione</param>
-      /// <returns>Il task di predizione</returns>
+      /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public T GetPrediction(IEnumerable<string> data) => GetPredictionAsync(data, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+      public T GetPrediction<T>(params string[] data) => GetPredictionAsync<T>(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      /// <summary>
+      /// Restituisce la previsione
+      /// </summary>
+      /// <param name="data">Elenco di dati da usare per la previsione</param>
+      /// <returns>La previsione</returns>
+      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
+      public T GetPrediction<T>(IEnumerable<string> data) => GetPredictionAsync<T>(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Dati per la previsione</param>
-      /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      public T GetPrediction(string data, CancellationToken cancellation = default) => GetPredictionAsync(data, cancellation).ConfigureAwait(false).GetAwaiter().GetResult();
+      public T GetPrediction<T>(string data) => GetPredictionAsync<T>(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
-      /// Predizione asincrona
+      /// Restituisce il task di previsione
       /// </summary>
       /// <param name="data">Linea di dati da usare per la previsione</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<T> GetPredictionAsync(IEnumerable<string> data, CancellationToken cancellation = default) => GetPredictionAsync(FormatDataRow(data.ToArray()), cancellation);
+      public Task<T> GetPredictionAsync<T>(IEnumerable<string> data, CancellationToken cancellation = default) => GetPredictionAsync<T>(FormatDataRow(data.ToArray()), cancellation);
       /// <summary>
-      /// Predizione asincrona
+      /// Restituisce il task di previsione
       /// </summary>
       /// <param name="data">Linea di dati da usare per la previsione</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<T> GetPredictionAsync(CancellationToken cancellation = default, params string[] data) => GetPredictionAsync(FormatDataRow(data), cancellation);
+      public Task<T> GetPredictionAsync<T>(CancellationToken cancellation = default, params string[] data) => GetPredictionAsync<T>(FormatDataRow(data), cancellation);
       /// <summary>
-      /// Restituisce la previsione
+      /// Restituisce il task di previsione
       /// </summary>
       /// <param name="data">Dati per la previsione</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      public async Task<T> GetPredictionAsync(string data, CancellationToken cancellation = default)
+      public async Task<T> GetPredictionAsync<T>(string data, CancellationToken cancellation = default)
       {
          // Avvia il task di training se necessario
          if (TrainingData.Timestamp > Evaluation.Timestamp || (DataStorage as ITimestamp)?.Timestamp > Evaluation.Timestamp)
@@ -373,7 +371,7 @@ namespace MachineLearning
       /// <summary>
       /// Restituisce il modello effettuando il training. Da implementare nelle classi derivate
       /// </summary>
-      /// <param name="dataView">Datidi training</param>
+      /// <param name="dataView">Dati di training</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
       protected virtual ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation) => default;
@@ -647,7 +645,7 @@ namespace MachineLearning
    /// <summary>
    /// Dati di valutazione
    /// </summary>
-   public partial class Predictor<T> // Evaluator
+   public partial class Predictor // Evaluator
    {
       [Serializable]
       public class Evaluator

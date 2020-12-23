@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MachineLearning
 {
@@ -13,7 +14,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public class PredictorImages : Predictor<string>, IModelStorageProvider, ITextOptionsProvider
+   public class PredictorImages : Predictor, IModelStorageProvider, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -105,6 +106,19 @@ namespace MachineLearning
          return best;
       }
       /// <summary>
+      /// Restituisce il tipo di immagine
+      /// </summary>
+      /// <param name="imagePath">Path dell'immagine</param>
+      /// <returns>Il tipo di immagine</returns>
+      public string GetImageKind(string imagePath) => GetPrediction<string>(null, imagePath);
+      /// <summary>
+      /// Restituisce il tipo di immagine
+      /// </summary>
+      /// <param name="imagePath">Path dell'immagine</param>
+      /// <param name="cancel">Eventuale token di cancellazione</param>
+      /// <returns>Il task di previsione del tipo di immagine</returns>
+      public Task<string> GetImageKindAsync(string imagePath, CancellationToken cancel = default) => GetPredictionAsync<string>(cancel, null, imagePath);
+      /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
       /// <param name="model">Modello da valutare</param>
@@ -129,7 +143,7 @@ namespace MachineLearning
       /// <summary>
       /// Restituisce il modello effettuando il training. Da implementare nelle classi derivate
       /// </summary>
-      /// <param name="dataView">Datidi training</param>
+      /// <param name="dataView">Dati di training</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
       protected override ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation)

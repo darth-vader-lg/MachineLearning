@@ -157,7 +157,7 @@ namespace MachineLearningStudio
             // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
             if (!string.IsNullOrWhiteSpace(openFileDialog.FileName) && File.Exists(openFileDialog.FileName))
-               labelClassResult.Text = await predictor.GetPredictionAsync(cancel, null, $"\"{openFileDialog.FileName}\"");
+               labelClassResult.Text = await predictor.GetImageKindAsync($"\"{openFileDialog.FileName}\"", cancel);
             else
                labelClassResult.Text = "";
             labelClassResult.BackColor = textBoxBackColor;

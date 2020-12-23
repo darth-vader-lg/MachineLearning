@@ -10,7 +10,7 @@ namespace MachineLearning
    [Serializable]
    public sealed class ModelStorageStream : IModelStorage, ITimestamp
    {
-      #region Properties
+      #region Fields
       [NonSerialized]
       /// <summary>
       /// Funzione di restituzione della stream in lettura
@@ -36,8 +36,8 @@ namespace MachineLearning
       /// <param name="WriteStreamGetter">Funzione di restituzione della stream in scrittura</param>
       public ModelStorageStream(Func<Stream> ReadStreamGetter = null, Func<Stream> WriteStreamGetter = null)
       {
-         this._readStreamGetter = ReadStreamGetter;
-         this._writeStreamGetter = WriteStreamGetter;
+         _readStreamGetter = ReadStreamGetter;
+         _writeStreamGetter = WriteStreamGetter;
       }
       /// <summary>
       /// Funzione di caricamento modello

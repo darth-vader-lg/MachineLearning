@@ -157,7 +157,7 @@ namespace MachineLearningStudio
                _ = textMeaningPredictor.StartTrainingAsync(cancel);
             }
             cancel.ThrowIfCancellationRequested();
-            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : await textMeaningPredictor.GetPredictionAsync(new[] { null, sentence });
+            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : await textMeaningPredictor.GetMeaningAsync(sentence, cancel);
             textBoxIntent.BackColor = textBoxBackColor;
          }
          catch (OperationCanceledException) { }

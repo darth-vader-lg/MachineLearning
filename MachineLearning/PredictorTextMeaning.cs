@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MachineLearning
 {
@@ -12,7 +13,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor<string>, IDataStorageProvider, IModelStorageProvider, ITextOptionsProvider
+   public sealed partial class PredictorTextMeaning : Predictor, IDataStorageProvider, IModelStorageProvider, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -83,6 +84,18 @@ namespace MachineLearning
             _retrainCount = 0;
          return best;
       }
+      /// <summary>
+      /// Restituisce la previsione
+      /// </summary>
+      /// <param name="data">Significato da prevedere</param>
+      /// <returns>La previsione</returns>
+      public string GetMeaning(string textMeaning) => GetPrediction<string>(null, textMeaning);
+      /// <summary>
+      /// Restituisce la previsione
+      /// </summary>
+      /// <param name="data">Significato da prevedere</param>
+      /// <returns>Il task della previsione</returns>
+      public Task<string> GetMeaningAsync(string textMeaning, CancellationToken cancel = default) => GetPredictionAsync<string>(cancel, null, textMeaning);
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
