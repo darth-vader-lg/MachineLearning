@@ -1,15 +1,9 @@
 ﻿using MachineLearning;
 using Microsoft.ML;
-using Microsoft.ML.Data;
-using Microsoft.ML.Runtime;
 using System;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -26,10 +20,6 @@ namespace MachineLearningStudio
       /// Abilitazione della validazione incrociata del modello
       /// </summary>
       private bool crossValidate;
-      /// <summary>
-      /// Directory delle immagini
-      /// </summary>
-      private string dataSetDir;
       /// <summary>
       /// Flag di controllo inizializzato
       /// </summary>
@@ -146,14 +136,10 @@ namespace MachineLearningStudio
          try {
             base.OnLoad(e);
             // Crea il previsore
-            predictor = new PredictorImages
-            {
-               AutoSaveModel = true,
-               ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxImageSetName.Text, "model.zip"))),
-               Name = "Predictor",
-            };
+            predictor = new PredictorImages { AutoSaveModel = true, Name = "Predictor" };
             predictor.ML.NET.Log += Ml_Log;
             textBoxImageSetName.Text = Settings.Default.PageImageClassification.DataSetDir?.Trim();
+            predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxImageSetName.Text, "model.zip")));
             initialized = true;
          }
          catch (Exception exc) {
@@ -195,17 +181,16 @@ namespace MachineLearningStudio
                return;
             predictor.ClearTrainingData();
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
-            if (!Directory.Exists(path)) {
-               dataSetDir = null;
+            if (!Directory.Exists(path))
                tb.BackColor = Color.Red;
-            }
             else {
                tb.BackColor = textBoxBackColor;
-               dataSetDir = tb.Text.Trim();
+               var dataSetDir = tb.Text.Trim();
                if (dataSetDir != Settings.Default.PageImageClassification.DataSetDir) {
                   Settings.Default.PageImageClassification.DataSetDir = dataSetDir;
                   Settings.Default.Save();
                }
+               predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "data", Path.ChangeExtension(dataSetDir, "model.zip")));
                predictor.AddTrainingData(PredictorImages.GetTrainingDataFromPath(path));
                MakePrediction();
             }
