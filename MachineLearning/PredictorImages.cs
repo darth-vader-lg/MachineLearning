@@ -110,14 +110,14 @@ namespace MachineLearning
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <returns>Il tipo di immagine</returns>
-      public string GetImageKind(string imagePath) => GetPrediction<string>(null, imagePath);
+      public string GetImageKind(string imagePath) => GetPrediction(null, imagePath).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
       /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
-      public Task<string> GetImageKindAsync(string imagePath, CancellationToken cancel = default) => GetPredictionAsync<string>(cancel, null, imagePath);
+      public async Task<string> GetImageKindAsync(string imagePath, CancellationToken cancel = default) => (await GetPredictionAsync(cancel, null, imagePath)).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>

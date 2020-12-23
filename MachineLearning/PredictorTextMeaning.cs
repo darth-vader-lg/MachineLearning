@@ -89,13 +89,13 @@ namespace MachineLearning
       /// </summary>
       /// <param name="data">Significato da prevedere</param>
       /// <returns>La previsione</returns>
-      public string GetMeaning(string textMeaning) => GetPrediction<string>(null, textMeaning);
+      public string GetMeaning(string textMeaning) => GetPrediction(null, textMeaning).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Significato da prevedere</param>
       /// <returns>Il task della previsione</returns>
-      public Task<string> GetMeaningAsync(string textMeaning, CancellationToken cancel = default) => GetPredictionAsync<string>(cancel, null, textMeaning);
+      public async Task<string> GetMeaningAsync(string textMeaning, CancellationToken cancel = default) => (await GetPredictionAsync(cancel, null, textMeaning)).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
