@@ -14,7 +14,7 @@ namespace MachineLearningStudio
    /// <summary>
    /// Pagina di test algoritmo per la previsione delle intenzioni
    /// </summary>
-   public partial class PageIntentRetrain : UserControl
+   public partial class PageTextMeaning : UserControl
    {
       #region Fields
       /// <summary>
@@ -42,7 +42,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PageIntentRetrain()
+      public PageTextMeaning()
       {
          InitializeComponent();
          textBoxBackColor = textBoxSentence.BackColor;
@@ -115,7 +115,7 @@ namespace MachineLearningStudio
          try {
             base.OnLoad(e);
             // Imposta il nome del file di dati
-            textBoxDataSetName.Text = Settings.Default.PageIntent.DataSetName?.Trim();
+            textBoxDataSetName.Text = Settings.Default.PageTextMeaning.DataSetName?.Trim();
             // Crea il previsore
             textMeaningPredictor = new PredictorTextMeaning
             {
@@ -192,8 +192,8 @@ namespace MachineLearningStudio
                tb.BackColor = textBoxBackColor;
                dataSetName = tb.Text.Trim();
                // Salva nei settings lo stato
-               if (dataSetName != Settings.Default.PageIntent.DataSetName) {
-                  Settings.Default.PageIntent.DataSetName = dataSetName;
+               if (dataSetName != Settings.Default.PageTextMeaning.DataSetName) {
+                  Settings.Default.PageTextMeaning.DataSetName = dataSetName;
                   Settings.Default.Save();
                }
             }
@@ -253,12 +253,12 @@ namespace MachineLearningStudio
    /// </summary>
    public partial class Settings
    {
-      #region class PageIntentRetrainSettings
+      #region class PageTextMeaningSettings
       /// <summary>
       /// Impostazione della pagina
       /// </summary>
       [Serializable]
-      public class PageIntentRetrainSettings
+      public class PageTextMeaningSettings
       {
          #region Properties
          /// <summary>
@@ -272,7 +272,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Settings della pagina
       /// </summary>
-      public PageIntentRetrainSettings PageIntentRetrain { get; set; } = new PageIntentRetrainSettings();
+      public PageTextMeaningSettings PageTextMeaning { get; set; } = new PageTextMeaningSettings();
       #endregion
    }
 }

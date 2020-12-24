@@ -6,10 +6,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Update="PageIntentRetrain.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Update="PageIntent.cs">
+    <Compile Update="PageTextMeaning.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="PageImageClassification.cs">

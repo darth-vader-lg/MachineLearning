@@ -1,7 +1,7 @@
 ﻿
 namespace MachineLearningStudio
 {
-   partial class PageIntent
+   partial class PageTextMeaning
    {
       /// <summary> 
       /// Variabile di progettazione necessaria.
@@ -30,7 +30,7 @@ namespace MachineLearningStudio
       {
          this.tableLayoutPanelMain = new System.Windows.Forms.TableLayoutPanel();
          this.panelControls = new System.Windows.Forms.Panel();
-         this.comboBoxIntent = new System.Windows.Forms.ComboBox();
+         this.textBoxIntent = new System.Windows.Forms.TextBox();
          this.labelDataSetName = new System.Windows.Forms.Label();
          this.labelIntent = new System.Windows.Forms.Label();
          this.textBoxDataSetName = new System.Windows.Forms.TextBox();
@@ -62,7 +62,7 @@ namespace MachineLearningStudio
          // 
          this.panelControls.AutoSize = true;
          this.panelControls.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-         this.panelControls.Controls.Add(this.comboBoxIntent);
+         this.panelControls.Controls.Add(this.textBoxIntent);
          this.panelControls.Controls.Add(this.labelDataSetName);
          this.panelControls.Controls.Add(this.labelIntent);
          this.panelControls.Controls.Add(this.textBoxDataSetName);
@@ -76,17 +76,16 @@ namespace MachineLearningStudio
          this.panelControls.Size = new System.Drawing.Size(687, 49);
          this.panelControls.TabIndex = 0;
          // 
-         // comboBoxIntent
+         // textBoxIntent
          // 
-         this.comboBoxIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-         this.comboBoxIntent.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-         this.comboBoxIntent.FormattingEnabled = true;
-         this.comboBoxIntent.Location = new System.Drawing.Point(535, 22);
-         this.comboBoxIntent.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-         this.comboBoxIntent.Name = "comboBoxIntent";
-         this.comboBoxIntent.Size = new System.Drawing.Size(144, 23);
-         this.comboBoxIntent.TabIndex = 8;
-         this.comboBoxIntent.SelectionChangeCommitted += new System.EventHandler(this.comboBoxIntent_SelectionChangeCommitted);
+         this.textBoxIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.textBoxIntent.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
+         this.textBoxIntent.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
+         this.textBoxIntent.Location = new System.Drawing.Point(534, 23);
+         this.textBoxIntent.Name = "textBoxIntent";
+         this.textBoxIntent.Size = new System.Drawing.Size(147, 23);
+         this.textBoxIntent.TabIndex = 6;
+         this.textBoxIntent.KeyDown += new System.Windows.Forms.KeyEventHandler(this.textBoxIntent_KeyDown);
          // 
          // labelDataSetName
          // 
@@ -106,7 +105,7 @@ namespace MachineLearningStudio
          this.labelIntent.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelIntent.Name = "labelIntent";
          this.labelIntent.Size = new System.Drawing.Size(38, 15);
-         this.labelIntent.TabIndex = 7;
+         this.labelIntent.TabIndex = 5;
          this.labelIntent.Text = "Intent";
          // 
          // textBoxDataSetName
@@ -153,23 +152,25 @@ namespace MachineLearningStudio
          // textBoxOutput
          // 
          this.textBoxOutput.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.textBoxOutput.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
          this.textBoxOutput.Location = new System.Drawing.Point(4, 58);
          this.textBoxOutput.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxOutput.MaxLength = 0;
          this.textBoxOutput.Multiline = true;
          this.textBoxOutput.Name = "textBoxOutput";
          this.textBoxOutput.ReadOnly = true;
-         this.textBoxOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+         this.textBoxOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
          this.textBoxOutput.Size = new System.Drawing.Size(687, 485);
          this.textBoxOutput.TabIndex = 1;
+         this.textBoxOutput.WordWrap = false;
          // 
-         // PageIntentSdca
+         // PageIntentRetrain
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
          this.Controls.Add(this.tableLayoutPanelMain);
          this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-         this.Name = "PageIntentSdca";
+         this.Name = "PageIntentRetrain";
          this.Size = new System.Drawing.Size(695, 546);
          this.tableLayoutPanelMain.ResumeLayout(false);
          this.tableLayoutPanelMain.PerformLayout();
@@ -190,6 +191,6 @@ namespace MachineLearningStudio
       private System.Windows.Forms.Label labelDataSetName;
       private System.Windows.Forms.TextBox textBoxDataSetName;
       private System.Windows.Forms.TextBox textBoxOutput;
-      private System.Windows.Forms.ComboBox comboBoxIntent;
+      private System.Windows.Forms.TextBox textBoxIntent;
    }
 }
