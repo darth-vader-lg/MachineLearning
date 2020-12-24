@@ -2,6 +2,7 @@
 using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.Text;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -87,15 +88,15 @@ namespace MachineLearning
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="data">Significato da prevedere</param>
+      /// <param name="sentence">Significato da prevedere</param>
       /// <returns>La previsione</returns>
-      public string GetMeaning(string textMeaning) => GetPrediction(null, textMeaning).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
+      public Prediction GetPrediction(string sentence) => new Prediction(this, GetPredictionData(null, sentence));
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="data">Significato da prevedere</param>
+      /// <param name="sentence">Significato da prevedere</param>
       /// <returns>Il task della previsione</returns>
-      public async Task<string> GetMeaningAsync(string textMeaning, CancellationToken cancel = default) => (await GetPredictionAsync(cancel, null, textMeaning)).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
+      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, sentence));
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -145,5 +146,41 @@ namespace MachineLearning
          return Pipe.Fit(data);
       }
       #endregion
+   }
+
+   /// <summary>
+   /// Risultato della previsione
+   /// </summary>
+   public sealed partial class PredictorTextMeaning // Prediction
+   {
+      [Serializable]
+      public class Prediction
+      {
+         #region Properties
+         /// <summary>
+         /// Significato
+         /// </summary>
+         public string Meaning { get; }
+         /// <summary>
+         /// Punteggi per label
+         /// </summary>
+         public KeyValuePair<string, float>[] Scores { get; }
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="owner">Oggetto di appartenenza</param>
+         /// <param name="data">Dati della previsione</param>
+         internal Prediction(PredictorTextMeaning owner, IDataView data)
+         {
+            Meaning = data.GetString(owner.PredictionColumnName);
+            var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
+            data.Schema["Score"].GetSlotNames(ref slotNames);
+            var scores = data.GetValue<VBuffer<float>>("Score");
+            Scores = slotNames.GetValues().ToArray().Zip(scores.GetValues().ToArray()).Select(item => new KeyValuePair<string, float>(item.First.ToString(), item.Second)).ToArray();
+         }
+         #endregion
+      }
    }
 }

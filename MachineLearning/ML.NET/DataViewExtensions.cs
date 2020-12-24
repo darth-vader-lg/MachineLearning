@@ -75,6 +75,34 @@ namespace Microsoft.ML
             return default;
          return dataView.GetValue<T>(col.Index, row);
       }
+      /// <summary>
+      /// Converte una riga di dataview in coppie chiave/valore
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <returns>L'array di coppie chiave/valore</returns>
+      public static KeyValuePair<string, object>[] ToValues(this IDataView dataView) => dataView.Preview(1).RowView[0].Values;
+      /// <summary>
+      /// Converte una riga di dataview in coppie chiave/valore
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <returns>L'array di coppie chiave/valore</returns>
+      public static IEnumerable<KeyValuePair<string, object>[]> ToValues(this IDataView dataView, int start, int count)
+      {
+         object GetValue(DataViewRowCursor cursor, DataViewSchema.Column col)
+         {
+            object value = default;
+            cursor.GetGetter<object>(col).Invoke(ref value);
+            return value;
+         }
+         var cursor = dataView.GetRowCursor(dataView.Schema);
+         while (cursor.MoveNext()) {
+            if (cursor.Position < start)
+               continue;
+            if (--count < 0)
+               yield break;
+            yield return (from c in cursor.Schema select new KeyValuePair<string, object>(c.Name, GetValue(cursor, c))).ToArray();
+         }
+      }
       #endregion
    }
 }

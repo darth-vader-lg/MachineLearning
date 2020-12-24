@@ -306,20 +306,20 @@ namespace MachineLearning
       /// <param name="data">Elenco di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public KeyValuePair<string, object>[] GetPrediction(params string[] data) => GetPredictionAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      public IDataView GetPredictionData(params string[] data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Elenco di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public KeyValuePair<string, object>[] GetPrediction(IEnumerable<string> data) => GetPredictionAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      public IDataView GetPredictionData(IEnumerable<string> data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Dati per la previsione</param>
       /// <returns>La previsione</returns>
-      public KeyValuePair<string, object>[] GetPrediction(string data) => GetPredictionAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      public IDataView GetPredictionData(string data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
@@ -327,7 +327,7 @@ namespace MachineLearning
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<KeyValuePair<string, object>[]> GetPredictionAsync(IEnumerable<string> data, CancellationToken cancellation = default) => GetPredictionAsync(FormatDataRow(data.ToArray()), cancellation);
+      public Task<IDataView> GetPredictionDataAsync(IEnumerable<string> data, CancellationToken cancellation = default) => GetPredictionDataAsync(FormatDataRow(data.ToArray()), cancellation);
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
@@ -335,14 +335,14 @@ namespace MachineLearning
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<KeyValuePair<string, object>[]> GetPredictionAsync(CancellationToken cancellation = default, params string[] data) => GetPredictionAsync(FormatDataRow(data), cancellation);
+      public Task<IDataView> GetPredictionDataAsync(CancellationToken cancellation = default, params string[] data) => GetPredictionDataAsync(FormatDataRow(data), cancellation);
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
       /// <param name="data">Dati per la previsione</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      public async Task<KeyValuePair<string, object>[]> GetPredictionAsync(string data, CancellationToken cancellation = default)
+      public async Task<IDataView> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
       {
          // Avvia il task di training se necessario
          if (TrainingData.Timestamp > Evaluation.Timestamp || (DataStorage as ITimestamp)?.Timestamp > Evaluation.Timestamp)
@@ -356,7 +356,7 @@ namespace MachineLearning
          // Effettua la predizione
          var prediction = evaluator.Model.Transform(dataView);
          cancellation.ThrowIfCancellationRequested();
-         return prediction.Preview(1).RowView.FirstOrDefault()?.Values;
+         return prediction;
       }
       /// <summary>
       /// Restituisce il modello effettuando il training. Da implementare nelle classi derivate

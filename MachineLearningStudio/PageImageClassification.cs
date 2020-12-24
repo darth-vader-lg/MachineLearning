@@ -156,8 +156,10 @@ namespace MachineLearningStudio
          try {
             // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
-            if (!string.IsNullOrWhiteSpace(openFileDialog.FileName) && File.Exists(openFileDialog.FileName))
-               labelClassResult.Text = await predictor.GetImageKindAsync($"\"{openFileDialog.FileName}\"", cancel);
+            if (!string.IsNullOrWhiteSpace(openFileDialog.FileName) && File.Exists(openFileDialog.FileName)) {
+               var prediction = await predictor.GetPredictionAsync($"\"{openFileDialog.FileName}\"", cancel);
+               labelClassResult.Text = $"{prediction.Kind} ({prediction.Score * 100f:0.#}%)";
+            }
             else
                labelClassResult.Text = "";
             labelClassResult.BackColor = textBoxBackColor;

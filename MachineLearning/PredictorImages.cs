@@ -14,7 +14,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public class PredictorImages : Predictor, IModelStorageProvider, ITextOptionsProvider
+   public sealed partial class PredictorImages : Predictor, IModelStorageProvider, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -110,14 +110,14 @@ namespace MachineLearning
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <returns>Il tipo di immagine</returns>
-      public string GetImageKind(string imagePath) => GetPrediction(null, imagePath).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
+      public Prediction GetPrediction(string imagePath) => new Prediction(this, GetPredictionData(null, imagePath));
       /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<string> GetImageKindAsync(string imagePath, CancellationToken cancel = default) => (await GetPredictionAsync(cancel, null, imagePath)).LastOrDefault(item => item.Key == PredictionColumnName).Value?.ToString();
+      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, imagePath));
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -180,5 +180,46 @@ namespace MachineLearning
          return data;
       }
       #endregion
+   }
+
+   /// <summary>
+   /// Risultato della previsione
+   /// </summary>
+   public sealed partial class PredictorImages // Prediction
+   {
+      [Serializable]
+      public class Prediction
+      {
+         #region Properties
+         /// <summary>
+         /// Significato
+         /// </summary>
+         public string Kind { get; }
+         /// <summary>
+         /// Punteggio per il tipo previsto
+         /// </summary>
+         public float Score { get; }
+         /// <summary>
+         /// Punteggi per label
+         /// </summary>
+         public KeyValuePair<string, float>[] Scores { get; }
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="owner">Oggetto di appartenenza</param>
+         /// <param name="data">Dati della previsione</param>
+         internal Prediction(PredictorImages owner, IDataView data)
+         {
+            Kind = data.GetString(owner.PredictionColumnName);
+            var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
+            data.Schema["Score"].GetSlotNames(ref slotNames);
+            var scores = data.GetValue<VBuffer<float>>("Score");
+            Scores = slotNames.GetValues().ToArray().Zip(scores.GetValues().ToArray()).Select(item => new KeyValuePair<string, float>(item.First.ToString(), item.Second)).ToArray();
+            Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
+         }
+         #endregion
+      }
    }
 }

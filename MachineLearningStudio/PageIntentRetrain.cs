@@ -63,6 +63,29 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Log del machine learning
+      /// </summary>
+      /// <param name="sender"></param>
+      /// <param name="e"></param>
+      private void Log(object sender, LoggingEventArgs e)
+      {
+         try {
+            if (e.Kind < ChannelMessageKind.Info || e.Source != textMeaningPredictor.Name)
+               return;
+            textMeaningPredictor.Post(() =>
+            {
+               var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
+               var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
+               textBoxOutput.AppendText(e.Message + Environment.NewLine);
+               if (resel) {
+                  textBoxOutput.Select(SelectionStart, SelectionLength);
+                  textBoxOutput.ScrollToCaret();
+               }
+            });
+         }
+         catch (Exception) { }
+      }
+      /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
       /// <param name="delay"></param>
@@ -81,29 +104,6 @@ namespace MachineLearningStudio
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
-      }
-      /// <summary>
-      /// Log del machine learning
-      /// </summary>
-      /// <param name="sender"></param>
-      /// <param name="e"></param>
-      private void Ml_Log(object sender, LoggingEventArgs e)
-      {
-         try {
-            if (e.Kind < ChannelMessageKind.Info || e.Source != textMeaningPredictor.Name)
-               return;
-            textMeaningPredictor.Post(() =>
-            {
-               var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
-               var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
-               textBoxOutput.AppendText(e.Message + Environment.NewLine);
-               if (resel) {
-                  textBoxOutput.Select(SelectionStart, SelectionLength);
-                  textBoxOutput.ScrollToCaret();
-               }
-            });
-         }
-         catch (Exception) { }
       }
       /// <summary>
       /// Funzione di caricamento del controllo
@@ -127,7 +127,7 @@ namespace MachineLearningStudio
                TextOptions = new TextLoaderOptions { Separators = new[] { '|' } },
             };
             // Aggancia il log
-            textMeaningPredictor.ML.NET.Log += Ml_Log;
+            textMeaningPredictor.ML.NET.Log += Log;
             // Indicatore di inizializzazione ok
             initialized = true;
          }
@@ -157,7 +157,7 @@ namespace MachineLearningStudio
                _ = textMeaningPredictor.StartTrainingAsync(cancel);
             }
             cancel.ThrowIfCancellationRequested();
-            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : await textMeaningPredictor.GetMeaningAsync(sentence, cancel);
+            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await textMeaningPredictor.GetPredictionAsync(sentence, cancel)).Meaning;
             textBoxIntent.BackColor = textBoxBackColor;
          }
          catch (OperationCanceledException) { }

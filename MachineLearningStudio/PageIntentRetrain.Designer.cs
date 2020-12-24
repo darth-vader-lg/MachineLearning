@@ -79,6 +79,8 @@ namespace MachineLearningStudio
          // textBoxIntent
          // 
          this.textBoxIntent.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.textBoxIntent.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
+         this.textBoxIntent.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.CustomSource;
          this.textBoxIntent.Location = new System.Drawing.Point(534, 23);
          this.textBoxIntent.Name = "textBoxIntent";
          this.textBoxIntent.Size = new System.Drawing.Size(147, 23);
