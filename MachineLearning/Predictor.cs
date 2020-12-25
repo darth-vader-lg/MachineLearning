@@ -3,6 +3,7 @@ using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -47,10 +48,6 @@ namespace MachineLearning
       /// Opzioni di caricamento testi di default
       /// </summary>
       private TextLoaderOptions _textLoaderOptionsDefault;
-      /// <summary>
-      /// Dati aggiuntivi di training
-      /// </summary>
-      private DataStorageTextMemory _trainingData;
       #endregion
       #region Properties
       /// <summary>
@@ -112,7 +109,7 @@ namespace MachineLearning
       /// <summary>
       /// Dati aggiuntivi di training
       /// </summary>
-      protected DataStorageTextMemory TrainingData => _trainingData ??= new DataStorageTextMemory();
+      public IDataStorage TrainingData { get; set; } = new DataStorageTextMemory();
       #endregion
       #region Events
       /// <summary>
@@ -158,40 +155,80 @@ namespace MachineLearning
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
-      /// <param name="data">Elenco di linee di dati da aggiungere</param>
-      public void AddTrainingData(IEnumerable<string> data)
+      /// <param name="data">Linee di dati da aggiungere</param>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
+      public void AddTrainingData(string data, bool checkForDuplicates = false)
       {
-         // Annulla il training
-         CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-         // Aggiunge l'elenco di dati in coda
+         // Verifica esistenza dati di training
+         if (TrainingData is not IMultiStreamSource trainingDataSource || TrainingData is not IDataStorage trainingDataStorage)
+            return;
          var sb = new StringBuilder();
-         if (!string.IsNullOrEmpty(TrainingData.TextData)) {
-            sb.Append(TrainingData.TextData);
-            if (!TrainingData.TextData.EndsWith(Environment.NewLine))
-               sb.Append(Environment.NewLine);
+         var hash = new HashSet<int>();
+         var formatter = new DataStorageTextMemory();
+         // Genera le hash per ciascuna riga del sorgente se e' abilitato il controllo dei duplicati 
+         if (checkForDuplicates) {
+            void AddHashes(IMultiStreamSource source)
+            {
+               if (source == null)
+                  return;
+               for (var i = 0; i < source.Count; i++) {
+                  using var reader = source.OpenTextReader(i);
+                  for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+                     formatter.TextData = line;
+                     formatter.SaveData(ML, formatter.LoadData(ML, TextLoaderOptions));
+                     hash.Add(formatter.TextData.GetHashCode());
+                  }
+               }
+            }
+            AddHashes(DataStorage as IMultiStreamSource);
+            AddHashes(TrainingData as IMultiStreamSource);
          }
-         foreach (var line in data) {
-            if (!string.IsNullOrWhiteSpace(line))
+         // Aggiunge i dati di training preesistenti
+         for (var i = 0; i < trainingDataSource.Count; i++) {
+            using var reader = trainingDataSource.OpenTextReader(i);
+            for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+               if (checkForDuplicates) {
+                  formatter.TextData = line;
+                  formatter.SaveData(ML, formatter.LoadData(ML, TextLoaderOptions));
+                  if (!hash.Contains(formatter.TextData.GetHashCode())) {
+                     hash.Add(formatter.TextData.GetHashCode());
+                     sb.AppendLine(line);
+                  }
+               }
+               else
+                  sb.AppendLine(line);
+            }
+         }
+         // Aggiunge le linee di training
+         using var dataReader = new StringReader(data);
+         for (var line = dataReader.ReadLine(); line != null; line = dataReader.ReadLine()) {
+            if (checkForDuplicates) {
+               formatter.TextData = line;
+               formatter.SaveData(ML, formatter.LoadData(ML, TextLoaderOptions));
+               if (!hash.Contains(formatter.TextData.GetHashCode())) {
+                  hash.Add(formatter.TextData.GetHashCode());
+                  sb.AppendLine(line);
+               }
+            }
+            else
                sb.AppendLine(line);
          }
-         TrainingData.TextData = sb.ToString();
-         OnTrainingDataChanged(EventArgs.Empty);
+         // Aggiorna i dati di training
+         if (sb.Length > 0) {
+            // Annulla il training
+            CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            // Formatta in testo e salva
+            formatter.TextData = sb.ToString();
+            trainingDataStorage.SaveData(ML, formatter.LoadData(ML, TextLoaderOptions), TextLoaderOptions);
+            OnTrainingDataChanged(EventArgs.Empty);
+         }
       }
-      /// <summary>
-      /// Aggiunge un elenco di dati di training definiti a colonne
-      /// </summary>
-      /// <param name="data">Valori della linea da aggiungere</param>
-      public void AddTrainingData(IEnumerable<string[]> data) => AddTrainingData(from line in data select FormatDataRow(line));
       /// <summary>
       /// Aggiunge un dato di training definito a colonne
       /// </summary>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="data">Valori della linea da aggiungere</param>
-      public void AddTrainingData(params string[] data) => AddTrainingData(new[] { FormatDataRow(data) } as IEnumerable<string>);
-      /// <summary>
-      /// Aggiunge un dato di training
-      /// </summary>
-      /// <param name="data">Linea di dati da aggiungere</param>
-      public void AddTrainingData(string data) => AddTrainingData(new[] { data } as IEnumerable<string>);
+      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingData(FormatDataRow(data), checkForDuplicates);
       /// <summary>
       /// Stoppa il training ed annulla la validita' dei dati
       /// </summary>
@@ -207,22 +244,29 @@ namespace MachineLearning
       /// </summary>
       public void ClearTrainingData()
       {
+         // Verifica che i dati di training siano validi
+         if (TrainingData is not IDataStorage trainingDataStorage)
+            return;
          // Annulla il training
          CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
          // Cancella i dati di training
-         TrainingData.TextData = "";
+         var emptyData = new DataStorageTextMemory();
+         trainingDataStorage.SaveData(ML, emptyData.LoadData(ML, TextLoaderOptions), TextLoaderOptions);
          OnTrainingDataChanged(EventArgs.Empty);
       }
       /// <summary>
-      /// Commit dei dati
+      /// Commit dei dati di training
       /// </summary>
       /// <returns>Il Task</returns>
-      private void CommitData()
+      private void CommitTrainingData()
       {
-         var opt = (this as ITextOptionsProvider)?.TextOptions;
-         var data = DataStorage?.LoadData(ML, opt, TrainingData);
-         DataStorage?.SaveData(ML, data, opt, SaveDataSchemaComment);
-         TrainingData.TextData = null;
+         if (DataStorage is not IDataStorage dataStorage || TrainingData is not IMultiStreamSource trainingDataSource || TrainingData is not IDataStorage trainingDataStorage)
+            return;
+         dataStorage.SaveData(ML, dataStorage.LoadData(ML, TextLoaderOptions, trainingDataSource), TextLoaderOptions, SaveDataSchemaComment);
+         // Cancella i dati di training
+         var emptyData = new DataStorageTextMemory();
+         trainingDataStorage.SaveData(ML, emptyData.LoadData(ML, TextLoaderOptions), TextLoaderOptions);
+         OnTrainingDataChanged(EventArgs.Empty);
       }
       /// <summary>
       /// Formatta una riga di dati di input da un elenco di dati di input
@@ -345,7 +389,7 @@ namespace MachineLearning
       public async Task<IDataView> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
       {
          // Avvia il task di training se necessario
-         if (TrainingData.Timestamp > Evaluation.Timestamp || (DataStorage as ITimestamp)?.Timestamp > Evaluation.Timestamp)
+         if ((TrainingData as ITimestamp)?.Timestamp > Evaluation.Timestamp || (DataStorage as ITimestamp)?.Timestamp > Evaluation.Timestamp)
             _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
          var dataView = new DataStorageTextMemory() { TextData = data }.LoadData(ML, TextLoaderOptions);
@@ -508,6 +552,15 @@ namespace MachineLearning
             var inputSchema = default(DataViewSchema);
             var model = default(ITransformer);
             var timestamp = default(DateTime);
+            // Sorgente dei dati di training
+            var trainingDataSource = TrainingData as IMultiStreamSource;
+            var trainingDataStorage = TrainingData;
+            if (trainingDataSource == null && trainingDataStorage != null) {
+               var temp = new DataStorageTextMemory();
+               temp.SaveData(ML, trainingDataStorage.LoadData(ML, TextLoaderOptions), TextLoaderOptions);
+               trainingDataSource = temp;
+               trainingDataStorage = temp;
+            }
             // Loop di training continuo
             while (!cancel.IsCancellationRequested) {
                try {
@@ -515,7 +568,7 @@ namespace MachineLearning
                   if (firstRun) {
                      firstRun = false;
                      // Carica il modello
-                     var loadExistingModel = (ModelStorage as ITimestamp)?.Timestamp >= (DataStorage as ITimestamp)?.Timestamp && (ModelStorage as ITimestamp)?.Timestamp >= TrainingData.Timestamp;
+                     var loadExistingModel = (ModelStorage as ITimestamp)?.Timestamp >= (DataStorage as ITimestamp)?.Timestamp && (ModelStorage as ITimestamp)?.Timestamp >= (TrainingData as ITimestamp)?.Timestamp;
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;
@@ -528,15 +581,15 @@ namespace MachineLearning
                      cancel.ThrowIfCancellationRequested();
                      ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
                      // Carica i dati
-                     data = DataStorage != null ? DataStorage.LoadData(ML, TextLoaderOptions, TrainingData) : TrainingData.LoadData(ML, TextLoaderOptions);
+                     data = DataStorage != null ? DataStorage.LoadData(ML, TextLoaderOptions, trainingDataSource) : TrainingData.LoadData(ML, TextLoaderOptions);
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
-                     if (data != default && !string.IsNullOrEmpty(TrainingData.TextData) && DataStorage != default && AutoCommitData) {
+                     if (data != default && DataStorage != default && AutoCommitData && trainingDataStorage.LoadData(ML, TextLoaderOptions).GetRowCount() > 0) {
                         ML.NET.WriteLog("Committing the new data", Name);
-                        await Task.Run(() => CommitData(), cancel);
+                        await Task.Run(() => CommitTrainingData(), cancel);
                      }
                      // Valuta il modello attuale
                      cancel.ThrowIfCancellationRequested();
@@ -549,10 +602,10 @@ namespace MachineLearning
                   // Ricarica i dati
                   else {
                      // Effettua eventuale commit automatico
-                     if (!string.IsNullOrEmpty(TrainingData.TextData) && DataStorage != default && AutoCommitData) {
+                     if (DataStorage != default && AutoCommitData && trainingDataStorage.LoadData(ML, TextLoaderOptions).GetRowCount() > 0) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
-                           await Task.Run(() => CommitData(), cancel);
+                           await Task.Run(() => CommitTrainingData(), cancel);
                            cancel.ThrowIfCancellationRequested();
                            data = DataStorage?.LoadData(ML);
                         }
@@ -561,11 +614,11 @@ namespace MachineLearning
                         }
                         catch (Exception exc) {
                            Debug.WriteLine(exc);
-                           data = DataStorage?.LoadData(ML, TextLoaderOptions, TrainingData);
+                           data = DataStorage?.LoadData(ML, TextLoaderOptions, trainingDataSource);
                         }
                      }
                      else
-                        data = DataStorage != null ? DataStorage.LoadData(ML, TextLoaderOptions, TrainingData) : TrainingData.LoadData(ML, TextLoaderOptions);
+                        data = DataStorage != null ? DataStorage.LoadData(ML, TextLoaderOptions, trainingDataSource) : trainingDataStorage.LoadData(ML, TextLoaderOptions);
                   }
                   // Timestamp attuale
                   timestamp = DateTime.UtcNow;

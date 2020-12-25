@@ -24,7 +24,7 @@ namespace MachineLearning
       /// <summary>
       /// Il numero di items
       /// </summary>
-      int IMultiStreamSource.Count => (_source ??= new Source(null)).Count;
+      int IMultiStreamSource.Count => (_source ??= new Source(this)).Count;
       /// <summary>
       /// Path del file
       /// </summary>
@@ -86,7 +86,7 @@ namespace MachineLearning
             var writer = default(FileStream);
             try {
                tmpPath = Path.GetTempFileName();
-               writer = File.OpenWrite(tmpPath);
+               writer = File.Create(tmpPath);
                // Opzioni
                opt ??= new TextLoaderOptions();
                // Separatore di colonne

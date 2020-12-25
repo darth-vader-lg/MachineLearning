@@ -67,7 +67,8 @@ namespace MachineLearning
                Columns = new[]
                {
                   new TextLoader.Column(LabelColumnName, DataKind.String, 0),
-                  new TextLoader.Column(PredictionColumnName, DataKind.String, 1),
+                  new TextLoader.Column("ImagePath", DataKind.String, 1),
+                  new TextLoader.Column("Timestamp", DataKind.DateTime, 2),
                }
             });
          }
@@ -167,7 +168,7 @@ namespace MachineLearning
       /// <param name="path">La directory radice delle immagini</param>
       /// <returns>La lista di dati di training</returns>
       /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
-      public static IEnumerable<string> GetTrainingDataFromPath(string path)
+      public static string GetTrainingDataFromPath(string path)
       {
          var dirs = from item in Directory.GetDirectories(path, "*.*", SearchOption.TopDirectoryOnly)
                     where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
@@ -176,8 +177,11 @@ namespace MachineLearning
                     from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
                     let ext = Path.GetExtension(file).ToLower()
                     where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
-                    select $"\"{Path.GetFileName(dir)}\",\"{file}\"";
-         return data;
+                    select $"\"{Path.GetFileName(dir)}\",\"{file}\",\"{File.GetLastWriteTimeUtc(file)}\"";
+         var sb = new StringBuilder();
+         foreach (var line in data)
+            sb.AppendLine(line);
+         return sb.ToString();
       }
       #endregion
    }

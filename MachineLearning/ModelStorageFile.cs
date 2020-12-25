@@ -25,7 +25,7 @@ namespace MachineLearning
       /// <summary>
       /// Storage di tipo stream
       /// </summary>
-      private IModelStorage Storage => _modelStorage ??= new ModelStorageStream(() => File.OpenRead(FilePath), () => File.OpenWrite(FilePath));
+      private IModelStorage Storage => _modelStorage ??= new ModelStorageStream(() => File.OpenRead(FilePath), () => File.Create(FilePath));
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
