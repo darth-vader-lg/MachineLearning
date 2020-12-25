@@ -222,7 +222,7 @@ namespace MachineLearningStudio
                return;
             if (string.IsNullOrWhiteSpace(dataSetName))
                return;
-            textMeaningPredictor.AddTrainingData(textBoxIntent.Text.Trim(), textBoxSentence.Text.Trim());
+            textMeaningPredictor.AddTrainingData(true, textBoxIntent.Text.Trim(), textBoxSentence.Text.Trim());
             MakePrediction(default, true);
          }
          catch (Exception exc) {
