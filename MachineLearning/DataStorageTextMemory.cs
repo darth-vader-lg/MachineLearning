@@ -44,6 +44,36 @@ namespace MachineLearning
       /// </summary>
       public DataStorageTextMemory() { }
       /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="source">Storage di dati</param>
+      /// <param name="opt">Opzioni di testo</param>
+      public DataStorageTextMemory(MachineLearningContext ml, IDataStorage source, TextLoaderOptions opt = default)
+      {
+         opt ??= new TextLoaderOptions();
+         SaveData(ml, source.LoadData(ml, opt), opt);  
+      }
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="opt">Opzioni di testo</param>
+      public DataStorageTextMemory(MachineLearningContext ml, IDataView data, TextLoaderOptions opt = default) => SaveData(ml, data, opt ?? new TextLoaderOptions());
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">Dati</param>
+      /// <param name="opt">Opzioni di testo</param>
+      public DataStorageTextMemory(MachineLearningContext ml, string data, TextLoaderOptions opt = default)
+      {
+         opt ??= new TextLoaderOptions();
+         TextData = data;
+         SaveData(ml, LoadData(ml, opt), opt);
+      }
+      /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
