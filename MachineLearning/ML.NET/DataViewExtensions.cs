@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.ML.Data;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -76,31 +77,68 @@ namespace Microsoft.ML
          return dataView.GetValue<T>(col.Index, row);
       }
       /// <summary>
-      /// Converte una riga di dataview in coppie chiave/valore
+      /// Converte una IDataView in un enumerable di coppie chiave/valore
       /// </summary>
       /// <param name="dataView">Dati</param>
-      /// <returns>L'array di coppie chiave/valore</returns>
-      public static KeyValuePair<string, object>[] ToValues(this IDataView dataView) => dataView.Preview(1).RowView[0].Values;
-      /// <summary>
-      /// Converte una riga di dataview in coppie chiave/valore
-      /// </summary>
-      /// <param name="dataView">Dati</param>
-      /// <returns>L'array di coppie chiave/valore</returns>
-      public static IEnumerable<KeyValuePair<string, object>[]> ToValues(this IDataView dataView, int start, int count)
+      /// <returns>L'enumerable di coppie chiave/valore</returns>
+      public static IEnumerable<KeyValuePair<string, object>[]> ToKeyValuePairs(this IDataView dataView)
       {
-         object GetValue(DataViewRowCursor cursor, DataViewSchema.Column col)
+         foreach (var row in dataView.ToDataViewRows())
+            yield return row.ToKeyValuePairs().ToArray();
+      }
+      /// <summary>
+      /// Converte una DataViewRow in un enumerable di coppie chiave/valore
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <returns>L'enumerable di coppie chiave/valore</returns>
+      public static IEnumerable<KeyValuePair<string, object>> ToKeyValuePairs(this DataViewRow row)
+      {
+         static object GetValue(DataViewRow row, DataViewSchema.Column col)
          {
-            object value = default;
-            cursor.GetGetter<object>(col).Invoke(ref value);
-            return value;
+            static T GetValue<T>(DataViewRow row, DataViewSchema.Column col)
+            {
+               var value = default(T);
+               row.GetGetter<T>(col).Invoke(ref value);
+               return value;
+            }
+            if (col.Type.RawType == typeof(float))
+               return GetValue<float>(row, col);
+            if (col.Type.RawType == typeof(ReadOnlyMemory<char>))
+               return GetValue<ReadOnlyMemory<char>>(row, col).ToString();
+            if (col.Type.RawType == typeof(VBuffer<float>))
+               return GetValue<VBuffer<float>>(row, col).DenseValues().ToArray();
+            if (col.Type.RawType == typeof(VBuffer<ReadOnlyMemory<char>>))
+               return (from s in GetValue<VBuffer<ReadOnlyMemory<char>>>(row, col).DenseValues() select s.ToString()).ToArray();
+            if (col.Type.RawType == typeof(DateTime))
+               return GetValue<DateTime>(row, col);
+            if (col.Type.RawType == typeof(bool))
+               return GetValue<bool>(row, col);
+            return null;
          }
+         return from c in row.Schema where !c.IsHidden select new KeyValuePair<string, object>(c.Name, GetValue(row, c));
+      }
+      /// <summary>
+      /// Converte una IDataView in un enumerable di coppie chiave/valore
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <returns>L'enumerable di coppie chiave/valore</returns>
+      public static IEnumerable<DataViewRow> ToDataViewRows(this IDataView dataView)
+      {
          var cursor = dataView.GetRowCursor(dataView.Schema);
-         while (cursor.MoveNext()) {
-            if (cursor.Position < start)
-               continue;
-            if (--count < 0)
-               yield break;
-            yield return (from c in cursor.Schema select new KeyValuePair<string, object>(c.Name, GetValue(cursor, c))).ToArray();
+         while (cursor.MoveNext())
+            yield return cursor;
+      }
+      /// <summary>
+      /// Converte una IDataView in un enumerable di IDataView per linea singola
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <param name="ml">Contesto ml</param>
+      /// <returns>L'enumerable di IDataView</returns>
+      public static IEnumerable<IDataView> ToEnumerable(this IDataView dataView, MLContext ml)
+      {
+         while (dataView.GetRowCursor(dataView.Schema).MoveNext()) {
+            yield return ml.Data.TakeRows(dataView, 1);
+            dataView = ml.Data.SkipRows(dataView, 1);
          }
       }
       #endregion
