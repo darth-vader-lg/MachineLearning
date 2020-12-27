@@ -124,8 +124,8 @@ namespace MachineLearningStudio
                DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
                Name = "Predictor",
-               TextOptions = new TextLoaderOptions { Separators = new[] { '|' } },
             };
+            textMeaningPredictor.SetDataFormat("Label", new TextLoaderOptions { Separators = new[] { '|' } });
             // Aggancia il log
             textMeaningPredictor.ML.NET.Log += Log;
             // Indicatore di inizializzazione ok

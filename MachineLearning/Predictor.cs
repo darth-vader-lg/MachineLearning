@@ -71,10 +71,6 @@ namespace MachineLearning
       /// </summary>
       public EventWaitHandle EvaluationAvailable => _evaluationAvailable ??= new EventWaitHandle(false, EventResetMode.ManualReset);
       /// <summary>
-      /// Nome della colonna label di ingresso
-      /// </summary>
-      protected string LabelColumnName { get; set; } = "Label";
-      /// <summary>
       /// Contesto di machine learning
       /// </summary>
       public MachineLearningContext ML { get; }
@@ -90,10 +86,6 @@ namespace MachineLearning
       /// Indica necessita' di postare un azione nel thread di creazione dal momento che ci si trova in un altro
       /// </summary>
       public bool PostRequired => Thread.CurrentThread != _creationThread && _creationTaskScheduler != null;
-      /// <summary>
-      /// Nome della colonna di previsione
-      /// </summary>
-      protected string PredictionColumnName { get; set; } = "PredictedLabel";
       /// <summary>
       /// Abilita il salvataggio del commento dello schema di ingresso dei dati nel file (efficace solo su file di testo)
       /// </summary>
@@ -629,7 +621,7 @@ namespace MachineLearning
                   cancel.ThrowIfCancellationRequested();
                   var taskTrainingMessage = Task.Run(async () =>
                   {
-                     await Task.WhenAny(Task.Delay(250, cancel), taskTrain);
+                     await Task.WhenAny(Task.Delay(250, cancel), taskTrain).ConfigureAwait(false);
                      if (taskTrain.IsCompleted && taskTrain.Result == default)
                         return;
                      cancel.ThrowIfCancellationRequested();

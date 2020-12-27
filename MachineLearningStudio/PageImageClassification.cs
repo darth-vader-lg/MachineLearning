@@ -1,5 +1,6 @@
 ﻿using MachineLearning;
 using Microsoft.ML;
+using Microsoft.ML.Runtime;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -97,7 +98,7 @@ namespace MachineLearningStudio
             // Avvia un nuovo task di previsione
             taskPrediction.cancellation.Cancel();
             taskPrediction.cancellation = new CancellationTokenSource();
-            taskPrediction.task = TaskPrediction(taskPrediction.cancellation.Token);
+            taskPrediction.task = TaskPrediction(textBoxImageSetName.Text.Trim(), openFileDialog.FileName, taskPrediction.cancellation.Token);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -111,8 +112,8 @@ namespace MachineLearningStudio
       private void Ml_Log(object sender, LoggingEventArgs e)
       {
          try {
-            //if (e.Kind < ChannelMessageKind.Info || e.Source != predictor.Name)
-            //   return;
+            if (e.Kind < ChannelMessageKind.Info || e.Source == "TextSaver; Saving")
+               return;
             predictor.Post(() =>
             {
                var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
@@ -136,10 +137,9 @@ namespace MachineLearningStudio
          try {
             base.OnLoad(e);
             // Crea il previsore
-            predictor = new PredictorImages { AutoSaveModel = true, Name = "Predictor" };
+            predictor = new PredictorImages { AutoSaveModel = true, Name = "Predictor", DataStorage = null };
             predictor.ML.NET.Log += Ml_Log;
             textBoxImageSetName.Text = Settings.Default.PageImageClassification.DataSetDir?.Trim();
-            predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxImageSetName.Text, "model.zip")));
             initialized = true;
          }
          catch (Exception exc) {
@@ -149,15 +149,24 @@ namespace MachineLearningStudio
       /// <summary>
       /// Task di previsione
       /// </summary>
-      /// <param name="cancel"></param>
-      /// <returns></returns>
-      private async Task TaskPrediction(CancellationToken cancel)
+      /// <param name="dataSetName">Nome del set di dati</param>
+      /// <param name="imagePath">Path dell'immagine da classificare</param>
+      /// <param name="cancel">Token di cancellazione</param>
+      /// <returns>Il task</returns>
+      private async Task TaskPrediction(string dataSetName, string imagePath, CancellationToken cancel)
       {
          try {
-            // Pulizia combo in caso di ricostruzione modello
+            var dataStoragePath = Path.Combine(Environment.CurrentDirectory, "data", Path.ChangeExtension(dataSetName, ".data"));
+            if (predictor.DataStorage == null || dataStoragePath.ToLower() != ((DataStorageTextFile)predictor.DataStorage).FilePath.ToLower()) {
+               await predictor.StopTrainingAsync(cancel);
+               cancel.ThrowIfCancellationRequested();
+               predictor.DataStorage = new DataStorageTextFile(dataStoragePath);
+               predictor.UpdateStorage(Path.ChangeExtension(dataStoragePath, null));
+               predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(dataStoragePath, "model.zip")));
+            }
             cancel.ThrowIfCancellationRequested();
-            if (!string.IsNullOrWhiteSpace(openFileDialog.FileName) && File.Exists(openFileDialog.FileName)) {
-               var prediction = await predictor.GetPredictionAsync($"\"{openFileDialog.FileName}\"", cancel);
+            if (!string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath)) {
+               var prediction = await predictor.GetPredictionAsync($"\"{imagePath}\"", cancel);
                labelClassResult.Text = $"{prediction.Kind} ({prediction.Score * 100f:0.#}%)";
             }
             else
@@ -181,7 +190,6 @@ namespace MachineLearningStudio
          try {
             if (sender is not TextBox tb)
                return;
-            predictor.ClearTrainingData();
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
             if (!Directory.Exists(path))
                tb.BackColor = Color.Red;
@@ -191,10 +199,8 @@ namespace MachineLearningStudio
                if (dataSetDir != Settings.Default.PageImageClassification.DataSetDir) {
                   Settings.Default.PageImageClassification.DataSetDir = dataSetDir;
                   Settings.Default.Save();
+                  MakePrediction();
                }
-               predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "data", Path.ChangeExtension(dataSetDir, "model.zip")));
-               predictor.AddTrainingData(PredictorImages.GetTrainingDataFromPath(path));
-               MakePrediction();
             }
          }
          catch (Exception exc) {

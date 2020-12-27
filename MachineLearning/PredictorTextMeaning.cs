@@ -18,6 +18,10 @@ namespace MachineLearning
    {
       #region Fields
       /// <summary>
+      /// Nome colonna label
+      /// </summary>
+      private string _labelColumnName;
+      /// <summary>
       /// Pipe di training
       /// </summary>
       [NonSerialized]
@@ -52,7 +56,7 @@ namespace MachineLearning
       /// <summary>
       /// Opzioni di caricamento dati testuali
       /// </summary>
-      public TextLoaderOptions TextOptions { get; set; }
+      public TextLoaderOptions TextOptions { get; private set; }
       #endregion
       #region Methods
       /// <summary>
@@ -132,18 +136,41 @@ namespace MachineLearning
             return null;
          // Pipe di training
          Pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
+            ML.NET.Transforms.Conversion.MapValueToKey("Label", _labelColumnName).
             Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
-                                                                                                                  where c.Name != LabelColumnName
+                                                                                                                  where c.Name != _labelColumnName
                                                                                                                   select c.Name).ToArray())).
             Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
             Append(ML.NET.Transforms.NormalizeMinMax("Features")).
             AppendCacheCheckpoint(ML.NET).
             Append(ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated()).
-            Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel"));
+            Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
          // Mischia le linee
          var data = ML.NET.Data.ShuffleRows(dataView, Seed++);
          return Pipe.Fit(data);
+      }
+      /// <summary>
+      /// Imposta il formato di input dei dati
+      /// </summary>
+      /// <param name="labelColumnName">Nome colonna label (significato delle frasi)</param>
+      /// <param name="options">Opzioni</param>
+      public void SetDataFormat(string labelColumnName = "Label", TextLoaderOptions options = default)
+      {
+         _labelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
+         if (options == default)
+            options = new TextLoaderOptions();
+         if (options.Columns == null) {
+            options.Columns = new TextLoaderOptions(new TextLoader.Options
+            {
+               Columns = new[]
+               {
+                  new TextLoader.Column(!string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label", DataKind.String, 0),
+                  new TextLoader.Column("Sentence", DataKind.String, 1),
+               }
+            }).Columns;
+         }
+         else if (!options.Columns.Any(c => c.Name == _labelColumnName))
+            throw new ArgumentException("Label column not defined in the input schema");
       }
       #endregion
    }
@@ -174,7 +201,7 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(PredictorTextMeaning owner, IDataView data)
          {
-            Meaning = data.GetString(owner.PredictionColumnName);
+            Meaning = data.GetString("PredictedLabel");
             var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
             data.Schema["Score"].GetSlotNames(ref slotNames);
             var scores = data.GetValue<VBuffer<float>>("Score");

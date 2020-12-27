@@ -2,6 +2,7 @@
 using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,7 +15,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorImages : Predictor, IModelStorageProvider, ITextOptionsProvider
+   public sealed partial class PredictorImages : Predictor, IDataStorageProvider, IModelStorageProvider, ITextOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -66,13 +67,12 @@ namespace MachineLearning
                Separators = new[] { ',' },
                Columns = new[]
                {
-                  new TextLoader.Column(LabelColumnName, DataKind.String, 0),
+                  new TextLoader.Column("Label", DataKind.String, 0),
                   new TextLoader.Column("ImagePath", DataKind.String, 1),
                   new TextLoader.Column("Timestamp", DataKind.DateTime, 2),
                }
             });
          }
-         set => _textOptions = value;
       }
       #endregion
       #region Methods
@@ -154,12 +154,30 @@ namespace MachineLearning
             return null;
          // Pipe di training
          Pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
-            Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, (from c in TextOptions.Columns where c.Name != LabelColumnName select c.Name).First())).
-            Append(ML.NET.MulticlassClassification.Trainers.ImageClassification(labelColumnName: "Label", featureColumnName: "Features")).
-            Append(ML.NET.Transforms.Conversion.MapKeyToValue(PredictionColumnName, "PredictedLabel"));
+            ML.NET.Transforms.Conversion.MapValueToKey("Label").
+            Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, "ImagePath")).
+            Append(ML.NET.MulticlassClassification.Trainers.ImageClassification("Label", "Features")).
+            Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
          // Training
          return Pipe.Fit(dataView);
+      }
+      /// <summary>
+      /// Ottiene un elenco di dati di training data la directory radice delle immagini.
+      /// </summary>
+      /// <param name="path">La directory radice delle immagini</param>
+      /// <returns>La lista di dati di training</returns>
+      /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
+      private static IEnumerable<string> GetTrainingData(string path)
+      {
+         var dirs = from item in Directory.GetDirectories(path, "*.*", SearchOption.TopDirectoryOnly)
+                    where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
+                    select item;
+         var data = from dir in dirs
+                    from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
+                    let ext = Path.GetExtension(file).ToLower()
+                    where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
+                    select $"\"{Path.GetFileName(dir)}\",\"{file}\",\"{File.GetLastWriteTimeUtc(file).ToString("o")}\"";
+         return data;
       }
       /// <summary>
       /// Ottiene un elenco di dati di training data la directory radice delle immagini.
@@ -170,18 +188,111 @@ namespace MachineLearning
       /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
       public static string GetTrainingDataFromPath(string path)
       {
-         var dirs = from item in Directory.GetDirectories(path, "*.*", SearchOption.TopDirectoryOnly)
-                    where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
-                    select item;
-         var data = from dir in dirs
-                    from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
-                    let ext = Path.GetExtension(file).ToLower()
-                    where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
-                    select $"\"{Path.GetFileName(dir)}\",\"{file}\",\"{File.GetLastWriteTimeUtc(file)}\"";
          var sb = new StringBuilder();
+         var data = GetTrainingData(path);
          foreach (var line in data)
             sb.AppendLine(line);
          return sb.ToString();
+      }
+      /// <summary>
+      /// Aggiorna lo storage di dati con l'elenco delle immagini categorizzate contenute nella directory indicata
+      /// </summary>
+      /// <param name="path">La directory radice delle immagini</param>
+      /// <param name="labelColumnName">Nome colonna di classificazione immagine</param>
+      /// <param name="imagePathColumnName">Nome colonna del path dell'immagine</param>
+      /// <param name="timestampColumnName">Nome colonna della data dell'immagine</param>
+      /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
+      public void UpdateStorage(string path, string labelColumnName = default, string imagePathColumnName = default, string timestampColumnName = default)
+      {
+         // Verifica che sia definito uno storage di dati
+         if (DataStorage == null)
+            return;
+         // Ottiene i dati di training (l'elenco delle immagini classificate e datate)
+         var data = GetTrainingData(path);
+         // File temporaneo
+         var tmpFile = default(string);
+         // Stream temporaneo
+         var tmpStream = default(StreamWriter);
+         try {
+            // Hashset di immagini gia' esistenti nello storage
+            var existing = new HashSet<long>();
+            // Ottiene un file temporaneo e ne crea lo stream di scrittura
+            tmpFile = Path.GetTempFileName();
+            tmpStream = new StreamWriter(tmpFile);
+            // Flag di abilitazione aggiornamento storage
+            var updateDataStorage = false;
+            try {
+               // Dati dello storage
+               var storageData = DataStorage.LoadData(ML, TextOptions);
+               // Loop su tutte le rige di dati
+               foreach (var dataRow in storageData.ToEnumerable(ML.NET)) {
+                  // Flag di abilitazione scrittura linea sullo stram temporaneo
+                  var writeLine = true;
+                  // Ottiene la linea in formato coppie chiave/valore
+                  var dataValues = dataRow.ToKeyValuePairs().First();
+                  // Dati della riga
+                  var label = Convert.ToString(dataValues.Last(item => item.Key == "Label").Value);
+                  var imagePath = Convert.ToString(dataValues.Last(item => item.Key == "ImagePath").Value).ToLower();
+                  var timestamp = Convert.ToDateTime(dataValues.Last(item => item.Key == "Timestamp").Value);
+                  // Spazzola i dati di training alla ricerca di uno che punti alla stessa immagine
+                  var ix = 0L;
+                  foreach (var trainingData in data) {
+                     // Linea di training
+                     var trainingLine = new DataStorageTextMemory(ML, trainingData, TextOptions);
+                     // Valori di training
+                     var trainingValues = trainingLine.LoadData(ML, TextOptions).ToKeyValuePairs().First();
+                     // Verifica se l'immagine del set di training corrisponde a quella contenuta nel set di dati
+                     if (imagePath == Convert.ToString(trainingValues.Last(item => item.Key == "ImagePath").Value).ToLower()) {
+                        // Se l'immagine di training e' piu' vecchia o uguale a quella dello storage mantiene quella di storage, altrimenti quella di training
+                        if (timestamp >= Convert.ToDateTime(trainingValues.Last(item => item.Key == "Timestamp").Value))
+                           trainingLine = new DataStorageTextMemory(ML, dataRow, TextOptions);
+                        else
+                           updateDataStorage = true;
+                        // Scrive la linea scelta nel file temporaneo
+                        tmpStream.Write(trainingLine.TextData);
+                        existing.Add(ix);
+                        writeLine = false;
+                     }
+                     ix++;
+                  }
+                  // Scrive la linea nel file temporaneo se non ci sono state modifiche
+                  if (writeLine)
+                     tmpStream.Write(new DataStorageTextMemory(ML, dataRow, TextOptions));
+               }
+            }
+            // Il file di storage potrebbe non esistere ancora
+            catch (FileNotFoundException) {
+            }
+            // Aggiunge tutte le linee del set di training che non siano gia' state elaborate nella fase precedente
+            var ixTraining = 0L;
+            foreach (var trainingData in data) {
+               if (!existing.Contains(ixTraining)) {
+                  tmpStream.Write(new DataStorageTextMemory(ML, trainingData, TextOptions).TextData);
+                  updateDataStorage = true;
+               }
+               ixTraining++;
+            }
+            // Chiude il file temporaneo
+            tmpStream.Close();
+            tmpStream = null;
+            // Aggiorna lo storage con il contenuto del file temporaneo se necessario
+            if (updateDataStorage)
+               DataStorage.SaveData(ML, new DataStorageTextFile(tmpFile).LoadData(ML, TextOptions), TextOptions, SaveDataSchemaComment);
+         }
+         finally {
+            // Chiude lo stream temporaneo
+            try {
+               if (tmpStream != null)
+                  tmpStream.Close();
+            }
+            catch (Exception) { }
+            // Cancella il file temporaneo
+            try {
+               if (File.Exists(tmpFile))
+                  File.Delete(tmpFile);
+            }
+            catch (Exception) { }
+         }
       }
       #endregion
    }
@@ -216,7 +327,7 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(PredictorImages owner, IDataView data)
          {
-            Kind = data.GetString(owner.PredictionColumnName);
+            Kind = data.GetString("PredictedLabel");
             var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
             data.Schema["Score"].GetSlotNames(ref slotNames);
             var scores = data.GetValue<VBuffer<float>>("Score");
