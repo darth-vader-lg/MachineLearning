@@ -68,6 +68,8 @@ namespace MachineLearning
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(MachineLearningContext ml, TextLoaderOptions opt = default, params IMultiStreamSource[] extra)
       {
+         if (string.IsNullOrEmpty(FilePath) || !File.Exists(FilePath))
+            throw new FileNotFoundException("File not found", FilePath);
          return ml.NET.Data.CreateTextLoader(opt ?? new TextLoaderOptions()).Load(_source = new Source(this, extra));
       }
       /// <summary>
