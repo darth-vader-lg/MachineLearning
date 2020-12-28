@@ -161,7 +161,7 @@ namespace MachineLearningStudio
                await predictor.StopTrainingAsync(cancel);
                cancel.ThrowIfCancellationRequested();
                predictor.DataStorage = new DataStorageTextFile(dataStoragePath);
-               predictor.UpdateStorage(Path.ChangeExtension(dataStoragePath, null));
+               await predictor.UpdateStorageAsync(Path.ChangeExtension(dataStoragePath, null));
                predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(dataStoragePath, "model.zip")));
             }
             cancel.ThrowIfCancellationRequested();

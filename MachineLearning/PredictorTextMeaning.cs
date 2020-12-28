@@ -14,7 +14,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor, IDataStorageProvider, IModelStorageProvider, ITextOptionsProvider
+   public sealed partial class PredictorTextMeaning : Predictor, IDataStorageProvider, IModelStorageProvider, ITextDataOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -56,7 +56,7 @@ namespace MachineLearning
       /// <summary>
       /// Opzioni di caricamento dati testuali
       /// </summary>
-      public TextLoaderOptions TextOptions { get; private set; }
+      public TextDataOptions TextDataOptions { get; private set; }
       #endregion
       #region Methods
       /// <summary>
@@ -154,13 +154,13 @@ namespace MachineLearning
       /// </summary>
       /// <param name="labelColumnName">Nome colonna label (significato delle frasi)</param>
       /// <param name="options">Opzioni</param>
-      public void SetDataFormat(string labelColumnName = "Label", TextLoaderOptions options = default)
+      public void SetDataFormat(string labelColumnName = "Label", TextDataOptions options = default)
       {
          _labelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
          if (options == default)
-            options = new TextLoaderOptions();
+            options = new TextDataOptions();
          if (options.Columns == null) {
-            options.Columns = new TextLoaderOptions(new TextLoader.Options
+            options.Columns = new TextDataOptions(new TextLoader.Options
             {
                Columns = new[]
                {
@@ -171,6 +171,7 @@ namespace MachineLearning
          }
          else if (!options.Columns.Any(c => c.Name == _labelColumnName))
             throw new ArgumentException("Label column not defined in the input schema");
+         TextDataOptions = options;
       }
       #endregion
    }
