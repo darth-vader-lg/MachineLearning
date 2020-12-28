@@ -62,17 +62,21 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorTextMeaning() { }
+      public PredictorTextMeaning() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public PredictorTextMeaning(int? seed) : base(seed) { }
+      public PredictorTextMeaning(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) { }
+      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) => Init();
+      /// <summary>
+      /// Funzione di inizializzazione
+      /// </summary>
+      private void Init() => SetDataFormat("Label", new TextDataOptions { AllowQuoting = true, Separators = new[] { ',' } });
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
