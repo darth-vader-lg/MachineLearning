@@ -43,7 +43,12 @@ namespace MachineLearning
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema inputSchema) => Storage.LoadModel(ml, out inputSchema);
+      public ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema inputSchema)
+      {
+         if (string.IsNullOrEmpty(FilePath) || !File.Exists(FilePath))
+            throw new FileNotFoundException("File not found", FilePath);
+         return Storage.LoadModel(ml, out inputSchema);
+      }
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
