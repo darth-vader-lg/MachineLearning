@@ -162,7 +162,14 @@ namespace MachineLearning
             Append(ML.NET.MulticlassClassification.Trainers.ImageClassification("Label", "Features")).
             Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
          // Training
-         return Pipe.Fit(dataView);
+         if (CrossValidation) {
+            var result = ML.NET.MulticlassClassification.CrossValidate(dataView, Pipe, 5, "Label", null, Seed++);
+            return result.Best().Model;
+         }
+         else {
+            var data = ML.NET.Data.ShuffleRows(dataView, Seed++);
+            return Pipe.Fit(data);
+         }
       }
       /// <summary>
       /// Ottiene un elenco di dati di training data la directory radice delle immagini.
@@ -205,7 +212,7 @@ namespace MachineLearning
                sb.AppendLine(line);
                cancellation.ThrowIfCancellationRequested();
             }
-         });
+         }, cancellation);
          return sb.ToString();
       }
       /// <summary>
@@ -318,7 +325,7 @@ namespace MachineLearning
                }
                catch (Exception) { }
             }
-         });
+         }, cancellation);
       }
       #endregion
    }

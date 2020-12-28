@@ -208,7 +208,7 @@ namespace MachineLearning
          // Aggiorna i dati di training
          if (sb.Length > 0) {
             // Annulla il training
-            CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             // Formatta in testo e salva
             formatter.TextData = sb.ToString();
             trainingDataStorage.SaveData(ML, formatter.LoadData(ML, TextDataOptions), TextDataOptions);
@@ -224,25 +224,36 @@ namespace MachineLearning
       /// <summary>
       /// Stoppa il training ed annulla la validita' dei dati
       /// </summary>
-      protected async Task CancelTrainingAsync()
+      public void ClearTraining() => ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+      /// <summary>
+      /// Stoppa il training ed annulla la validita' dei dati
+      /// </summary>
+      /// <param name="cancellation">Token di cancellazione</param>
+      public async Task ClearTrainingAsync(CancellationToken cancellation = default)
       {
          // Stoppa il training
-         await StopTrainingAsync().ConfigureAwait(false);
+         await StopTrainingAsync(cancellation);
          // Invalida la valutazione
          SetEvaluation(null);
       }
       /// <summary>
-      /// Cancella l'elenco di dati di training
+      /// Cancella l'elenco di dati di training e le informazioni di training
       /// </summary>
-      public void ClearTrainingData()
+      public void ClearTrainingData() => ClearTrainingDataAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+      /// <summary>
+      /// Cancella l'elenco di dati di training e le informazioni di training
+      /// </summary>
+      /// <param name="cancellation">Token di cancellazione</param>
+      public async Task ClearTrainingDataAsync(CancellationToken cancellation = default)
       {
          // Verifica che i dati di training siano validi
          if (TrainingData is not IDataStorage trainingDataStorage)
             return;
          // Annulla il training
-         CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+         await ClearTrainingAsync(cancellation);
          // Cancella i dati di training
          var emptyData = new DataStorageTextMemory();
+         cancellation.ThrowIfCancellationRequested();
          trainingDataStorage.SaveData(ML, emptyData.LoadData(ML, TextDataOptions), TextDataOptions);
          OnTrainingDataChanged(EventArgs.Empty);
       }
@@ -434,7 +445,7 @@ namespace MachineLearning
       protected virtual void OnTrainingDataChanged(EventArgs e)
       {
          try {
-            CancelTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             TrainingDataChanged?.Invoke(this, e);
          }
          catch (Exception exc) {

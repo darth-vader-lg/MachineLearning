@@ -18,10 +18,6 @@ namespace MachineLearningStudio
    {
       #region Fields
       /// <summary>
-      /// Abilitazione della validazione incrociata del modello
-      /// </summary>
-      private bool crossValidate;
-      /// <summary>
       /// Flag di controllo inizializzato
       /// </summary>
       private bool initialized;
@@ -75,12 +71,12 @@ namespace MachineLearningStudio
          try {
             if (sender is not CheckBox cb)
                return;
-            crossValidate = checkBoxCrossValidate.Checked;
+            var crossValidate = cb.Checked;
             if (crossValidate != Settings.Default.PageImageClassification.CrossValidate) {
                Settings.Default.PageImageClassification.CrossValidate = crossValidate;
                Settings.Default.Save();
             }
-            MakePrediction();
+            MakePrediction(true);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -89,7 +85,8 @@ namespace MachineLearningStudio
       /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
-      private void MakePrediction()
+      /// <param name="rebuildModel">Forzatura ricostruzione modello</param>
+      private void MakePrediction(bool rebuildModel = false)
       {
          try {
             // Verifica che il controllo sia inizializzato
@@ -98,7 +95,7 @@ namespace MachineLearningStudio
             // Avvia un nuovo task di previsione
             taskPrediction.cancellation.Cancel();
             taskPrediction.cancellation = new CancellationTokenSource();
-            taskPrediction.task = TaskPrediction(textBoxImageSetName.Text.Trim(), openFileDialog.FileName, taskPrediction.cancellation.Token);
+            taskPrediction.task = TaskPrediction(textBoxImageSetName.Text.Trim(), openFileDialog.FileName, checkBoxCrossValidate.Checked, rebuildModel, taskPrediction.cancellation.Token);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -112,7 +109,7 @@ namespace MachineLearningStudio
       private void Ml_Log(object sender, LoggingEventArgs e)
       {
          try {
-            if (e.Kind < ChannelMessageKind.Info || e.Source == "TextSaver; Saving")
+            if ((e.Kind < ChannelMessageKind.Info || e.Source == "TextSaver; Saving") && !e.Source.Contains("Trainer"))
                return;
             predictor.Post(() =>
             {
@@ -140,6 +137,7 @@ namespace MachineLearningStudio
             predictor = new PredictorImages { AutoSaveModel = true, Name = "Predictor", DataStorage = null };
             predictor.ML.NET.Log += Ml_Log;
             textBoxImageSetName.Text = Settings.Default.PageImageClassification.DataSetDir?.Trim();
+            checkBoxCrossValidate.Checked = Settings.Default.PageImageClassification.CrossValidate;
             initialized = true;
          }
          catch (Exception exc) {
@@ -151,22 +149,29 @@ namespace MachineLearningStudio
       /// </summary>
       /// <param name="dataSetName">Nome del set di dati</param>
       /// <param name="imagePath">Path dell'immagine da classificare</param>
+      /// <param name="crossValidation">Abilita la validazione incrociata</param>
+      /// <param name="rebuildModel">Forzatura ricostruzione completa modello</param>
       /// <param name="cancel">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      private async Task TaskPrediction(string dataSetName, string imagePath, CancellationToken cancel)
+      private async Task TaskPrediction(string dataSetName, string imagePath, bool crossValidation, bool rebuildModel, CancellationToken cancel)
       {
          try {
             var dataStoragePath = Path.Combine(Environment.CurrentDirectory, "data", Path.ChangeExtension(dataSetName, ".data"));
-            if (predictor.DataStorage == null || dataStoragePath.ToLower() != ((DataStorageTextFile)predictor.DataStorage).FilePath.ToLower()) {
-               await predictor.StopTrainingAsync(cancel);
-               cancel.ThrowIfCancellationRequested();
-               predictor.DataStorage = new DataStorageTextFile(dataStoragePath);
-               await predictor.UpdateStorageAsync(Path.ChangeExtension(dataStoragePath, null));
-               predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(dataStoragePath, "model.zip")));
+            if (rebuildModel || predictor.DataStorage == null || dataStoragePath.ToLower() != ((DataStorageTextFile)predictor.DataStorage).FilePath.ToLower()) {
+               await Task.Run(async () =>
+               {
+                  await predictor.StopTrainingAsync(cancel);
+                  cancel.ThrowIfCancellationRequested();
+                  predictor.DataStorage = new DataStorageTextFile(dataStoragePath);
+                  await predictor.UpdateStorageAsync(Path.ChangeExtension(dataStoragePath, null), cancel);
+                  predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(dataStoragePath, "model.zip")));
+                  cancel.ThrowIfCancellationRequested();
+                  predictor.CrossValidation = crossValidation;
+               }, cancel);
             }
             cancel.ThrowIfCancellationRequested();
             if (!string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath)) {
-               var prediction = await predictor.GetPredictionAsync($"\"{imagePath}\"", cancel);
+               var prediction = await Task.Run(() => predictor.GetPredictionAsync($"\"{imagePath}\"", cancel));
                labelClassResult.Text = $"{prediction.Kind} ({prediction.Score * 100f:0.#}%)";
             }
             else
