@@ -121,9 +121,10 @@ namespace MachineLearningStudio
             {
                AutoCommitData = true,
                AutoSaveModel = true,
-               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
+               DataStorage = new DataTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
                Name = "Predictor",
+               TrainingData = new DataTextMemory(),
             };
             textMeaningPredictor.TextDataOptions.Separators = new[] { '|' };
             // Aggancia il log

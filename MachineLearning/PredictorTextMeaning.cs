@@ -14,7 +14,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor, IDataStorageProvider, IModelStorageProvider, ITextDataOptionsProvider
+   public sealed partial class PredictorTextMeaning : Predictor, IDataStorageProvider, IModelStorageProvider, ITextDataOptionsProvider, ITrainingDataProvider
    {
       #region Fields
       /// <summary>
@@ -48,7 +48,7 @@ namespace MachineLearning
       /// <summary>
       /// Pipe di training
       /// </summary>
-      public IEstimator<ITransformer> Pipe { get => _pipe; set => _pipe = value; }
+      private IEstimator<ITransformer> Pipe { get => _pipe; set => _pipe = value; }
       /// <summary>
       /// Seme per le operazioni random
       /// </summary>
@@ -57,6 +57,10 @@ namespace MachineLearning
       /// Opzioni di caricamento dati testuali
       /// </summary>
       public TextDataOptions TextDataOptions { get; private set; }
+      /// <summary>
+      /// Dati di training
+      /// </summary>
+      public ITrainingData TrainingData { get; set; }
       #endregion
       #region Methods
       /// <summary>

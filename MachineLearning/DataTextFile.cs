@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Classe per lo storage di dati di tipo file di testo
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageTextFile : IDataStorage, IMultiStreamSource, ITimestamp
+   public sealed partial class DataTextFile : IDataStorage, IMultiStreamSource, ITimestamp, ITrainingData
    {
       #region Fields
       /// <summary>
@@ -39,7 +39,7 @@ namespace MachineLearning
       /// Costruttore
       /// </summary>
       /// <param name="filePath">Path del file</param>
-      public DataStorageTextFile(string filePath) => FilePath = filePath;
+      public DataTextFile(string filePath) => FilePath = filePath;
       /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
       /// </summary>
@@ -72,6 +72,14 @@ namespace MachineLearning
             throw new FileNotFoundException("File not found", FilePath);
          return ml.NET.Data.CreateTextLoader(opt ?? new TextDataOptions()).Load(_source = new Source(this, extra));
       }
+      /// <summary>
+      /// Carica i dati di training
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="extra">Sorgenti extra di dati</param>
+      /// <returns>L'accesso ai dati</returns>
+      public IDataView LoadTrainingData(MachineLearningContext ml, TextDataOptions opt = default, params IMultiStreamSource[] extra) => LoadData(ml, opt, extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
@@ -131,13 +139,22 @@ namespace MachineLearning
             }
          }
       }
+      /// <summary>
+      /// Salva i dati di training
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">L'accesso ai dati</param>
+      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
+      /// <param name="extra">Eventuali altri stream di dati</param>
+      public void SaveTrainingData(MachineLearningContext ml, IDataView data, TextDataOptions opt = default, bool schema = false, params IMultiStreamSource[] extra) => SaveData(ml, data, opt, schema, extra);
       #endregion
    }
 
    /// <summary>
    /// La sorgente dei dati
    /// </summary>
-   public partial class DataStorageTextFile
+   public partial class DataTextFile
    {
       private class Source : IMultiStreamSource
       {
@@ -149,7 +166,7 @@ namespace MachineLearning
          /// <summary>
          /// Testo
          /// </summary>
-         private readonly DataStorageTextFile _owner;
+         private readonly DataTextFile _owner;
          #endregion
          #region Properties
          /// <summary>
@@ -163,7 +180,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="owner">Oggetto di appartenenzqa</param>
          /// <param name="extra">Sorgenti extra di dati</param>
-         public Source(DataStorageTextFile owner, params IMultiStreamSource[] extra)
+         public Source(DataTextFile owner, params IMultiStreamSource[] extra)
          {
             this._owner = owner;
             var indices = new List<(IMultiStreamSource Source, int Index)>
@@ -171,7 +188,7 @@ namespace MachineLearning
                (Source: this, Index: 0)
             };
             foreach (var e in extra) {
-               foreach (var ix in Enumerable.Range(0, e.Count))
+               foreach (var ix in Enumerable.Range(0, e?.Count ?? 0))
                   indices.Add((Source: e, Index: ix));
             }
             _total = indices.ToArray();

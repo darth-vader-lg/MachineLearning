@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Classe per lo storage di dati di tipo testo in memoria
    /// </summary>
    [Serializable]
-   public sealed partial class DataStorageTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, ITimestamp
+   public sealed partial class DataTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, ITimestamp, ITrainingData
    {
       #region Fields
       /// <summary>
@@ -42,14 +42,14 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataStorageTextMemory() { }
+      public DataTextMemory() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="source">Storage di dati</param>
       /// <param name="opt">Opzioni di testo</param>
-      public DataStorageTextMemory(MachineLearningContext ml, IDataStorage source, TextDataOptions opt = default)
+      public DataTextMemory(MachineLearningContext ml, IDataStorage source, TextDataOptions opt = default)
       {
          opt ??= new TextDataOptions();
          SaveData(ml, source.LoadData(ml, opt), opt);  
@@ -60,14 +60,14 @@ namespace MachineLearning
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">Dati</param>
       /// <param name="opt">Opzioni di testo</param>
-      public DataStorageTextMemory(MachineLearningContext ml, IDataView data, TextDataOptions opt = default) => SaveData(ml, data, opt ?? new TextDataOptions());
+      public DataTextMemory(MachineLearningContext ml, IDataView data, TextDataOptions opt = default) => SaveData(ml, data, opt ?? new TextDataOptions());
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">Dati</param>
       /// <param name="opt">Opzioni di testo</param>
-      public DataStorageTextMemory(MachineLearningContext ml, string data, TextDataOptions opt = default)
+      public DataTextMemory(MachineLearningContext ml, string data, TextDataOptions opt = default)
       {
          opt ??= new TextDataOptions();
          TextData = data;
@@ -103,6 +103,14 @@ namespace MachineLearning
       {
          return ml.NET.Data.CreateTextLoader(opt ?? new TextDataOptions()).Load(_source ??= new Source(this, extra));
       }
+      /// <summary>
+      /// Carica i dati di training
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="extra">Sorgenti extra di dati</param>
+      /// <returns>L'accesso ai dati</returns>
+      public IDataView LoadTrainingData(MachineLearningContext ml, TextDataOptions opt = default, params IMultiStreamSource[] extra) => LoadData(ml, opt, extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
@@ -153,18 +161,27 @@ namespace MachineLearning
             Timestamp = timestamp;
          }
       }
+      /// <summary>
+      /// Salva i dati di training
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="data">L'accesso ai dati</param>
+      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
+      /// <param name="extra">Eventuali altri stream di dati</param>
+      public void SaveTrainingData(MachineLearningContext ml, IDataView data, TextDataOptions opt = default, bool schema = false, params IMultiStreamSource[] extra) => SaveData(ml, data, opt, schema, extra);
       #endregion
    }
 
    /// <summary>
    /// La sorgente dei dati
    /// </summary>
-   public partial class DataStorageTextMemory
+   public partial class DataTextMemory
    {
       private class Source : IMultiStreamSource
       {
          #region Fields
-         private readonly DataStorageTextMemory _owner;
+         private readonly DataTextMemory _owner;
          /// <summary>
          /// Sorgenti ed indici
          /// </summary>
@@ -182,7 +199,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="extra">Sorgenti extra di dati</param>
-         public Source(DataStorageTextMemory owner, params IMultiStreamSource[] extra)
+         public Source(DataTextMemory owner, params IMultiStreamSource[] extra)
          {
             _owner = owner;
             var indices = new List<(IMultiStreamSource Source, int Index)>
@@ -190,7 +207,7 @@ namespace MachineLearning
                (Source: this, Index: 0)
             };
             foreach (var e in extra) {
-               foreach (var ix in Enumerable.Range(0, e.Count))
+               foreach (var ix in Enumerable.Range(0, e?.Count ?? 0))
                   indices.Add((Source: e, Index: ix));
             }
             _total = indices.ToArray();
