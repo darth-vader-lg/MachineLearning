@@ -11,10 +11,9 @@ using System.Threading.Tasks;
 namespace MachineLearning
 {
    /// <summary>
-   /// Classe per l'interpretazione del significato si testi
+   /// Classe per la previsione delle taglie
    /// </summary>
-   [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider, ITrainingDataProvider
+   public sealed partial class PredictorSize : Predictor, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -57,26 +56,22 @@ namespace MachineLearning
       /// Opzioni di caricamento dati testuali
       /// </summary>
       public TextLoader.Options TextLoaderOptions { get; private set; }
-      /// <summary>
-      /// Dati di training
-      /// </summary>
-      public ITrainingData TrainingData { get; set; }
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorTextMeaning() => Init();
+      public PredictorSize() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public PredictorTextMeaning(int? seed) : base(seed) => Init();
+      public PredictorSize(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) => Init();
+      public PredictorSize(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
       /// Funzione di inizializzazione
       /// </summary>
@@ -184,9 +179,25 @@ namespace MachineLearning
    }
 
    /// <summary>
+   /// Algoritmo della previsione
+   /// </summary>
+   public sealed partial class PredictorSize // Prediction
+   {
+      [Serializable]
+      public enum Algorithms
+      {
+         LbfgsMaximumEntropy,
+         LightGbm,
+         NaiveBayes,
+         SdcaMaximumEntropy,
+         SdcaNonCalibrated
+      }
+   }
+
+   /// <summary>
    /// Risultato della previsione
    /// </summary>
-   public sealed partial class PredictorTextMeaning // Prediction
+   public sealed partial class PredictorSize // Prediction
    {
       [Serializable]
       public class Prediction

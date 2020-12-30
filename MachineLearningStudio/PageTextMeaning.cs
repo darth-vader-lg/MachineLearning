@@ -126,7 +126,7 @@ namespace MachineLearningStudio
                Name = "Predictor",
                TrainingData = new DataTextMemory(),
             };
-            textMeaningPredictor.TextDataOptions.Separators = new[] { '|' };
+            textMeaningPredictor.TextLoaderOptions.Separators = new[] { '|' };
             // Aggancia il log
             textMeaningPredictor.ML.NET.Log += Log;
             // Indicatore di inizializzazione ok

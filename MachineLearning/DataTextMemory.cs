@@ -49,9 +49,9 @@ namespace MachineLearning
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="source">Storage di dati</param>
       /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, IDataStorage source, TextDataOptions opt = default)
+      public DataTextMemory(MachineLearningContext ml, IDataStorage source, TextLoader.Options opt = default)
       {
-         opt ??= new TextDataOptions();
+         opt ??= new TextLoader.Options();
          SaveData(ml, source.LoadData(ml, opt), opt);  
       }
       /// <summary>
@@ -60,16 +60,16 @@ namespace MachineLearning
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">Dati</param>
       /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, IDataView data, TextDataOptions opt = default) => SaveData(ml, data, opt ?? new TextDataOptions());
+      public DataTextMemory(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default) => SaveData(ml, data, opt ?? new TextLoader.Options());
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">Dati</param>
       /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, string data, TextDataOptions opt = default)
+      public DataTextMemory(MachineLearningContext ml, string data, TextLoader.Options opt = default)
       {
-         opt ??= new TextDataOptions();
+         opt ??= new TextLoader.Options();
          TextData = data;
          SaveData(ml, LoadData(ml, opt), opt);
       }
@@ -99,9 +99,9 @@ namespace MachineLearning
       /// <param name="opt">Opzioni di testo</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(MachineLearningContext ml, TextDataOptions opt = default, params IMultiStreamSource[] extra)
+      public IDataView LoadData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra)
       {
-         return ml.NET.Data.CreateTextLoader(opt ?? new TextDataOptions()).Load(_source ??= new Source(this, extra));
+         return ml.NET.Data.CreateTextLoader(opt ?? new TextLoader.Options()).Load(_source ??= new Source(this, extra));
       }
       /// <summary>
       /// Carica i dati di training
@@ -110,7 +110,7 @@ namespace MachineLearning
       /// <param name="opt">Opzioni di testo</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadTrainingData(MachineLearningContext ml, TextDataOptions opt = default, params IMultiStreamSource[] extra) => LoadData(ml, opt, extra);
+      public IDataView LoadTrainingData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra) => LoadData(ml, opt, extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
@@ -119,7 +119,7 @@ namespace MachineLearning
       /// <param name="opt">Opzioni di testo</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Eventuali altri stream di dati</param>
-      public void SaveData(MachineLearningContext ml, IDataView data, TextDataOptions opt = default, bool schema = false, params IMultiStreamSource[] extra)
+      public void SaveData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra)
       {
          lock (this) {
             // Data e ora
@@ -127,7 +127,7 @@ namespace MachineLearning
             // Oggetto per la scrittura dei dati in memoria
             using var writer = new MemoryStream();
             // Opzioni
-            opt ??= new TextDataOptions();
+            opt ??= new TextLoader.Options();
             // Separatore di colonne
             var separator = opt.Separators?.FirstOrDefault() ?? '\t';
             separator = separator != default ? separator : '\t';
@@ -169,7 +169,7 @@ namespace MachineLearning
       /// <param name="opt">Opzioni di testo</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Eventuali altri stream di dati</param>
-      public void SaveTrainingData(MachineLearningContext ml, IDataView data, TextDataOptions opt = default, bool schema = false, params IMultiStreamSource[] extra) => SaveData(ml, data, opt, schema, extra);
+      public void SaveTrainingData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra) => SaveData(ml, data, opt, schema, extra);
       #endregion
    }
 

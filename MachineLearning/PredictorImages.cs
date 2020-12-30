@@ -14,7 +14,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorImages : Predictor, IDataStorageProvider, IModelStorageProvider, ITextDataOptionsProvider
+   public sealed partial class PredictorImages : Predictor, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -30,7 +30,7 @@ namespace MachineLearning
       /// <summary>
       /// Formato dati di training
       /// </summary>
-      private TextDataOptions _textOptions;
+      private TextLoader.Options _textLoaderOptions;
       #endregion
       #region Properties
       /// <summary>
@@ -60,11 +60,11 @@ namespace MachineLearning
       /// <summary>
       /// Formato dati di training
       /// </summary>
-      public TextDataOptions TextDataOptions
+      public TextLoader.Options TextLoaderOptions
       {
          get
          {
-            return _textOptions ??= new TextDataOptions(new TextLoader.Options()
+            return _textLoaderOptions ??= new TextLoader.Options
             {
                AllowQuoting = true,
                Separators = new[] { ',' },
@@ -74,7 +74,7 @@ namespace MachineLearning
                   new TextLoader.Column("ImagePath", DataKind.String, 1),
                   new TextLoader.Column("Timestamp", DataKind.DateTime, 2),
                }
-            });
+            };
          }
       }
       #endregion
@@ -178,7 +178,7 @@ namespace MachineLearning
       /// <param name="opt">Opzioni di formattazione del testo di input</param>
       /// <returns>La lista di dati di training</returns>
       /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
-      private static async Task<IEnumerable<string>> GetTrainingDataAsync(string path, TextDataOptions opt)
+      private static async Task<IEnumerable<string>> GetTrainingDataAsync(string path, TextLoader.Options opt)
       {
          return await Task.Run(() =>
          {
@@ -202,7 +202,7 @@ namespace MachineLearning
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>La lista di dati di training</returns>
       /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
-      public static async Task<string> GetTrainingDataFromPathAsync(string path, TextDataOptions opt, CancellationToken cancellation = default)
+      public static async Task<string> GetTrainingDataFromPathAsync(string path, TextLoader.Options opt, CancellationToken cancellation = default)
       {
          var sb = new StringBuilder();
          var data = await GetTrainingDataAsync(path, opt);
@@ -227,7 +227,7 @@ namespace MachineLearning
          if (DataStorage == null)
             return;
          // Ottiene i dati di training (l'elenco delle immagini classificate e datate)
-         var data = await GetTrainingDataAsync(path, TextDataOptions);
+         var data = await GetTrainingDataAsync(path, TextLoaderOptions);
          cancellation.ThrowIfCancellationRequested();
          ML.NET.WriteLog("Updating image list", Name);
          // Effettua l'aggiornamento dello storage di dati sincronizzandolo con lo stato delle immagini
@@ -247,7 +247,7 @@ namespace MachineLearning
                var updateDataStorage = false;
                try {
                   // Dati dello storage
-                  var storageData = DataStorage.LoadData(ML, TextDataOptions);
+                  var storageData = DataStorage.LoadData(ML, TextLoaderOptions);
                   // Loop su tutte le rige di dati
                   foreach (var dataRow in storageData.ToEnumerable(ML.NET)) {
                      // Flag di abilitazione scrittura linea sullo stram temporaneo
@@ -262,14 +262,14 @@ namespace MachineLearning
                      var ix = 0L;
                      foreach (var trainingData in data) {
                         // Linea di training
-                        var trainingLine = new DataTextMemory(ML, trainingData, TextDataOptions);
+                        var trainingLine = new DataTextMemory(ML, trainingData, TextLoaderOptions);
                         // Valori di training
-                        var trainingValues = trainingLine.LoadData(ML, TextDataOptions).ToKeyValuePairs().First();
+                        var trainingValues = trainingLine.LoadData(ML, TextLoaderOptions).ToKeyValuePairs().First();
                         // Verifica se l'immagine del set di training corrisponde a quella contenuta nel set di dati
                         if (imagePath == Convert.ToString(trainingValues.Last(item => item.Key == "ImagePath").Value).ToLower()) {
                            // Se l'immagine di training e' piu' vecchia o uguale a quella dello storage mantiene quella di storage, altrimenti quella di training
                            if (timestamp >= Convert.ToDateTime(trainingValues.Last(item => item.Key == "Timestamp").Value))
-                              trainingLine = new DataTextMemory(ML, dataRow, TextDataOptions);
+                              trainingLine = new DataTextMemory(ML, dataRow, TextLoaderOptions);
                            else {
                               ML.NET.WriteLog($"Found updated image: {trainingValues.Last(item => item.Key == "ImagePath").Value}");
                               updateDataStorage = true;
@@ -284,7 +284,7 @@ namespace MachineLearning
                      }
                      // Scrive la linea nel file temporaneo se non ci sono state modifiche
                      if (writeLine)
-                        tmpStream.Write(new DataTextMemory(ML, dataRow, TextDataOptions));
+                        tmpStream.Write(new DataTextMemory(ML, dataRow, TextLoaderOptions));
                   }
                }
                // Il file di storage potrebbe non esistere ancora
@@ -294,8 +294,8 @@ namespace MachineLearning
                var ixTraining = 0L;
                foreach (var trainingData in data) {
                   if (!existing.Contains(ixTraining)) {
-                     var formatter = new DataTextMemory(ML, trainingData, TextDataOptions);
-                     ML.NET.WriteLog($"Found new image: {formatter.LoadData(ML, TextDataOptions).GetString("ImagePath")}");
+                     var formatter = new DataTextMemory(ML, trainingData, TextLoaderOptions);
+                     ML.NET.WriteLog($"Found new image: {formatter.LoadData(ML, TextLoaderOptions).GetString("ImagePath")}");
                      tmpStream.Write(formatter.TextData);
                      updateDataStorage = true;
                   }
@@ -308,7 +308,7 @@ namespace MachineLearning
                // Aggiorna lo storage con il contenuto del file temporaneo se necessario
                if (updateDataStorage) {
                   cancellation.ThrowIfCancellationRequested();
-                  DataStorage.SaveData(ML, new DataTextFile(tmpFile).LoadData(ML, TextDataOptions), TextDataOptions, SaveDataSchemaComment);
+                  DataStorage.SaveData(ML, new DataTextFile(tmpFile).LoadData(ML, TextLoaderOptions), TextLoaderOptions, SaveDataSchemaComment);
                }
             }
             finally {

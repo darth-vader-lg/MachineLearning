@@ -18,9 +18,6 @@ namespace MachineLearningStudio
          Application.SetHighDpiMode(HighDpiMode.SystemAware);
          Application.EnableVisualStyles();
          Application.SetCompatibleTextRenderingDefault(false);
-
-         var dt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc);
-
          Application.Run(new MainForm() { Text = Application.ProductName } );
       }
       #endregion

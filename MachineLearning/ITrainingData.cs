@@ -16,7 +16,7 @@ namespace MachineLearning
       /// <param name="opt">Opzioni di testo</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      IDataView LoadTrainingData(MachineLearningContext ml, TextDataOptions opt = default, params IMultiStreamSource[] extra);
+      IDataView LoadTrainingData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra);
       /// <summary>
       /// Salva i dati di training
       /// </summary>
@@ -25,7 +25,7 @@ namespace MachineLearning
       /// <param name="opt">Opzioni di testo</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Sorgenti extra di dati da accodare</param>
-      void SaveTrainingData(MachineLearningContext ml, IDataView data, TextDataOptions opt = default, bool schema = false, params IMultiStreamSource[] extra);
+      void SaveTrainingData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra);
       #endregion
    }
 }

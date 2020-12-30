@@ -15,12 +15,6 @@ namespace Microsoft.ML.Data
       /// </summary>
       /// <param name="row">Riga di dati</param>
       /// <returns>I dati splittati</returns>
-      public static string[] SplitData(this TextDataOptions options, string row) => SplitData((TextLoader.Options)options, row);
-      /// <summary>
-      /// Splitta i dati di una riga in base alle colonne
-      /// </summary>
-      /// <param name="row">Riga di dati</param>
-      /// <returns>I dati splittati</returns>
       public static string[] SplitData(this TextLoader.Options options, string row)
       {
          var expr = @"(?<match>\w+)|\""(?<match>[\w\s";
