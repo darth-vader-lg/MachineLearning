@@ -14,7 +14,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorImages : Predictor, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider
+   public sealed partial class PredictorImages : PredictorMulticlass, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -159,7 +159,7 @@ namespace MachineLearning
          Pipe ??=
             ML.NET.Transforms.Conversion.MapValueToKey("Label").
             Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, "ImagePath")).
-            Append(ML.NET.MulticlassClassification.Trainers.ImageClassification("Label", "Features")).
+            Append(Trainers.ImageClassification()).
             Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
          // Training
          if (CrossValidation) {

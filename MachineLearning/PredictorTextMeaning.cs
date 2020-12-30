@@ -14,7 +14,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class PredictorTextMeaning : Predictor, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider, ITrainingDataProvider
+   public sealed partial class PredictorTextMeaning : PredictorMulticlass, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider, ITrainingDataProvider
    {
       #region Fields
       /// <summary>
@@ -151,7 +151,7 @@ namespace MachineLearning
             Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
             Append(ML.NET.Transforms.NormalizeMinMax("Features")).
             AppendCacheCheckpoint(ML.NET).
-            Append(ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated()).
+            Append(Trainers.SdcaNonCalibrated()).
             Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
          // Mischia le linee
          var data = ML.NET.Data.ShuffleRows(dataView, Seed++);

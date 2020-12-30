@@ -1,12 +1,37 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MachineLearning.Trainers;
 
 namespace MachineLearning
 {
-   public abstract class PredictorMulticlass
+   /// <summary>
+   /// Classe base per i previsori di tipo multiclasse
+   /// </summary>
+   public abstract class PredictorMulticlass : Predictor
    {
+      #region Properties
+      /// <summary>
+      /// Catalogo di trainers
+      /// </summary>
+      public MulticlassClassificationTrainers Trainers { get; private set; }
+      #endregion
+      #region Methods
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      public PredictorMulticlass() : base() => Init();
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="seed">Seme operazioni random</param>
+      public PredictorMulticlass(int? seed) : base(seed) => Init();
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      public PredictorMulticlass(MachineLearningContext ml) : base(ml) => Init();
+      /// <summary>
+      /// Funzione di inizializzazione
+      /// </summary>
+      private void Init() => Trainers = new MulticlassClassificationTrainers(ML);
+      #endregion
    }
 }
