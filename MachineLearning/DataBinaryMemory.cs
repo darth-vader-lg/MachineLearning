@@ -8,10 +8,10 @@ using System.Linq;
 namespace MachineLearning
 {
    /// <summary>
-   /// Classe per lo storage di dati di tipo testo in memoria
+   /// Classe per lo storage di dati di tipo binario in memoria
    /// </summary>
    [Serializable]
-   public sealed partial class DataTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, ITimestamp, ITrainingData
+   public sealed partial class DataBinaryMemory : IDataStorage, IMultiStreamSource, ITimestamp, ITrainingData
    {
       #region Fields
       /// <summary>
@@ -22,7 +22,7 @@ namespace MachineLearning
       /// <summary>
       /// Dati testuali
       /// </summary>
-      private string _textData;
+      private byte[] _binaryData;
       #endregion
       #region Properties
       /// <summary>
@@ -32,7 +32,7 @@ namespace MachineLearning
       /// <summary>
       /// Dati testuali
       /// </summary>
-      public string TextData { get => _textData; set { _textData = value; Timestamp = DateTime.UtcNow; } }
+      public byte[] BinaryData { get => _binaryData; set { _binaryData = value; Timestamp = DateTime.UtcNow; } }
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
@@ -42,36 +42,31 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataTextMemory() { }
+      public DataBinaryMemory() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="source">Storage di dati</param>
-      /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, IDataStorage source, TextLoader.Options opt = default)
+      public DataBinaryMemory(MachineLearningContext ml, IDataStorage source)
       {
-         opt ??= new TextLoader.Options();
-         SaveData(ml, source.LoadData(ml, opt), opt);  
+         SaveData(ml, source.LoadData(ml, default), default);  
       }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">Dati</param>
-      /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default) => SaveData(ml, data, opt ?? new TextLoader.Options());
+      public DataBinaryMemory(MachineLearningContext ml, IDataView data) => SaveData(ml, data, default);
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">Dati</param>
-      /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, string data, TextLoader.Options opt = default)
+      public DataBinaryMemory(MachineLearningContext ml, byte[] data)
       {
-         opt ??= new TextLoader.Options();
-         TextData = data;
-         SaveData(ml, LoadData(ml, opt), opt);
+         BinaryData = data;
+         SaveData(ml, LoadData(ml, default), default);
       }
       /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
@@ -95,27 +90,27 @@ namespace MachineLearning
       /// Carica i dati
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="opt">Opzioni di testo (non usato)</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
       public IDataView LoadData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra)
       {
-         return ml.NET.Data.CreateTextLoader(opt ?? new TextLoader.Options()).Load(_source ??= new Source(this, extra));
+         return ml.NET.Data.LoadFromBinary(_source ??= new Source(this, extra));
       }
       /// <summary>
       /// Carica i dati di training
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="opt">Opzioni di testo (non usato)</param>
       /// <param name="extra">Sorgenti extra di dati</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadTrainingData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra) => LoadData(ml, opt, extra);
+      public IDataView LoadTrainingData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra) => LoadData(ml, default, extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
-      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="opt">Opzioni di testo (non usato)</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Eventuali altri stream di dati</param>
       public void SaveData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra)
@@ -125,38 +120,13 @@ namespace MachineLearning
             var timestamp = DateTime.UtcNow;
             // Oggetto per la scrittura dei dati in memoria
             using var writer = new MemoryStream();
-            // Opzioni
-            opt ??= new TextLoader.Options();
-            // Separatore di colonne
-            var separator = opt.Separators?.FirstOrDefault() ?? '\t';
-            separator = separator != default ? separator : '\t';
-            // Salva come testo i dati
-            ml.NET.Data.SaveAsText(
-               data: data,
-               stream: writer,
-               separatorChar: separator,
-               headerRow: opt.HasHeader,
-               schema: false,
-               keepHidden: false,
-               forceDense: false);
+            ml.NET.Data.SaveAsBinary(data, writer, true);
             // Salva gli stream extra
             foreach (var item in extra) {
-               var loader = ml.NET.Data.CreateTextLoader(opt);
-               data = loader.Load(item);
-               ml.NET.Data.SaveAsText(
-                  data: data,
-                  stream: writer,
-                  separatorChar: separator,
-                  headerRow: opt.HasHeader,
-                  schema: schema,
-                  keepHidden: false,
-                  forceDense: false);
+               data = ml.NET.Data.LoadFromBinary(item);
+               ml.NET.Data.SaveAsBinary(data, writer, true);
             }
-            // Crea uno stream per la lettura
-            writer.Position = 0;
-            using var reader = new StreamReader(writer);
-            // Aggiorna la stringa
-            TextData = reader.ReadToEnd();
+            BinaryData = writer.ToArray();
             Timestamp = timestamp;
          }
       }
@@ -165,22 +135,22 @@ namespace MachineLearning
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <param name="data">L'accesso ai dati</param>
-      /// <param name="opt">Opzioni di testo</param>
+      /// <param name="opt">Opzioni di testo (non usato)</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
       /// <param name="extra">Eventuali altri stream di dati</param>
-      public void SaveTrainingData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra) => SaveData(ml, data, opt, schema, extra);
+      public void SaveTrainingData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra) => SaveData(ml, data, default, schema, extra);
       #endregion
    }
 
    /// <summary>
    /// La sorgente dei dati
    /// </summary>
-   public partial class DataTextMemory
+   public partial class DataBinaryMemory
    {
       private class Source : IMultiStreamSource
       {
          #region Fields
-         private readonly DataTextMemory _owner;
+         private readonly DataBinaryMemory _owner;
          /// <summary>
          /// Sorgenti ed indici
          /// </summary>
@@ -198,7 +168,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="extra">Sorgenti extra di dati</param>
-         public Source(DataTextMemory owner, params IMultiStreamSource[] extra)
+         public Source(DataBinaryMemory owner, params IMultiStreamSource[] extra)
          {
             _owner = owner;
             var indices = new List<(IMultiStreamSource Source, int Index)>
@@ -226,18 +196,14 @@ namespace MachineLearning
          {
             if (index > 0)
                return _total[index].Source.Open(_total[index].Index);
-            var memoryStream = new MemoryStream();
-            using var writer = new StreamWriter(memoryStream);
-            writer.Write(_owner.TextData ?? "");
-            memoryStream.Position = 0;
-            return memoryStream;
+            return new MemoryStream(_owner.BinaryData);
          }
          /// <summary>
          /// Apre l'item indicato e ne restituisce uno stream di stringhe leggibile.
          /// </summary>
          /// <param name="index">L'indice dell'item</param>
          /// <returns>Lo stream di lettura</returns>
-         public TextReader OpenTextReader(int index) => index == 0 ? new StringReader(_owner.TextData ?? "") : _total[index].Source.OpenTextReader(_total[index].Index);
+         public TextReader OpenTextReader(int index) => index == 0 ? new StreamReader(new MemoryStream(_owner.BinaryData ?? Array.Empty<byte>())) : _total[index].Source.OpenTextReader(_total[index].Index);
          #endregion
       }
    }

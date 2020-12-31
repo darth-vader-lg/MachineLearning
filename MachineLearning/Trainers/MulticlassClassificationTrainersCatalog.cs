@@ -6,7 +6,7 @@ namespace MachineLearning.Trainers
    /// <summary>
    /// Catalogo di trainers multiclasse
    /// </summary>
-   public class MulticlassClassificationTrainers
+   public class MulticlassClassificationTrainersCatalog
    {
       #region Fields
       /// <summary>
@@ -19,7 +19,7 @@ namespace MachineLearning.Trainers
       /// Costruttore
       /// </summary>
       /// <param name="ml"></param>
-      internal MulticlassClassificationTrainers(MachineLearningContext ml) => _ml = ml;
+      internal MulticlassClassificationTrainersCatalog(MachineLearningContext ml) => _ml = ml;
       /// <summary>
       /// Restituisce un trainer di tipo SdcaNonCalibratedMulticlass
       /// </summary>

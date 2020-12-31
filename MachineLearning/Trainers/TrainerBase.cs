@@ -10,6 +10,7 @@ namespace MachineLearning.Trainers
    /// <typeparam name="TModel">Tipo di parametri del modello</typeparam>
    /// <typeparam name="TTrainer">Tipo di trainer</typeparam>
    /// <typeparam name="TOptions">Tipo di opzioni</typeparam>
+   [Serializable]
    public abstract class TrainerBase<TModel, TTrainer, TOptions> : IDeserializationCallback, IEstimator<ISingleFeaturePredictionTransformer<TModel>>
       where TModel : class
       where TTrainer : IEstimator<ISingleFeaturePredictionTransformer<TModel>>

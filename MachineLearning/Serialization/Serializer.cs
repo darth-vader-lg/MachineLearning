@@ -1,4 +1,8 @@
-﻿using System.IO;
+﻿using MachineLearning.Trainers;
+using Microsoft.ML.Data;
+using Microsoft.ML.Trainers;
+using Microsoft.ML.Vision;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
@@ -23,17 +27,18 @@ namespace MachineLearning.Serialization
       {
          Surrogator = new SurrogateSelector();
          var context = new StreamingContext(StreamingContextStates.All);
-         Surrogator.AddSurrogate(typeof(Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options), context, new SdcaNonCalibratedMulticlassTrainerSerializer.Options.SerializationSurrogate());
-         Surrogator.AddSurrogate(typeof(Microsoft.ML.Data.TextLoader.Column), context, new TextLoaderSerializer.Column.SerializationSurrogate());
-         Surrogator.AddSurrogate(typeof(Microsoft.ML.Data.TextLoader.Options), context, new TextLoaderSerializer.Options.SerializationSurrogate());
-         Surrogator.AddSurrogate(typeof(Microsoft.ML.Data.TextLoader.Range), context, new TextLoaderSerializer.Range.SerializationSurrogate());
+         Surrogator.AddSurrogate(typeof(SdcaNonCalibratedMulticlassTrainer.Options), context, new SdcaNonCalibratedMulticlass.OptionsSurrogate());
+         Surrogator.AddSurrogate(typeof(ImageClassificationTrainer.Options), context, new ImageClassification.OptionsSurrogate());
+         Surrogator.AddSurrogate(typeof(TextLoader.Column), context, new TextLoaderSerializer.ColumnSurrogate());
+         Surrogator.AddSurrogate(typeof(TextLoader.Options), context, new TextLoaderSerializer.OptionsSurrogate());
+         Surrogator.AddSurrogate(typeof(TextLoader.Range), context, new TextLoaderSerializer.RangeSurrogate());
       }
       /// <summary>
       /// Clona un oggetto
       /// </summary>
       /// <param name="serializable">Oggetto serializzabile</param>
       /// <returns>L'oggetto clonato</returns>
-      public static T Clone<T>(this T obj)
+      public static T Clone<T>(T obj)
       {
          var formatter = new BinaryFormatter(Surrogator, new StreamingContext(StreamingContextStates.Clone));
          using var memoryStream = new MemoryStream();

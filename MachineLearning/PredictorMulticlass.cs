@@ -11,7 +11,7 @@ namespace MachineLearning
       /// <summary>
       /// Catalogo di trainers
       /// </summary>
-      public MulticlassClassificationTrainers Trainers { get; private set; }
+      public MulticlassClassificationTrainersCatalog Trainers { get; private set; }
       #endregion
       #region Methods
       /// <summary>
@@ -31,7 +31,7 @@ namespace MachineLearning
       /// <summary>
       /// Funzione di inizializzazione
       /// </summary>
-      private void Init() => Trainers = new MulticlassClassificationTrainers(ML);
+      private void Init() => Trainers = new MulticlassClassificationTrainersCatalog(ML);
       #endregion
    }
 }

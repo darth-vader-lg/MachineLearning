@@ -45,7 +45,6 @@ namespace MachineLearning
       /// </summary>
       /// <param name="index">L'indice dell'item</param>
       /// <returns>Il path</returns>
-
       string IMultiStreamSource.GetPathOrNull(int index) => (_source ??= new Source(this)).GetPathOrNull(index);
       /// <summary>
       /// Apre l'item indicato e ne restituisce uno stream leggibile.
