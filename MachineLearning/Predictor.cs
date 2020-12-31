@@ -445,7 +445,6 @@ namespace MachineLearning
       protected virtual void OnTrainingDataChanged(EventArgs e)
       {
          try {
-            ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             TrainingDataChanged?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -460,6 +459,7 @@ namespace MachineLearning
       {
          try {
             ML.NET.WriteLog("Training ended", Name);
+            ML.NET.WriteLog("--------------", Name);
             TrainingEnded?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -597,7 +597,7 @@ namespace MachineLearning
                         return;
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
-                     if (data != default && DataStorage != default && trainingData != default && AutoCommitData && trainingData.LoadTrainingData(ML, TextLoaderOptions).GetRowCount() > 0) {
+                     if (data != default && DataStorage != default && trainingData != default && AutoCommitData && trainingData.LoadTrainingData(ML, TextLoaderOptions).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
                         ML.NET.WriteLog("Committing the new data", Name);
                         await Task.Run(() => CommitTrainingData(), cancel);
                      }
@@ -612,7 +612,7 @@ namespace MachineLearning
                   // Ricarica i dati
                   else {
                      // Effettua eventuale commit automatico
-                     if (DataStorage != default && trainingData != default && AutoCommitData && trainingData.LoadTrainingData(ML, TextLoaderOptions).GetRowCount() > 0) {
+                     if (DataStorage != default && trainingData != default && AutoCommitData && trainingData.LoadTrainingData(ML, TextLoaderOptions).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
                            await Task.Run(() => CommitTrainingData(), cancel);
