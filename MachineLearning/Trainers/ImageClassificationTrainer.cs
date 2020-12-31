@@ -4,6 +4,7 @@ using Microsoft.ML.Vision;
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using MLV = Microsoft.ML.Vision;
 
 namespace MachineLearning.Trainers
 {
@@ -11,34 +12,34 @@ namespace MachineLearning.Trainers
    /// Classe SdcaNonCalibratedMulticlassTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed partial class ImageClassification :
-      TrainerBase<ImageClassificationModelParameters, ImageClassificationTrainer, ImageClassificationTrainer.Options>
+   public sealed partial class ImageClassificationTrainer :
+      TrainerBase<ImageClassificationModelParameters, MLV.ImageClassificationTrainer, MLV.ImageClassificationTrainer.Options>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml"></param>
-      internal ImageClassification(MachineLearningContext ml, ImageClassificationTrainer.Options options = default) : base(ml, options) { }
+      internal ImageClassificationTrainer(MachineLearningContext ml, MLV.ImageClassificationTrainer.Options options = default) : base(ml, options) { }
       /// <summary>
       /// Funzione di creazione del trainer
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected override ImageClassificationTrainer CreateTrainer(MachineLearningContext ml) => ml.NET.MulticlassClassification.Trainers.ImageClassification(Options);
+      protected override MLV.ImageClassificationTrainer CreateTrainer(MachineLearningContext ml) => ml.NET.MulticlassClassification.Trainers.ImageClassification(Options);
       #endregion
    }
 
    /// <summary>
    /// Surrogato delle opzioni per la serializzazione
    /// </summary>
-   public partial class ImageClassification
+   public partial class ImageClassificationTrainer
    {
       internal class OptionsSurrogate : ISerializationSurrogate
       {
          public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {
-            var data = (ImageClassificationTrainer.Options)obj;
+            var data = (MLV.ImageClassificationTrainer.Options)obj;
             info.AddValue(nameof(data.Arch), (int)data.Arch);
             info.AddValue(nameof(data.BatchSize), data.BatchSize);
             info.AddValue($"{nameof(data.EarlyStoppingCriteria)}.Exists", data.EarlyStoppingCriteria != null);
@@ -103,14 +104,14 @@ namespace MachineLearning.Trainers
          }
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
-            var data = new ImageClassificationTrainer.Options();
-            data.Arch = (ImageClassificationTrainer.Architecture)info.GetValue(nameof(data.Arch), typeof(int));
+            var data = new MLV.ImageClassificationTrainer.Options();
+            data.Arch = (MLV.ImageClassificationTrainer.Architecture)info.GetValue(nameof(data.Arch), typeof(int));
             data.BatchSize = (int)info.GetValue(nameof(data.BatchSize), typeof(int));
             if (info.GetBoolean($"{nameof(data.EarlyStoppingCriteria)}.Exists")) {
-               data.EarlyStoppingCriteria = new ImageClassificationTrainer.EarlyStopping(
+               data.EarlyStoppingCriteria = new MLV.ImageClassificationTrainer.EarlyStopping(
                   (float)info.GetValue(nameof(data.EarlyStoppingCriteria.MinDelta), typeof(float)),
                   (int)info.GetValue(nameof(data.EarlyStoppingCriteria.Patience), typeof(int)),
-                  info.GetBoolean(nameof(data.EarlyStoppingCriteria.CheckIncreasing)) ? ImageClassificationTrainer.EarlyStoppingMetric.Accuracy : ImageClassificationTrainer.EarlyStoppingMetric.Loss,
+                  info.GetBoolean(nameof(data.EarlyStoppingCriteria.CheckIncreasing)) ? Microsoft.ML.Vision.ImageClassificationTrainer.EarlyStoppingMetric.Accuracy : Microsoft.ML.Vision.ImageClassificationTrainer.EarlyStoppingMetric.Loss,
                   (bool)info.GetValue(nameof(data.EarlyStoppingCriteria.CheckIncreasing), typeof(bool)));
 
             }

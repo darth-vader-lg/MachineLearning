@@ -27,8 +27,8 @@ namespace MachineLearning.Serialization
       {
          Surrogator = new SurrogateSelector();
          var context = new StreamingContext(StreamingContextStates.All);
-         Surrogator.AddSurrogate(typeof(SdcaNonCalibratedMulticlassTrainer.Options), context, new SdcaNonCalibratedMulticlass.OptionsSurrogate());
-         Surrogator.AddSurrogate(typeof(ImageClassificationTrainer.Options), context, new ImageClassification.OptionsSurrogate());
+         Surrogator.AddSurrogate(typeof(Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options), context, new Trainers.SdcaNonCalibratedMulticlassTrainer.OptionsSurrogate());
+         Surrogator.AddSurrogate(typeof(Microsoft.ML.Vision.ImageClassificationTrainer.Options), context, new Trainers.ImageClassificationTrainer.OptionsSurrogate());
          Surrogator.AddSurrogate(typeof(TextLoader.Column), context, new TextLoaderSerializer.ColumnSurrogate());
          Surrogator.AddSurrogate(typeof(TextLoader.Options), context, new TextLoaderSerializer.OptionsSurrogate());
          Surrogator.AddSurrogate(typeof(TextLoader.Range), context, new TextLoaderSerializer.RangeSurrogate());
