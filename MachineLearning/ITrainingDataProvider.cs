@@ -9,7 +9,7 @@
       /// <summary>
       /// Dati di training
       /// </summary>
-      ITrainingData TrainingData { get; }
+      IDataStorage TrainingData { get; }
       #endregion
    }
 }

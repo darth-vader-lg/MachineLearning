@@ -16,7 +16,7 @@ namespace MachineLearning
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class Predictor : IDeserializationCallback
+   public abstract partial class Predictor : IDeserializationCallback, IMachineLearningContextProvider
    {
       #region Fields
       /// <summary>
@@ -101,7 +101,7 @@ namespace MachineLearning
       /// <summary>
       /// Dati aggiuntivi di training
       /// </summary>
-      private ITrainingData TrainingData => (this as ITrainingDataProvider)?.TrainingData ?? this as ITrainingData;
+      private IDataStorage TrainingData => (this as ITrainingDataProvider)?.TrainingData;
       #endregion
       #region Events
       /// <summary>
@@ -152,7 +152,7 @@ namespace MachineLearning
       public void AddTrainingData(string data, bool checkForDuplicates = false)
       {
          // Verifica esistenza dati di training
-         if (TrainingData is not IMultiStreamSource trainingDataSource || TrainingData is not ITrainingData trainingData)
+         if (TrainingData is not IMultiStreamSource trainingDataSource || TrainingData is not IDataStorage trainingData)
             throw new InvalidOperationException("The object doesn't have training data characteristics");
          var sb = new StringBuilder();
          var hash = new HashSet<int>();
@@ -167,7 +167,7 @@ namespace MachineLearning
                   using var reader = source.OpenTextReader(i);
                   for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
                      formatter.TextData = line;
-                     formatter.SaveData(ML, formatter.LoadData(ML, TextLoaderOptions));
+                     formatter.SaveData(this, formatter.LoadData(this));
                      hash.Add(formatter.TextData.GetHashCode());
                   }
                }
@@ -181,7 +181,7 @@ namespace MachineLearning
             for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
                if (checkForDuplicates) {
                   formatter.TextData = line;
-                  formatter.SaveData(ML, formatter.LoadData(ML, TextLoaderOptions));
+                  formatter.SaveData(this, formatter.LoadData(this));
                   if (!hash.Contains(formatter.TextData.GetHashCode())) {
                      hash.Add(formatter.TextData.GetHashCode());
                      sb.AppendLine(line);
@@ -196,7 +196,7 @@ namespace MachineLearning
          for (var line = dataReader.ReadLine(); line != null; line = dataReader.ReadLine()) {
             if (checkForDuplicates) {
                formatter.TextData = line;
-               formatter.SaveData(ML, formatter.LoadData(ML, TextLoaderOptions));
+               formatter.SaveData(this, formatter.LoadData(this));
                if (!hash.Contains(formatter.TextData.GetHashCode())) {
                   hash.Add(formatter.TextData.GetHashCode());
                   sb.AppendLine(line);
@@ -211,7 +211,7 @@ namespace MachineLearning
             ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             // Formatta in testo e salva
             formatter.TextData = sb.ToString();
-            trainingData.SaveTrainingData(ML, formatter.LoadData(ML, TextLoaderOptions), TextLoaderOptions);
+            trainingData.SaveData(this, formatter.LoadData(this));
             OnTrainingDataChanged(EventArgs.Empty);
          }
       }
@@ -247,14 +247,14 @@ namespace MachineLearning
       public async Task ClearTrainingDataAsync(CancellationToken cancellation = default)
       {
          // Verifica che i dati di training siano validi
-         if (TrainingData is not ITrainingData trainingData)
+         if (TrainingData is not IDataStorage trainingData)
             throw new InvalidOperationException("The object doesn't have training data characteristics");
          // Annulla il training
          await ClearTrainingAsync(cancellation);
          // Cancella i dati di training
          var emptyData = new DataTextMemory();
          cancellation.ThrowIfCancellationRequested();
-         trainingData.SaveTrainingData(ML, emptyData.LoadData(ML, TextLoaderOptions), TextLoaderOptions);
+         trainingData.SaveData(this, emptyData.LoadData(this));
          OnTrainingDataChanged(EventArgs.Empty);
       }
       /// <summary>
@@ -263,12 +263,13 @@ namespace MachineLearning
       /// <returns>Il Task</returns>
       private void CommitTrainingData()
       {
-         if (DataStorage is not IDataStorage dataStorage || TrainingData is not IMultiStreamSource trainingDataSource || TrainingData is not ITrainingData trainingData)
+         if (DataStorage is not IDataStorage dataStorage || TrainingData is not IDataStorage trainingData)
             return;
-         dataStorage.SaveData(ML, dataStorage.LoadData(ML, TextLoaderOptions, trainingDataSource), TextLoaderOptions, SaveDataSchemaComment);
+         var mergedData = MergedDataView.Create(this, null, dataStorage.LoadData(this), trainingData.LoadData(this));
+         dataStorage.SaveData(this, mergedData, SaveDataSchemaComment);
          // Cancella i dati di training
          var emptyData = new DataTextMemory();
-         trainingData.SaveTrainingData(ML, emptyData.LoadData(ML, TextLoaderOptions), TextLoaderOptions);
+         trainingData.SaveData(this, emptyData.LoadData(this));
          OnTrainingDataChanged(EventArgs.Empty);
       }
       /// <summary>
@@ -395,7 +396,7 @@ namespace MachineLearning
          if (((TrainingData as ITimestamp)?.Timestamp ?? default) > Evaluation.Timestamp || ((DataStorage as ITimestamp)?.Timestamp ?? default) > Evaluation.Timestamp)
             _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
-         var dataView = new DataTextMemory() { TextData = data }.LoadData(ML, TextLoaderOptions);
+         var dataView = new DataTextMemory() { TextData = data }.LoadData(this);
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello od un eventuale errore di training
          var evaluator = await GetEvaluatorAsync(cancellation);
@@ -541,6 +542,19 @@ namespace MachineLearning
       /// <param name="cancel">Token di cancellazione</param>
       protected async Task TrainingAsync(CancellationToken cancel)
       {
+         // Funzione di caricamento dati di storage e training mergiati
+         IDataView LoadData()
+         {
+            if (DataStorage != null) {
+               if (TrainingData != null)
+                  return MergedDataView.Create(this, null, DataStorage.LoadData(this), TrainingData.LoadData(this));
+               else
+                  return DataStorage.LoadData(this);
+            }
+            else if (TrainingData != null)
+               return TrainingData.LoadData(this);
+            return null;
+         }
          // Task di salvataggio modello
          var taskSaveModel = Task.CompletedTask;
          try {
@@ -555,15 +569,6 @@ namespace MachineLearning
             var inputSchema = default(DataViewSchema);
             var model = default(ITransformer);
             var timestamp = default(DateTime);
-            // Sorgente dei dati di training
-            var trainingDataSource = TrainingData as IMultiStreamSource;
-            var trainingData = TrainingData;
-            if (trainingDataSource == null && trainingData != null) {
-               var temp = new DataTextMemory();
-               temp.SaveData(ML, trainingData.LoadTrainingData(ML, TextLoaderOptions), TextLoaderOptions);
-               trainingDataSource = temp;
-               trainingData = temp;
-            }
             // Loop di training continuo
             while (!cancel.IsCancellationRequested) {
                try {
@@ -588,22 +593,22 @@ namespace MachineLearning
                      cancel.ThrowIfCancellationRequested();
                      ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
                      // Carica i dati
-                     data = DataStorage?.LoadData(ML, TextLoaderOptions, trainingDataSource) ?? trainingData?.LoadTrainingData(ML, TextLoaderOptions);
+                     data = LoadData();
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });
                      // Verifica l'esistenza di dati
-                     if (data == default)
+                     if (data == null)
                         return;
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
-                     if (data != default && DataStorage != default && trainingData != default && AutoCommitData && trainingData.LoadTrainingData(ML, TextLoaderOptions).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
+                     if (data != null && DataStorage != null && TrainingData != null && AutoCommitData && TrainingData.LoadData(this).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
                         ML.NET.WriteLog("Committing the new data", Name);
                         await Task.Run(() => CommitTrainingData(), cancel);
                      }
                      // Valuta il modello attuale
                      cancel.ThrowIfCancellationRequested();
-                     eval2 = model == default ? default : await Task.Run(() => GetModelEvaluation(model, data), cancel);
+                     eval2 = model == null ? null : await Task.Run(() => GetModelEvaluation(model, data), cancel);
                      // Verifica se deve ricalcolare il modello
                      if (GetBestModelEvaluation(eval1, eval2) != eval2)
                         return;
@@ -612,23 +617,20 @@ namespace MachineLearning
                   // Ricarica i dati
                   else {
                      // Effettua eventuale commit automatico
-                     if (DataStorage != default && trainingData != default && AutoCommitData && trainingData.LoadTrainingData(ML, TextLoaderOptions).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
+                     if (DataStorage != null && TrainingData != null && AutoCommitData && TrainingData.LoadData(this).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
                            await Task.Run(() => CommitTrainingData(), cancel);
                            cancel.ThrowIfCancellationRequested();
-                           data = DataStorage.LoadData(ML);
                         }
                         catch (OperationCanceledException) {
                            throw;
                         }
                         catch (Exception exc) {
                            Debug.WriteLine(exc);
-                           data = DataStorage.LoadData(ML, TextLoaderOptions, trainingDataSource);
                         }
                      }
-                     else
-                        data = DataStorage?.LoadData(ML, TextLoaderOptions, trainingDataSource) ?? trainingData?.LoadTrainingData(ML, TextLoaderOptions);
+                     data = LoadData();
                      // Verifica l'esistenza di dati
                      if (data == default)
                         return;

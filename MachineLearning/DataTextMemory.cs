@@ -11,7 +11,7 @@ namespace MachineLearning
    /// Classe per lo storage di dati di tipo testo in memoria
    /// </summary>
    [Serializable]
-   public sealed partial class DataTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, ITimestamp, ITrainingData
+   public sealed partial class DataTextMemory : IDataStorage, IDataTextProvider, IMultiStreamSource, ITimestamp
    {
       #region Fields
       /// <summary>
@@ -46,32 +46,18 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="source">Storage di dati</param>
-      /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, IDataStorage source, TextLoader.Options opt = default)
-      {
-         opt ??= new TextLoader.Options();
-         SaveData(ml, source.LoadData(ml, opt), opt);  
-      }
+      /// <param name="context">Contesto</param>
+      /// <param name="data">Dati</param>
+      public DataTextMemory(object context, IDataView data) => SaveData(context, data);
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="context">Contesto</param>
       /// <param name="data">Dati</param>
-      /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default) => SaveData(ml, data, opt ?? new TextLoader.Options());
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">Dati</param>
-      /// <param name="opt">Opzioni di testo</param>
-      public DataTextMemory(MachineLearningContext ml, string data, TextLoader.Options opt = default)
+      public DataTextMemory(object context, string data)
       {
-         opt ??= new TextLoader.Options();
          TextData = data;
-         SaveData(ml, LoadData(ml, opt), opt);
+         SaveData(context, LoadData(context));
       }
       /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream indicato da index. Potrebbe essere null.
@@ -94,64 +80,42 @@ namespace MachineLearning
       /// <summary>
       /// Carica i dati
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="opt">Opzioni di testo</param>
-      /// <param name="extra">Sorgenti extra di dati</param>
+      /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra)
+      public IDataView LoadData(object context)
       {
-         return ml.NET.Data.CreateTextLoader(opt ?? new TextLoader.Options()).Load(_source ??= new Source(this, extra));
+         var ml = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
+         var opt = (context as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options();
+         return ml.Data.CreateTextLoader(opt).Load(_source ??= new Source(this));
       }
-      /// <summary>
-      /// Carica i dati di training
-      /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="opt">Opzioni di testo</param>
-      /// <param name="extra">Sorgenti extra di dati</param>
-      /// <returns>L'accesso ai dati</returns>
-      public IDataView LoadTrainingData(MachineLearningContext ml, TextLoader.Options opt = default, params IMultiStreamSource[] extra) => LoadData(ml, opt, extra);
       /// <summary>
       /// Salva i dati
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      /// <param name="opt">Opzioni di testo</param>
       /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
-      /// <param name="extra">Eventuali altri stream di dati</param>
-      public void SaveData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra)
+      public void SaveData(object context, IDataView data, bool schema = false)
       {
          lock (this) {
             // Data e ora
             var timestamp = DateTime.UtcNow;
             // Oggetto per la scrittura dei dati in memoria
             using var writer = new MemoryStream();
-            // Opzioni
-            opt ??= new TextLoader.Options();
+            // Contesto e opzioni
+            var ml = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
+            var opt = (context as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options();
             // Separatore di colonne
             var separator = opt.Separators?.FirstOrDefault() ?? '\t';
             separator = separator != default ? separator : '\t';
             // Salva come testo i dati
-            ml.NET.Data.SaveAsText(
+            ml.Data.SaveAsText(
                data: data,
                stream: writer,
                separatorChar: separator,
                headerRow: opt.HasHeader,
-               schema: false,
-               keepHidden: false,
+               schema: schema,
+               keepHidden: true,
                forceDense: false);
-            // Salva gli stream extra
-            foreach (var item in extra) {
-               var loader = ml.NET.Data.CreateTextLoader(opt);
-               data = loader.Load(item);
-               ml.NET.Data.SaveAsText(
-                  data: data,
-                  stream: writer,
-                  separatorChar: separator,
-                  headerRow: opt.HasHeader,
-                  schema: schema,
-                  keepHidden: false,
-                  forceDense: false);
-            }
             // Crea uno stream per la lettura
             writer.Position = 0;
             using var reader = new StreamReader(writer);
@@ -160,15 +124,6 @@ namespace MachineLearning
             Timestamp = timestamp;
          }
       }
-      /// <summary>
-      /// Salva i dati di training
-      /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      /// <param name="data">L'accesso ai dati</param>
-      /// <param name="opt">Opzioni di testo</param>
-      /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
-      /// <param name="extra">Eventuali altri stream di dati</param>
-      public void SaveTrainingData(MachineLearningContext ml, IDataView data, TextLoader.Options opt = default, bool schema = false, params IMultiStreamSource[] extra) => SaveData(ml, data, opt, schema, extra);
       #endregion
    }
 

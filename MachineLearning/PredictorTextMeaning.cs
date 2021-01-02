@@ -60,7 +60,7 @@ namespace MachineLearning
       /// <summary>
       /// Dati di training
       /// </summary>
-      public ITrainingData TrainingData { get; set; }
+      public IDataStorage TrainingData { get; set; }
       #endregion
       #region Methods
       /// <summary>

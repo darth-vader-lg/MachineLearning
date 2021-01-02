@@ -247,7 +247,7 @@ namespace MachineLearning
                var updateDataStorage = false;
                try {
                   // Dati dello storage
-                  var storageData = DataStorage.LoadData(ML, TextLoaderOptions);
+                  var storageData = DataStorage.LoadData(this);
                   // Loop su tutte le rige di dati
                   foreach (var dataRow in storageData.ToEnumerable(ML.NET)) {
                      // Flag di abilitazione scrittura linea sullo stram temporaneo
@@ -262,14 +262,14 @@ namespace MachineLearning
                      var ix = 0L;
                      foreach (var trainingData in data) {
                         // Linea di training
-                        var trainingLine = new DataTextMemory(ML, trainingData, TextLoaderOptions);
+                        var trainingLine = new DataTextMemory(this, trainingData);
                         // Valori di training
-                        var trainingValues = trainingLine.LoadData(ML, TextLoaderOptions).ToKeyValuePairs().First();
+                        var trainingValues = trainingLine.LoadData(this).ToKeyValuePairs().First();
                         // Verifica se l'immagine del set di training corrisponde a quella contenuta nel set di dati
                         if (imagePath == Convert.ToString(trainingValues.Last(item => item.Key == "ImagePath").Value).ToLower()) {
                            // Se l'immagine di training e' piu' vecchia o uguale a quella dello storage mantiene quella di storage, altrimenti quella di training
                            if (timestamp >= Convert.ToDateTime(trainingValues.Last(item => item.Key == "Timestamp").Value))
-                              trainingLine = new DataTextMemory(ML, dataRow, TextLoaderOptions);
+                              trainingLine = new DataTextMemory(this, dataRow);
                            else {
                               ML.NET.WriteLog($"Found updated image: {trainingValues.Last(item => item.Key == "ImagePath").Value}");
                               updateDataStorage = true;
@@ -284,7 +284,7 @@ namespace MachineLearning
                      }
                      // Scrive la linea nel file temporaneo se non ci sono state modifiche
                      if (writeLine)
-                        tmpStream.Write(new DataTextMemory(ML, dataRow, TextLoaderOptions));
+                        tmpStream.Write(new DataTextMemory(this, dataRow));
                   }
                }
                // Il file di storage potrebbe non esistere ancora
@@ -294,8 +294,8 @@ namespace MachineLearning
                var ixTraining = 0L;
                foreach (var trainingData in data) {
                   if (!existing.Contains(ixTraining)) {
-                     var formatter = new DataTextMemory(ML, trainingData, TextLoaderOptions);
-                     ML.NET.WriteLog($"Found new image: {formatter.LoadData(ML, TextLoaderOptions).GetString("ImagePath")}");
+                     var formatter = new DataTextMemory(this, trainingData);
+                     ML.NET.WriteLog($"Found new image: {formatter.LoadData(this).GetString("ImagePath")}");
                      tmpStream.Write(formatter.TextData);
                      updateDataStorage = true;
                   }
@@ -308,7 +308,7 @@ namespace MachineLearning
                // Aggiorna lo storage con il contenuto del file temporaneo se necessario
                if (updateDataStorage) {
                   cancellation.ThrowIfCancellationRequested();
-                  DataStorage.SaveData(ML, new DataTextFile(tmpFile).LoadData(ML, TextLoaderOptions), TextLoaderOptions, SaveDataSchemaComment);
+                  DataStorage.SaveData(this, new DataTextFile(tmpFile).LoadData(this), SaveDataSchemaComment);
                }
             }
             finally {

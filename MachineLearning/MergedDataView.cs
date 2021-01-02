@@ -2,16 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Microsoft.ML;
+using Microsoft.ML.Data;
 using Microsoft.ML.Internal.Utilities;
 using Microsoft.ML.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Microsoft.ML.Data
+namespace MachineLearning
 {
    // REVIEW: Currently, to enable shuffling, we require the row counts of the sources to be known.
-   // We can think of the shuffling in AppendRowsDataView as a two-stage process:
+   // We can think of the shuffling in MergedDataView as a two-stage process:
    // 1. the shuffling inside each source, and
    // 2. choosing a source with probability proportional to its remaining row counts when the (meta) cursor moves
    // For full-fledged shuffling, we need to know the row counts so as to choose a row uniformly at random.
@@ -24,11 +26,11 @@ namespace Microsoft.ML.Data
    /// All sources must contain the same number of columns and their column names, sizes, and item types must match.
    /// The row count of the resulting IDataView will be the sum over that of each individual.
    ///
-   /// An AppendRowsDataView instance is shuffleable iff all of its sources are shuffleable and their row counts are known.
+   /// An MergedDataView instance is shuffleable iff all of its sources are shuffleable and their row counts are known.
    /// </summary>
    internal sealed class MergedDataView : IDataView
    {
-      public const string RegistrationName = "AppendRowsDataView";
+      public const string RegistrationName = "MergedDataView";
 
       private readonly IDataView[] _sources;
       private readonly int[] _counts;
@@ -38,7 +40,7 @@ namespace Microsoft.ML.Data
 
       public DataViewSchema Schema { get; }
 
-      // REVIEW: AppendRowsDataView now only checks schema consistency up to column names and types.
+      // REVIEW: MergedDataView now only checks schema consistency up to column names and types.
       // A future task will be to ensure that the sources are consistent on the metadata level.
 
       /// <summary>
@@ -47,12 +49,13 @@ namespace Microsoft.ML.Data
       /// All sources must be consistent with the passed-in schema in the number of columns, column names,
       /// and column types. If schema is null, the first source's schema will be used.
       /// </summary>
-      /// <param name="env">The host environment.</param>
+      /// <param name="context">Contesto</param>
       /// <param name="schema">The schema for the result. If this is null, the first source's schema will be used.</param>
       /// <param name="sources">The sources to be appended.</param>
       /// <returns>The resulting IDataView.</returns>
-      public static IDataView Create(IHostEnvironment env, DataViewSchema schema, params IDataView[] sources)
+      public static IDataView Create(object context, DataViewSchema schema, params IDataView[] sources)
       {
+         var env = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
          Contracts.CheckValue(env, nameof(env));
          env.CheckValue(sources, nameof(sources));
          env.CheckNonEmpty(sources, nameof(sources), "There must be at least one source.");
