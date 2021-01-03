@@ -259,14 +259,30 @@ namespace MachineLearning
       /// <returns>Il Task</returns>
       private void CommitTrainingData()
       {
+         // Verifica degli storage
          if (DataStorage is not IDataStorage dataStorage || TrainingData is not IDataStorage trainingData)
             return;
-         var mergedData = MergedDataView.Create(this, null, dataStorage.LoadData(this), trainingData.LoadData(this));
-         dataStorage.SaveData(this, mergedData);
-         // Cancella i dati di training
-         var emptyData = new DataStorageTextMemory();
-         trainingData.SaveData(this, emptyData.LoadData(this));
-         OnTrainingDataChanged(EventArgs.Empty);
+         var tmpFileName = Path.GetTempFileName();
+         try {
+            // Dati di storage e di training concatenati
+            var mergedData = MergedDataView.Create(this, null, dataStorage.LoadData(this), trainingData.LoadData(this));
+            // Salva in un file temporaneo il merge
+            var tmpStorage = new DataStorageBinaryFile(tmpFileName) { KeepHidden = true };
+            tmpStorage.SaveData(this, mergedData);
+            // Aggiorna lo storage
+            dataStorage.SaveData(this, tmpStorage.LoadData(this));
+            // Cancella i dati di training
+            trainingData.SaveData(this, new DataStorageTextMemory().LoadData(this));
+            OnTrainingDataChanged(EventArgs.Empty);
+         }
+         finally {
+            try {
+               // Cancella il file temporaneo
+               File.Delete(tmpFileName);
+            }
+            catch (Exception) {
+            }
+         }
       }
       /// <summary>
       /// Formatta una riga di dati di input da un elenco di dati di input
