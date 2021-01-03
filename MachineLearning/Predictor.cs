@@ -87,10 +87,6 @@ namespace MachineLearning
       /// </summary>
       public bool PostRequired => Thread.CurrentThread != _creationThread && _creationTaskScheduler != null;
       /// <summary>
-      /// Abilita il salvataggio del commento dello schema di ingresso dei dati nel file (efficace solo su file di testo)
-      /// </summary>
-      public bool SaveDataSchemaComment { get; set; }
-      /// <summary>
       /// Task di training
       /// </summary>
       private CancellableTask TaskTraining => _taskTraining ??= new CancellableTask();
@@ -156,7 +152,7 @@ namespace MachineLearning
             throw new InvalidOperationException("The object doesn't have training data characteristics");
          var sb = new StringBuilder();
          var hash = new HashSet<int>();
-         var formatter = new DataTextMemory();
+         var formatter = new DataStorageTextMemory();
          // Genera le hash per ciascuna riga del sorgente se e' abilitato il controllo dei duplicati 
          if (checkForDuplicates) {
             void AddHashes(IMultiStreamSource source)
@@ -252,7 +248,7 @@ namespace MachineLearning
          // Annulla il training
          await ClearTrainingAsync(cancellation);
          // Cancella i dati di training
-         var emptyData = new DataTextMemory();
+         var emptyData = new DataStorageTextMemory();
          cancellation.ThrowIfCancellationRequested();
          trainingData.SaveData(this, emptyData.LoadData(this));
          OnTrainingDataChanged(EventArgs.Empty);
@@ -266,9 +262,9 @@ namespace MachineLearning
          if (DataStorage is not IDataStorage dataStorage || TrainingData is not IDataStorage trainingData)
             return;
          var mergedData = MergedDataView.Create(this, null, dataStorage.LoadData(this), trainingData.LoadData(this));
-         dataStorage.SaveData(this, mergedData, SaveDataSchemaComment);
+         dataStorage.SaveData(this, mergedData);
          // Cancella i dati di training
-         var emptyData = new DataTextMemory();
+         var emptyData = new DataStorageTextMemory();
          trainingData.SaveData(this, emptyData.LoadData(this));
          OnTrainingDataChanged(EventArgs.Empty);
       }
@@ -396,7 +392,7 @@ namespace MachineLearning
          if (((TrainingData as ITimestamp)?.Timestamp ?? default) > Evaluation.Timestamp || ((DataStorage as ITimestamp)?.Timestamp ?? default) > Evaluation.Timestamp)
             _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
-         var dataView = new DataTextMemory() { TextData = data }.LoadData(this);
+         var dataView = new DataStorageTextMemory() { TextData = data }.LoadData(this);
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello od un eventuale errore di training
          var evaluator = await GetEvaluatorAsync(cancellation);

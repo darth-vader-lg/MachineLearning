@@ -157,12 +157,12 @@ namespace MachineLearningStudio
       {
          try {
             var dataStoragePath = Path.Combine(Environment.CurrentDirectory, "data", Path.ChangeExtension(dataSetName, ".data"));
-            if (rebuildModel || predictor.DataStorage == null || dataStoragePath.ToLower() != ((DataTextFile)predictor.DataStorage).FilePath.ToLower()) {
+            if (rebuildModel || predictor.DataStorage == null || dataStoragePath.ToLower() != ((DataStorageTextFile)predictor.DataStorage).FilePath.ToLower()) {
                await Task.Run(async () =>
                {
                   await predictor.StopTrainingAsync(cancel);
                   cancel.ThrowIfCancellationRequested();
-                  predictor.DataStorage = new DataTextFile(dataStoragePath);
+                  predictor.DataStorage = new DataStorageTextFile(dataStoragePath);
                   await predictor.UpdateStorageAsync(Path.ChangeExtension(dataStoragePath, null), cancel);
                   predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(dataStoragePath, "model.zip")));
                   cancel.ThrowIfCancellationRequested();

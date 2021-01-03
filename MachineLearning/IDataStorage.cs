@@ -19,8 +19,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      /// <param name="schema">Commento contenente lo schema nei dati di tipo file testuali (ignorato negli altri)</param>
-      void SaveData(object context, IDataView data, bool schema = false);
+      void SaveData(object context, IDataView data);
       #endregion
    }
 }

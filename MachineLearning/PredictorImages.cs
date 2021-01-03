@@ -262,20 +262,25 @@ namespace MachineLearning
                      var ix = 0L;
                      foreach (var trainingData in data) {
                         // Linea di training
-                        var trainingLine = new DataTextMemory(this, trainingData);
+                        var formatter = new DataStorageTextMemory() { TextData = trainingData };
+                        var trainingDataView = formatter.LoadData(this);
+                        formatter.SaveData(this, trainingDataView);
+                        var trainingLine = formatter.TextData;
                         // Valori di training
-                        var trainingValues = trainingLine.LoadData(this).ToKeyValuePairs().First();
+                        var trainingValues = trainingDataView.ToKeyValuePairs().First();
                         // Verifica se l'immagine del set di training corrisponde a quella contenuta nel set di dati
                         if (imagePath == Convert.ToString(trainingValues.Last(item => item.Key == "ImagePath").Value).ToLower()) {
                            // Se l'immagine di training e' piu' vecchia o uguale a quella dello storage mantiene quella di storage, altrimenti quella di training
-                           if (timestamp >= Convert.ToDateTime(trainingValues.Last(item => item.Key == "Timestamp").Value))
-                              trainingLine = new DataTextMemory(this, dataRow);
+                           if (timestamp >= Convert.ToDateTime(trainingValues.Last(item => item.Key == "Timestamp").Value)) {
+                              formatter = new DataStorageTextMemory();
+                              formatter.SaveData(this, dataRow);
+                           }
                            else {
                               ML.NET.WriteLog($"Found updated image: {trainingValues.Last(item => item.Key == "ImagePath").Value}");
                               updateDataStorage = true;
                            }
                            // Scrive la linea scelta nel file temporaneo
-                           tmpStream.Write(trainingLine.TextData);
+                           tmpStream.Write(formatter.TextData);
                            existing.Add(ix);
                            writeLine = false;
                         }
@@ -283,8 +288,11 @@ namespace MachineLearning
                         cancellation.ThrowIfCancellationRequested();
                      }
                      // Scrive la linea nel file temporaneo se non ci sono state modifiche
-                     if (writeLine)
-                        tmpStream.Write(new DataTextMemory(this, dataRow));
+                     if (writeLine) {
+                        var formatter = new DataStorageTextMemory();
+                        formatter.SaveData(this, dataRow);
+                        tmpStream.Write(formatter.TextData);
+                     }
                   }
                }
                // Il file di storage potrebbe non esistere ancora
@@ -294,8 +302,10 @@ namespace MachineLearning
                var ixTraining = 0L;
                foreach (var trainingData in data) {
                   if (!existing.Contains(ixTraining)) {
-                     var formatter = new DataTextMemory(this, trainingData);
-                     ML.NET.WriteLog($"Found new image: {formatter.LoadData(this).GetString("ImagePath")}");
+                     var formatter = new DataStorageTextMemory() { TextData = trainingData };
+                     var trainingDataView = formatter.LoadData(this);
+                     formatter.SaveData(this, trainingDataView);
+                     ML.NET.WriteLog($"Found new image: {trainingDataView.GetString("ImagePath")}");
                      tmpStream.Write(formatter.TextData);
                      updateDataStorage = true;
                   }
@@ -308,7 +318,7 @@ namespace MachineLearning
                // Aggiorna lo storage con il contenuto del file temporaneo se necessario
                if (updateDataStorage) {
                   cancellation.ThrowIfCancellationRequested();
-                  DataStorage.SaveData(this, new DataTextFile(tmpFile).LoadData(this), SaveDataSchemaComment);
+                  DataStorage.SaveData(this, new DataStorageTextFile(tmpFile).LoadData(this));
                }
             }
             finally {

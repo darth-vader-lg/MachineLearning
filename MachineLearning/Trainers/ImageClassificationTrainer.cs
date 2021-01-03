@@ -159,7 +159,7 @@ namespace MachineLearning.Trainers
             var validationSet = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[]));
             if (validationSet != null) {
                var ml = new MachineLearningContext();
-               var storage = new DataBinaryMemory(this, (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[])));
+               var storage = new DataStorageBinaryMemory() { BinaryData = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[])) };
                data.ValidationSet = storage.LoadData(this);
             }
             else
