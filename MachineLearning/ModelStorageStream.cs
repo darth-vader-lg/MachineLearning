@@ -10,66 +10,50 @@ namespace MachineLearning
    [Serializable]
    public sealed class ModelStorageStream : IModelStorage, ITimestamp
    {
-      #region Fields
-      [NonSerialized]
-      /// <summary>
-      /// Funzione di restituzione della stream in lettura
-      /// </summary>
-      private readonly Func<Stream> _readStreamGetter;
-      /// <summary>
-      /// Funzione di restituzione della stream in lettura
-      /// </summary>
-      [NonSerialized]
-      private readonly Func<Stream> _writeStreamGetter;
-      #endregion
       #region Properties
+      /// <summary>
+      /// Funzione di ottenimento dello stream di lettura
+      /// </summary>
+      [field: NonSerialized]
+      public Func<Stream> ReadStream { get; set; }
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
       public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
+      /// <summary>
+      /// Funzione di ottenimento dello stream di scrittura
+      /// </summary>
+      [field: NonSerialized]
+      public Func<Stream> WriteStream { get; set; }
       #endregion
       #region Methods
       /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="ReadStreamGetter">Funzione di restituzione della stream in lettura</param>
-      /// <param name="WriteStreamGetter">Funzione di restituzione della stream in scrittura</param>
-      public ModelStorageStream(Func<Stream> ReadStreamGetter = null, Func<Stream> WriteStreamGetter = null)
-      {
-         _readStreamGetter = ReadStreamGetter;
-         _writeStreamGetter = WriteStreamGetter;
-      }
-      /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <typeparam name="T">Il tipo di contesto</typeparam>
+      /// <param name="context">Contesto</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema inputSchema)
+      public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema)
       {
-         if (_readStreamGetter == default) {
-            inputSchema = default;
-            return default;
-         }
-         using var stream = _readStreamGetter();
-         return ml.NET.Model.Load(stream, out inputSchema);
+         var stream = ReadStream?.Invoke();
+         if (stream == null)
+            throw new InvalidOperationException("Cannot read from the stream");
+         return (context?.ML?.NET ?? new MLContext()).Model.Load(stream, out inputSchema);
       }
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <typeparam name="T">Il tipo di contesto</typeparam>
+      /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
       /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema)
       {
-         lock (this) {
-            var timestamp = DateTime.UtcNow;
-            if (_writeStreamGetter == default)
-               return;
-            using var stream = _writeStreamGetter();
-            ml.NET.Model.Save(model, inputSchema, stream);
-            Timestamp = timestamp;
-         }
+         var stream = WriteStream?.Invoke();
+         if (stream == null)
+            throw new InvalidOperationException("Cannot write to the stream");
+         (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, stream);
       }
       #endregion
    }

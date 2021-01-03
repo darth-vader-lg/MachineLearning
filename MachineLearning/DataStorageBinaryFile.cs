@@ -41,7 +41,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      public override IDataView LoadData(object context)
+      public override IDataView LoadData(IMachineLearningContextProvider context)
       {
          if (!File.Exists(FilePath))
             throw new FileNotFoundException("File not found", FilePath);
@@ -52,7 +52,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public override void SaveData(object context, IDataView data)
+      public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
          using var stream = File.Create(FilePath);
          if (stream == null)

@@ -52,19 +52,16 @@ namespace MachineLearning
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      protected IDataView LoadBinaryData(object context)
-      {
-         var ml = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
-         return ml.Data.LoadFromBinary(this);
-      }
+      protected IDataView LoadBinaryData(IMachineLearningContextProvider context) =>
+         (context?.ML?.NET ?? new MLContext()).Data.LoadFromBinary(this);
       /// <summary>
       /// Carica i dati in formato testo
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      protected IDataView LoadTextData(object context)
+      protected IDataView LoadTextData(IMachineLearningContextProvider context)
       {
-         var ml = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
+         var ml = context?.ML?.NET ?? new MLContext();
          var opt = (context as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options();
          return ml.Data.CreateTextLoader(opt).Load(this);
       }
@@ -75,7 +72,7 @@ namespace MachineLearning
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="stream">Stream per la scrittura. Lo stream viene chiuso automaticamente al termine della scrittura</param>
       /// <param name="keepHidden">Se mantenere le colonne nascoste nel set di dati</param>
-      protected void SaveBinaryData(object context, IDataView data, Stream stream, bool keepHidden = false)
+      protected void SaveBinaryData(IMachineLearningContextProvider context, IDataView data, Stream stream, bool keepHidden = false)
       {
          lock (this) {
             try {
@@ -84,8 +81,7 @@ namespace MachineLearning
                if (!stream.CanWrite)
                   throw new ArgumentException($"{nameof(stream)} must be writable");
                // Contesto
-               var ml = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
-               ml.Data.SaveAsBinary(data, stream, keepHidden);
+               (context?.ML?.NET ?? new MLContext()).Data.SaveAsBinary(data, stream, keepHidden);
             }
             finally {
                try {
@@ -106,7 +102,7 @@ namespace MachineLearning
       /// <param name="keepHidden">Specifica se mantenere le colonne nascoste nel set di dati</param>
       /// <param name="forceDense">Specifica se salvare le colonne in formato denso anche se sono vettori sparsi</param>
       /// <param name="closeStream">Determina se chiudere lo stream al termine della scrittura</param>
-      protected void SaveTextData(object context, IDataView data, Stream stream, bool schema = false, bool keepHidden = false, bool forceDense = false, bool closeStream = true)
+      protected void SaveTextData(IMachineLearningContextProvider context, IDataView data, Stream stream, bool schema = false, bool keepHidden = false, bool forceDense = false, bool closeStream = true)
       {
          lock (this) {
             try {
@@ -116,7 +112,7 @@ namespace MachineLearning
                if (!stream.CanWrite)
                   throw new ArgumentException($"{nameof(stream)} must be writable");
                // Contesto e opzioni
-               var ml = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
+               var ml = context?.ML?.NET ?? new MLContext();
                var opt = (context as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options();
                // Separatore di colonne
                var separator = opt.Separators?.FirstOrDefault() ?? '\t';

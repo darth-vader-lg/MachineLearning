@@ -43,7 +43,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public override void SaveData(object context, IDataView data)
+      public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
          var stream = WriteStream?.Invoke();
          if (stream == null)

@@ -158,9 +158,8 @@ namespace MachineLearning.Trainers
             data.TrainSetBottleneckCachedValuesFileName = (string)info.GetValue(nameof(data.TrainSetBottleneckCachedValuesFileName), typeof(string));
             var validationSet = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[]));
             if (validationSet != null) {
-               var ml = new MachineLearningContext();
                var storage = new DataStorageBinaryMemory() { BinaryData = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[])) };
-               data.ValidationSet = storage.LoadData(this);
+               data.ValidationSet = storage.LoadData(null);
             }
             else
                data.ValidationSet = null;

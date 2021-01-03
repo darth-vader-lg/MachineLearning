@@ -7,7 +7,7 @@ namespace MachineLearning
    /// Contesto di machine learning
    /// </summary>
    [Serializable]
-   public class MachineLearningContext
+   public class MachineLearningContext : IMachineLearningContextProvider
    {
       #region Fields
       /// <summary>
@@ -21,6 +21,10 @@ namespace MachineLearning
       private readonly int? seed;
       #endregion
       #region Properties
+      /// <summary>
+      /// Contesto di machine learning
+      /// </summary>
+      MachineLearningContext IMachineLearningContextProvider.ML => this;
       /// <summary>
       /// Contesto ML.NET
       /// </summary>

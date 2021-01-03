@@ -33,30 +33,32 @@ namespace MachineLearning
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <typeparam name="T">Il tipo di contesto</typeparam>
+      /// <param name="context">Contesto</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(MachineLearningContext ml, out DataViewSchema inputSchema)
+      public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema)
       {
          if (Bytes == default) {
             inputSchema = default;
             return default;
          }
          using var memoryStream = new MemoryStream(Bytes);
-         return ml.NET.Model.Load(memoryStream, out inputSchema);
+         return (context?.ML?.NET ?? new MLContext()).Model.Load(memoryStream, out inputSchema);
       }
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <typeparam name="T">Il tipo di contesto</typeparam>
+      /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
       /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(MachineLearningContext ml, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema)
       {
          lock (this) {
             var timestamp = DateTime.UtcNow;
             using var memoryStream = new MemoryStream();
-            ml.NET.Model.Save(model, inputSchema, memoryStream);
+            (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, memoryStream);
             Bytes = memoryStream.ToArray();
             Timestamp = timestamp;
          }

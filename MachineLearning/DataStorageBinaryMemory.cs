@@ -37,7 +37,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public override void SaveData(object context, IDataView data)
+      public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
          lock (this) {
             var timestamp = DateTime.UtcNow;

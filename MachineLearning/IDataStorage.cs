@@ -13,13 +13,13 @@ namespace MachineLearning
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      IDataView LoadData(object context);
+      IDataView LoadData(IMachineLearningContextProvider context);
       /// <summary>
       /// Salva i dati
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      void SaveData(object context, IDataView data);
+      void SaveData(IMachineLearningContextProvider context, IDataView data);
       #endregion
    }
 }
