@@ -37,6 +37,11 @@ namespace MachineLearning
       /// <returns>Il path o null</returns>
       protected override string GetFilePath() => FilePath;
       /// <summary>
+      /// Restituisce uno stream leggibile.
+      /// </summary>
+      /// <returns>Lo stream di lettura</returns>
+      protected override Stream GetReadStream() => File.OpenRead(FilePath);
+      /// <summary>
       /// Carica i dati
       /// </summary>
       /// <param name="context">Contesto</param>
