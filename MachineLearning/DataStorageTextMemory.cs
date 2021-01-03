@@ -32,7 +32,7 @@ namespace MachineLearning
       /// Restituisce uno stream leggibile.
       /// </summary>
       /// <returns>Lo stream di lettura</returns>
-      protected override Stream GetReadStream() => new MemoryStream(Encoding.Default.GetBytes(TextData));
+      protected override Stream GetReadStream() => new MemoryStream(Encoding.Default.GetBytes(TextData ?? ""));
       /// <summary>
       /// Salva i dati
       /// </summary>
