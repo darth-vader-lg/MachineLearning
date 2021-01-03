@@ -45,11 +45,11 @@ namespace MachineLearning
       /// <param name="data">L'accesso ai dati</param>
       public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
+         var timestamp = DateTime.UtcNow;
          var stream = WriteStream?.Invoke();
          if (stream == null)
             throw new InvalidOperationException("Cannot write to the stream");
          lock (this) {
-            var timestamp = DateTime.UtcNow;
             SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
             Timestamp = timestamp;
          }

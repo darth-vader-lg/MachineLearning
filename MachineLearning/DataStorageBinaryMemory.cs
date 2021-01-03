@@ -39,8 +39,8 @@ namespace MachineLearning
       /// <param name="data">L'accesso ai dati</param>
       public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
+         var timestamp = DateTime.UtcNow;
          lock (this) {
-            var timestamp = DateTime.UtcNow;
             var stream = new MemoryStream();
             SaveBinaryData(context, data, stream, KeepHidden);
             BinaryData = stream.ToArray();

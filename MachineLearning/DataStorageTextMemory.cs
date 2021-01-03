@@ -40,9 +40,9 @@ namespace MachineLearning
       /// <param name="data">L'accesso ai dati</param>
       public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
+         // Data e ora
+         var timestamp = DateTime.UtcNow;
          lock (this) {
-            // Data e ora
-            var timestamp = DateTime.UtcNow;
             // Oggetto per la scrittura dei dati in memoria
             using var stream = new MemoryStream();
             SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense, false);
