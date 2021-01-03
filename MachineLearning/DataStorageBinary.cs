@@ -13,7 +13,7 @@ namespace MachineLearning
       /// <summary>
       /// Specifica se mantenere le colonne nascoste nel set di dati
       /// </summary>
-      public bool KeepHidden { get; private set; }
+      public bool KeepHidden { get; set; }
       #endregion
       #region Methods
       /// <summary>
