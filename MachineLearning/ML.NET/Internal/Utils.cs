@@ -52,5 +52,15 @@ namespace Microsoft.ML.Internal.Utilities
          var meth = func.MakeGenericMethod(genArg);
          return (TResult)meth.Invoke(target, new object[] { arg1 });
       }
+
+      /// <summary>
+      /// A two-argument version of <see cref="MarshalInvoke{TTarget, TResult}(FuncInstanceMethodInfo1{TTarget, TResult}, TTarget, Type)"/>.
+      /// </summary>
+      public static TResult MarshalInvoke<TTarget, TArg1, TArg2, TResult>(FuncInstanceMethodInfo1<TTarget, TArg1, TArg2, TResult> func, TTarget target, Type genArg, TArg1 arg1, TArg2 arg2)
+          where TTarget : class
+      {
+         var meth = func.MakeGenericMethod(genArg);
+         return (TResult)meth.Invoke(target, new object[] { arg1, arg2 });
+      }
    }
 }
