@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,8 +13,14 @@ namespace MachineLearning
    /// <summary>
    /// Griglia di dati
    /// </summary>
-   public partial class DataGrid : IDataView, IEnumerable<DataGrid.Row>
+   public partial class DataViewGrid : IDataView, IEnumerable<DataViewGrid.Row>
    {
+      #region Fields
+      /// <summary>
+      /// Host
+      /// </summary>
+      private readonly IHost _host;
+      #endregion
       #region Properties
       /// <summary>
       /// Abilitazione allo shuffle
@@ -47,9 +54,14 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
+      /// <param name="context">Contesto</param>
       /// <param name="dataView">Vista di dati</param>
-      private DataGrid(IDataView dataView)
+      private DataViewGrid(IMachineLearningContextProvider context, IDataView dataView)
       {
+         // Check
+         Contracts.AssertValue(context?.ML?.NET, nameof(context));
+         _host = ((context?.ML?.NET ?? new MLContext()) as IHostEnvironment).Register(nameof(DataViewGrid));
+         _host.AssertValue(dataView, nameof(dataView));
          // Memorizza lo schema
          Schema = dataView.Schema;
          // Numero di colonne
@@ -85,11 +97,17 @@ namespace MachineLearning
          Cols = Array.AsReadOnly((from col in Schema select new Col(this, col.Index)).ToArray());
       }
       /// <summary>
-      /// Funzione di creazione
+      /// Crea una griglia di dati
       /// </summary>
+      /// <param name="context">Contesto</param>
       /// <param name="dataView">Vista di dati</param>
-      /// <returns>La DataTable</returns>
-      public static DataGrid Create(IDataView dataView) => new DataGrid(dataView);
+      /// <returns>La griglia di dati</returns>
+      public static DataViewGrid Create(IMachineLearningContextProvider context, IDataView dataView)
+      {
+         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         context.ML.NET.CheckValue(dataView, nameof(dataView));
+         return new DataViewGrid(context, dataView);
+      }
       /// <summary>
       /// Enumeratore di righe
       /// </summary>
@@ -136,7 +154,7 @@ namespace MachineLearning
       IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)Rows).GetEnumerator();
    }
 
-   public partial class DataGrid // Cursor
+   public partial class DataViewGrid // Cursor
    {
       /// <summary>
       /// Implementazione del cursore della data view
@@ -147,7 +165,7 @@ namespace MachineLearning
          /// <summary>
          /// Posizione
          /// </summary>
-         private readonly DataGrid _owner;
+         private readonly DataViewGrid _owner;
          /// <summary>
          /// Posizione
          /// </summary>
@@ -172,7 +190,7 @@ namespace MachineLearning
          /// Costruttore
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
-         internal Cursor(DataGrid owner) => _owner = owner;
+         internal Cursor(DataViewGrid owner) => _owner = owner;
          /// <summary>
          /// Funzione di restituzione del getter di valori
          /// </summary>
@@ -215,7 +233,7 @@ namespace MachineLearning
       }
    }
 
-   public partial class DataGrid // Row
+   public partial class DataViewGrid // Row
    {
       /// <summary>
       /// Riga
@@ -226,7 +244,7 @@ namespace MachineLearning
          /// <summary>
          /// Identificatore della riga
          /// </summary>
-         private bool[] _isColumnActive;
+         private readonly bool[] _isColumnActive;
          #endregion
          #region Properties
          /// <summary>
@@ -295,7 +313,7 @@ namespace MachineLearning
       }
    }
 
-   public partial class DataGrid // Row
+   public partial class DataViewGrid // Row
    {
       /// <summary>
       /// Colonna
@@ -310,7 +328,7 @@ namespace MachineLearning
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
-         private readonly DataGrid _owner;
+         private readonly DataViewGrid _owner;
          #endregion
          #region Properties
          /// <summary>
@@ -325,7 +343,7 @@ namespace MachineLearning
          /// Costruttore
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
-         internal Col(DataGrid owner, int index)
+         internal Col(DataViewGrid owner, int index)
          {
             _owner = owner;
             _index = index;

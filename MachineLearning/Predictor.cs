@@ -143,6 +143,82 @@ namespace MachineLearning
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
+      /// <param name="data">Dati da aggiungere</param>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
+      /*public void AddTrainingData(IDataView data, bool checkForDuplicates = false)
+      {
+         // Verifica esistenza dati di training
+         if (TrainingData != null)
+            throw new InvalidOperationException("The object doesn't have training data characteristics");
+         if (checkForDuplicates) {
+         }
+
+
+         var sb = new StringBuilder();
+         var hash = new HashSet<int>();
+         var formatter = new DataStorageTextMemory();
+         // Genera le hash per ciascuna riga del sorgente se e' abilitato il controllo dei duplicati 
+         if (checkForDuplicates) {
+            void AddHashes(IMultiStreamSource source)
+            {
+               if (source == null)
+                  return;
+               for (var i = 0; i < source.Count; i++) {
+                  using var reader = source.OpenTextReader(i);
+                  for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+                     formatter.TextData = line;
+                     formatter.SaveData(this, formatter.LoadData(this));
+                     hash.Add(formatter.TextData.GetHashCode());
+                  }
+               }
+            }
+            AddHashes(DataStorage as IMultiStreamSource);
+            AddHashes(TrainingData as IMultiStreamSource);
+         }
+         // Aggiunge i dati di training preesistenti
+         for (var i = 0; i < trainingDataSource.Count; i++) {
+            using var reader = trainingDataSource.OpenTextReader(i);
+            for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+               if (checkForDuplicates) {
+                  formatter.TextData = line;
+                  formatter.SaveData(this, formatter.LoadData(this));
+                  if (!hash.Contains(formatter.TextData.GetHashCode())) {
+                     hash.Add(formatter.TextData.GetHashCode());
+                     sb.AppendLine(line);
+                  }
+               }
+               else
+                  sb.AppendLine(line);
+            }
+         }
+         // Aggiunge le linee di training
+         using var dataReader = new StringReader(data);
+         for (var line = dataReader.ReadLine(); line != null; line = dataReader.ReadLine()) {
+            if (checkForDuplicates) {
+               formatter.TextData = line;
+               formatter.SaveData(this, formatter.LoadData(this));
+               if (!hash.Contains(formatter.TextData.GetHashCode())) {
+                  hash.Add(formatter.TextData.GetHashCode());
+                  sb.AppendLine(line);
+               }
+            }
+            else
+               sb.AppendLine(line);
+         }
+         // Aggiorna i dati di training
+         if (sb.Length > 0) {
+            // Annulla il training
+            ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            // Formatta in testo e salva
+            formatter.TextData = sb.ToString();
+            trainingData.SaveData(this, formatter.LoadData(this));
+            OnTrainingDataChanged(EventArgs.Empty);
+         }
+      }
+      */
+      /// <summary>
+      /// Aggiunge un elenco di dati di training
+      /// </summary>
       /// <param name="data">Linee di dati da aggiungere</param>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       public void AddTrainingData(string data, bool checkForDuplicates = false)
@@ -265,7 +341,7 @@ namespace MachineLearning
          var tmpFileName = Path.GetTempFileName();
          try {
             // Dati di storage e di training concatenati
-            var mergedData = MergedDataView.Create(this, null, dataStorage.LoadData(this), trainingData.LoadData(this));
+            var mergedData = DataViewMerged.Create(this, null, dataStorage.LoadData(this), trainingData.LoadData(this));
             // Salva in un file temporaneo il merge
             var tmpStorage = new DataStorageBinaryFile(tmpFileName) { KeepHidden = true };
             tmpStorage.SaveData(this, mergedData);
@@ -559,7 +635,7 @@ namespace MachineLearning
          {
             if (DataStorage != null) {
                if (TrainingData != null)
-                  return MergedDataView.Create(this, null, DataStorage.LoadData(this), TrainingData.LoadData(this));
+                  return DataViewMerged.Create(this, null, DataStorage.LoadData(this), TrainingData.LoadData(this));
                else
                   return DataStorage.LoadData(this);
             }
@@ -606,6 +682,23 @@ namespace MachineLearning
                      ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
                      // Carica i dati
                      data = LoadData();
+
+                     var dataTable = data.ToDataGrid(this);
+                     var dataTableRows = dataTable.ToDataViewRows().ToArray();
+
+                     //var rows = data.ToDataViewRows().ToArray();
+
+                     //var filter = new FilteredDataView(data);
+                     //var rc = 0;
+                     //foreach (var row in filter.GetRowCursor(filter.Schema).ToEnumerable()) {
+                     //   var values = row.ToKeyValuePairs();
+                     //   if (rc == 1 || rc == 3)
+                     //      filter.SetActiveState(row, false);
+                     //   rc++;
+                     //}
+                     //var filteredRows = filter.ToDataViewRows();
+
+
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });

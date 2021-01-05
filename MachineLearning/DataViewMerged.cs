@@ -28,7 +28,7 @@ namespace MachineLearning
    ///
    /// An MergedDataView instance is shuffleable iff all of its sources are shuffleable and their row counts are known.
    /// </summary>
-   internal sealed class MergedDataView : IDataView
+   internal sealed class DataViewMerged : IDataView
    {
       public const string RegistrationName = "MergedDataView";
 
@@ -53,23 +53,22 @@ namespace MachineLearning
       /// <param name="schema">The schema for the result. If this is null, the first source's schema will be used.</param>
       /// <param name="sources">The sources to be appended.</param>
       /// <returns>The resulting IDataView.</returns>
-      public static IDataView Create(object context, DataViewSchema schema, params IDataView[] sources)
+      public static IDataView Create(IMachineLearningContextProvider context, DataViewSchema schema, params IDataView[] sources)
       {
-         var env = (context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
-         Contracts.CheckValue(env, nameof(env));
-         env.CheckValue(sources, nameof(sources));
-         env.CheckNonEmpty(sources, nameof(sources), "There must be at least one source.");
-         env.CheckParam(sources.All(s => s != null), nameof(sources));
-         env.CheckValueOrNull(schema);
+         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         context.ML.NET.CheckValue(sources, nameof(sources));
+         context.ML.NET.CheckNonEmpty(sources, nameof(sources), "There must be at least one source.");
+         context.ML.NET.CheckParam(sources.All(s => s != null), nameof(sources));
+         context.ML.NET.CheckValueOrNull(schema);
          if (sources.Length == 1)
             return sources[0];
-         return new MergedDataView(env, schema, sources);
+         return new DataViewMerged(context, schema, sources);
       }
 
-      private MergedDataView(IHostEnvironment env, DataViewSchema schema, IDataView[] sources)
+      private DataViewMerged(IMachineLearningContextProvider context, DataViewSchema schema, IDataView[] sources)
       {
-         Contracts.CheckValue(env, nameof(env));
-         _host = env.Register(RegistrationName);
+         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         _host = (context.ML.NET as IHostEnvironment).Register(RegistrationName);
 
          _host.AssertValueOrNull(schema);
          _host.AssertValue(sources);
@@ -163,7 +162,7 @@ namespace MachineLearning
 
          public sealed override DataViewSchema Schema { get; }
 
-         public CursorBase(MergedDataView parent)
+         public CursorBase(DataViewMerged parent)
              : base(parent._host)
          {
             Sources = parent._sources;
@@ -212,7 +211,7 @@ namespace MachineLearning
          private int _currentSourceIndex;
          private bool _disposed;
 
-         public Cursor(MergedDataView parent, IEnumerable<DataViewSchema.Column> columnsNeeded)
+         public Cursor(DataViewMerged parent, IEnumerable<DataViewSchema.Column> columnsNeeded)
              : base(parent)
          {
             _currentSourceIndex = 0;
@@ -301,7 +300,7 @@ namespace MachineLearning
          private int _currentSourceIndex;
          private bool _disposed;
 
-         public RandCursor(MergedDataView parent, IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand, int[] counts)
+         public RandCursor(DataViewMerged parent, IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand, int[] counts)
              : base(parent)
          {
             Ch.AssertValue(rand);

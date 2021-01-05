@@ -1,4 +1,5 @@
-﻿using Microsoft.ML.Data;
+﻿using MachineLearning;
+using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -77,6 +78,15 @@ namespace Microsoft.ML
          return dataView.GetValue<T>(col.Index, row);
       }
       /// <summary>
+      /// Crea una IDataView che e' il merge dell'oggetto principale con una serie di altre IDataView
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <param name="context">Contesto</param>
+      /// <param name="others">Altre viste di dati da concatenare</param>
+      /// <returns>La vista di dati concatenata</returns>
+      public static IDataView Merge(this IDataView dataView, IMachineLearningContextProvider context, params IDataView[] others) =>
+         DataViewMerged.Create(context, dataView.Schema, new[] { dataView }.Concat(others).ToArray());
+      /// <summary>
       /// Equivalent to calling Equals(ColumnType) for non-vector types. For vector type,
       /// returns true if current and other vector types have the same size and item type.
       /// </summary>
@@ -93,6 +103,21 @@ namespace Microsoft.ML
             return false;
          return vectorType.Size == otherVectorType.Size;
       }
+      /// <summary>
+      /// Trasforma la IDataView in una griglia di dati
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <param name="context">Contesto</param>
+      /// <returns>La vista di dati filtrata</returns>
+      public static DataViewGrid ToDataGrid(this IDataView dataView, IMachineLearningContextProvider context) => DataViewGrid.Create(context, dataView);
+      /// <summary>
+      /// Trasforma la IDataView in una data view filtrata
+      /// </summary>
+      /// <param name="dataView">Dati</param>
+      /// <param name="context">Contesto</param>
+      /// <param name="filter">Filtro</param>
+      /// <returns>La vista di dati filtrata</returns>
+      public static DataViewFiltered ToFiltered(this IDataView dataView, IMachineLearningContextProvider context, DataViewRowFilter filter) => DataViewFiltered.Create(context, dataView, filter);
       /// <summary>
       /// Converte una IDataView in un enumerable di coppie chiave/valore
       /// </summary>
