@@ -50,6 +50,12 @@ namespace MachineLearning
       /// <param name="index"></param>
       /// <returns>La riga</returns>
       public Row this[int index] => Rows[index];
+      /// <summary>
+      /// Indicizzatore di colonne
+      /// </summary>
+      /// <param name="columnName">Nome colonna</param>
+      /// <returns>La colonna</returns>
+      public Col this[string columnName] => this[Schema[columnName]];
       #endregion
       /// <summary>
       /// Costruttore
@@ -72,7 +78,7 @@ namespace MachineLearning
          var getter = new Func<DataViewRowCursor, int, object>[n];
          for (var i = 0; i < n; i++) {
             var getterMethodInfo = GetType().GetMethod(nameof(GetValue), BindingFlags.NonPublic | BindingFlags.Static);
-            var getterGenericMethodInfo = getterMethodInfo.MakeGenericMethod(Schema[0].Type.RawType);
+            var getterGenericMethodInfo = getterMethodInfo.MakeGenericMethod(Schema[i].Type.RawType);
             getter[i] = new Func<DataViewRowCursor, int, object>((cursor, col) => getterGenericMethodInfo.Invoke(null, new object[] { cursor, col }));
          }
          // Ottiene il cursore per la data view di input e itera su tutte le righe
