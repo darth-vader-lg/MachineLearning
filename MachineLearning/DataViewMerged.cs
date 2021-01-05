@@ -31,7 +31,7 @@ namespace MachineLearning
    /// </summary>
    internal sealed class DataViewMerged : IDataView
    {
-      public const string RegistrationName = "MergedDataView";
+      public const string RegistrationName = nameof(DataViewMerged);
 
       private readonly IDataView[] _sources;
       private readonly int[] _counts;
@@ -153,7 +153,7 @@ namespace MachineLearning
 
       private abstract class CursorBase : RootCursorBase
       {
-         private static readonly MethodInfo _createTypedGetterMethodInfoStatic = typeof(CursorBase).GetMethod(nameof(CreateTypedGetter), BindingFlags.NonPublic | BindingFlags.Static);
+         private static readonly MethodInfo _createTypedGetterMethodInfo = typeof(CursorBase).GetMethod(nameof(CreateTypedGetter), BindingFlags.Instance | BindingFlags.NonPublic);
 
          protected readonly IDataView[] Sources;
          protected readonly Delegate[] Getters;
@@ -175,11 +175,9 @@ namespace MachineLearning
          {
             DataViewType colType = Schema[col].Type;
             Ch.AssertValue(colType);
-            var getterGenericMethodInfo = _createTypedGetterMethodInfoStatic.MakeGenericMethod(Schema[col].Type.RawType);
-            return (Delegate)getterGenericMethodInfo.Invoke(null, new object[] { this, col });
+            var getterGenericMethodInfo = _createTypedGetterMethodInfo.MakeGenericMethod(Schema[col].Type.RawType);
+            return (Delegate)getterGenericMethodInfo.Invoke(this, new object[] { col });
          }
-
-         private static ValueGetter<TValue> CreateTypedGetter<TValue>(CursorBase cursor, int col) => cursor.CreateTypedGetter<TValue>(col);
 
          protected abstract ValueGetter<TValue> CreateTypedGetter<TValue>(int col);
 
