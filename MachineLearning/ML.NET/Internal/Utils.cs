@@ -43,15 +43,5 @@ namespace Microsoft.ML.Internal.Utilities
          for (int iv = 0; iv < rgv.Length; iv++)
             Swap(ref rgv[iv], ref rgv[iv + rand.Next(rgv.Length - iv)]);
       }
-
-      /// <summary>
-      /// A one-argument version of <see cref="MarshalInvoke{TTarget, TResult}(FuncInstanceMethodInfo1{TTarget, TResult}, TTarget, Type)"/>.
-      /// </summary>
-      public static TResult MarshalInvoke<TTarget, TArg1, TResult>(FuncInstanceMethodInfo1<TTarget, TArg1, TResult> func, TTarget target, Type genArg, TArg1 arg1)
-          where TTarget : class
-      {
-         var meth = func.MakeGenericMethod(genArg);
-         return (TResult)meth.Invoke(target, new object[] { arg1 });
-      }
    }
 }

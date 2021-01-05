@@ -9,6 +9,7 @@ using Microsoft.ML.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace MachineLearning
 {
@@ -152,8 +153,7 @@ namespace MachineLearning
 
       private abstract class CursorBase : RootCursorBase
       {
-         private static readonly FuncInstanceMethodInfo1<CursorBase, int, Delegate> _createTypedGetterMethodInfo
-             = FuncInstanceMethodInfo1<CursorBase, int, Delegate>.Create(target => target.CreateTypedGetter<int>);
+         private static readonly MethodInfo _createTypedGetterMethodInfoStatic = typeof(CursorBase).GetMethod(nameof(CreateTypedGetter), BindingFlags.NonPublic | BindingFlags.Static);
 
          protected readonly IDataView[] Sources;
          protected readonly Delegate[] Getters;
@@ -175,8 +175,11 @@ namespace MachineLearning
          {
             DataViewType colType = Schema[col].Type;
             Ch.AssertValue(colType);
-            return Utils.MarshalInvoke(_createTypedGetterMethodInfo, this, colType.RawType, col);
+            var getterGenericMethodInfo = _createTypedGetterMethodInfoStatic.MakeGenericMethod(Schema[col].Type.RawType);
+            return (Delegate)getterGenericMethodInfo.Invoke(null, new object[] { this, col });
          }
+
+         private static ValueGetter<TValue> CreateTypedGetter<TValue>(CursorBase cursor, int col) => cursor.CreateTypedGetter<TValue>(col);
 
          protected abstract ValueGetter<TValue> CreateTypedGetter<TValue>(int col);
 
