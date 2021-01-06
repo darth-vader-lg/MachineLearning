@@ -14,35 +14,35 @@ namespace MachineLearning
       /// <summary>
       /// Dizionario di conversioni
       /// </summary>
-      private static readonly Dictionary<(Type from, Type to), Func<dynamic, dynamic>> Converter = new Dictionary<(Type from, Type to), Func<dynamic, dynamic>>
+      private static readonly Dictionary<(Type from, Type to), Func<object, object>> Converter = new Dictionary<(Type from, Type to), Func<object, object>>
       {
-         { (typeof(VBuffer<sbyte>), typeof(sbyte[])), new Func<dynamic, dynamic>(value => VBufferToArray<sbyte>(value)) },
-         { (typeof(VBuffer<byte>), typeof(byte[])), new Func<dynamic, dynamic>(value => VBufferToArray<byte>(value)) },
-         { (typeof(VBuffer<short>), typeof(short[])), new Func<dynamic, dynamic>(value => VBufferToArray<short>(value)) },
-         { (typeof(VBuffer<ushort>), typeof(ushort[])), new Func<dynamic, dynamic>(value => VBufferToArray<ushort>(value)) },
-         { (typeof(VBuffer<int>), typeof(int[])), new Func<dynamic, dynamic>(value => VBufferToArray<int>(value)) },
-         { (typeof(VBuffer<uint>), typeof(uint[])), new Func<dynamic, dynamic>(value => VBufferToArray<uint>(value)) },
-         { (typeof(VBuffer<long>), typeof(long[])), new Func<dynamic, dynamic>(value => VBufferToArray<long>(value)) },
-         { (typeof(VBuffer<ulong>), typeof(ulong[])), new Func<dynamic, dynamic>(value => VBufferToArray<ulong>(value)) },
-         { (typeof(VBuffer<float>), typeof(float[])), new Func<dynamic, dynamic>(value => VBufferToArray<float>(value)) },
-         { (typeof(VBuffer<double>), typeof(double[])), new Func<dynamic, dynamic>(value => VBufferToArray<double>(value)) },
-         { (typeof(ReadOnlyMemory<char>), typeof(string)), new Func<dynamic, dynamic>(value => ((ReadOnlyMemory<char>)value).ToString()) },
-         { (typeof(VBuffer<ReadOnlyMemory<char>>), typeof(string[])), new Func<dynamic, dynamic>(value => ((VBuffer<ReadOnlyMemory<char>>)value).DenseValues().Select(s => s.ToString()).ToArray()) },
-         { (typeof(VBuffer<bool>), typeof(bool[])), new Func<dynamic, dynamic>(value => VBufferToArray<bool>(value)) },
-         { (typeof(VBuffer<TimeSpan>), typeof(TimeSpan[])), new Func<dynamic, dynamic>(value => VBufferToArray<TimeSpan>(value)) },
-         { (typeof(VBuffer<DateTime>), typeof(DateTime[])), new Func<dynamic, dynamic>(value => VBufferToArray<DateTime>(value)) },
-         { (typeof(VBuffer<DateTimeOffset>), typeof(DateTimeOffset[])), new Func<dynamic, dynamic>(value => VBufferToArray<DateTimeOffset>(value)) },
+         { (typeof(VBuffer<sbyte>), typeof(sbyte[])), new Func<object, object>(value => VBufferToArray<sbyte>(value)) },
+         { (typeof(VBuffer<byte>), typeof(byte[])), new Func<object, object>(value => VBufferToArray<byte>(value)) },
+         { (typeof(VBuffer<short>), typeof(short[])), new Func<object, object>(value => VBufferToArray<short>(value)) },
+         { (typeof(VBuffer<ushort>), typeof(ushort[])), new Func<object, object>(value => VBufferToArray<ushort>(value)) },
+         { (typeof(VBuffer<int>), typeof(int[])), new Func<object, object>(value => VBufferToArray<int>(value)) },
+         { (typeof(VBuffer<uint>), typeof(uint[])), new Func<object, object>(value => VBufferToArray<uint>(value)) },
+         { (typeof(VBuffer<long>), typeof(long[])), new Func<object, object>(value => VBufferToArray<long>(value)) },
+         { (typeof(VBuffer<ulong>), typeof(ulong[])), new Func<object, object>(value => VBufferToArray<ulong>(value)) },
+         { (typeof(VBuffer<float>), typeof(float[])), new Func<object, object>(value => VBufferToArray<float>(value)) },
+         { (typeof(VBuffer<double>), typeof(double[])), new Func<object, object>(value => VBufferToArray<double>(value)) },
+         { (typeof(ReadOnlyMemory<char>), typeof(string)), new Func<object, object>(value => ((ReadOnlyMemory<char>)value).ToString()) },
+         { (typeof(VBuffer<ReadOnlyMemory<char>>), typeof(string[])), new Func<object, object>(value => ((VBuffer<ReadOnlyMemory<char>>)value).DenseValues().Select(s => s.ToString()).ToArray()) },
+         { (typeof(VBuffer<bool>), typeof(bool[])), new Func<object, object>(value => VBufferToArray<bool>(value)) },
+         { (typeof(VBuffer<TimeSpan>), typeof(TimeSpan[])), new Func<object, object>(value => VBufferToArray<TimeSpan>(value)) },
+         { (typeof(VBuffer<DateTime>), typeof(DateTime[])), new Func<object, object>(value => VBufferToArray<DateTime>(value)) },
+         { (typeof(VBuffer<DateTimeOffset>), typeof(DateTimeOffset[])), new Func<object, object>(value => VBufferToArray<DateTimeOffset>(value)) },
       };
       /// <summary>
       /// Valore
       /// </summary>
-      public dynamic Value { get; }
+      public object Value { get; }
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataValue(dynamic value) => Value = value;
+      public DataValue(object value) => Value = value;
       /// <summary>
       /// Funzione di casting senza eccezione
       /// </summary>
@@ -105,7 +105,7 @@ namespace MachineLearning
       /// <typeparam name="T">Tipo di VBuffer e di array</typeparam>
       /// <param name="vBuffer">Il buffer</param>
       /// <returns>L'array</returns>
-      private static T[] VBufferToArray<T>(VBuffer<T> vBuffer) => vBuffer.DenseValues().ToArray();
+      private static T[] VBufferToArray<T>(object vBuffer) => ((VBuffer<T>)vBuffer).DenseValues().ToArray();
       /// <summary>
       /// Operatore di conversione a sbyte
       /// </summary>
