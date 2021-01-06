@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace MachineLearning
 {
@@ -135,7 +136,7 @@ namespace MachineLearning
       /// <param name="context">Contesto</param>
       /// <param name="cursor">Cursore</param>
       /// <returns>La griglia di dati</returns>
-      public static DataViewValuesRow Create(IMachineLearningContextProvider context, DataViewRowCursor cursor)
+      internal static DataViewValuesRow Create(IMachineLearningContextProvider context, DataViewRowCursor cursor)
       {
          Contracts.CheckValue(context?.ML?.NET, nameof(context));
          context.ML.NET.CheckValue(cursor, nameof(cursor));
@@ -212,6 +213,17 @@ namespace MachineLearning
       /// <param name="columnIndex">Colonna richiesta</param>
       /// <returns>Stato di attivita'</returns>
       public bool IsColumnActive(int columnIndex) => _isColumnActive[columnIndex];
+      /// <summary>
+      /// Rappresentazione in formato stringa
+      /// </summary>
+      /// <returns></returns>
+      public override string ToString()
+      {
+         var sb = new StringBuilder();
+         for (var i = 0; i < Values.Count; i++)
+            sb.Append($"[{Schema[i].Name}: {Values[i]}]");
+         return sb.ToString();
+      }
       #endregion
    }
 }

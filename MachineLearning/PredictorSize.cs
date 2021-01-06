@@ -221,8 +221,8 @@ namespace MachineLearning
          internal Prediction(PredictorSize predictor, IDataView data)
          {
             var grid = data.ToDataGrid(predictor);
-            Meaning = grid["PredictedLabel"][0];
-            var scores = (float[])grid["Score"][0];
+            Meaning = grid[0]["PredictedLabel"];
+            var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();
             Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
          }

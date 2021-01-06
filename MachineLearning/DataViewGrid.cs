@@ -17,13 +17,17 @@ namespace MachineLearning
    {
       #region Fields
       /// <summary>
+      /// Contesto
+      /// </summary>
+      private readonly IMachineLearningContextProvider _context;
+      /// <summary>
       /// Method info per l'ottenimento del getter
       /// </summary>
       private static readonly MethodInfo _getterMethodInfo = typeof(DataViewGrid).GetMethod(nameof(GetValue), BindingFlags.NonPublic | BindingFlags.Static);
       /// <summary>
-      /// Host
+      /// Lista di righe
       /// </summary>
-      private readonly IHost _host;
+      private readonly List<DataViewValuesRow> _rows;
       #endregion
       #region Properties
       /// <summary>
@@ -37,7 +41,7 @@ namespace MachineLearning
       /// <summary>
       /// Righe della tabella
       /// </summary>
-      public ReadOnlyCollection<DataViewValuesRow> Rows { get; private set; }
+      public ReadOnlyCollection<DataViewValuesRow> Rows => _rows.AsReadOnly();
       /// <summary>
       /// Schema dei dati
       /// </summary>
@@ -53,7 +57,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="rowIndex"></param>
       /// <returns>La riga</returns>
-      public DataViewValuesRow this[int rowIndex] => Rows[rowIndex];
+      public DataViewValuesRow this[int rowIndex] => _rows[rowIndex];
       /// <summary>
       /// Indicizzatore di colonne
       /// </summary>
@@ -70,14 +74,14 @@ namespace MachineLearning
       {
          // Check
          Contracts.AssertValue(context?.ML?.NET, nameof(context));
-         _host = ((context?.ML?.NET ?? new MLContext()) as IHostEnvironment).Register(GetType().Name);
-         _host.AssertValue(dataView, nameof(dataView));
+         ((_context = context).ML.NET as IHostEnvironment).Register(GetType().Name);
+         _context.ML.NET.AssertValue(dataView, nameof(dataView));
          // Memorizza lo schema
          Schema = dataView.Schema;
          // Numero di colonne
          var n = Schema.Count;
          // Crea la lista di righe
-         var rows = new List<DataViewValuesRow>();
+         _rows = new List<DataViewValuesRow>();
          // Creatore dei getter di valori riga
          var getter = new Func<DataViewRowCursor, int, object>[n];
          for (var i = 0; i < n; i++) {
@@ -99,12 +103,30 @@ namespace MachineLearning
             var id = default(DataViewRowId);
             if (cursor.GetIdGetter() is var idGetter && idGetter != null)
                idGetter(ref id);
-            rows.Add(DataViewValuesRow.Create(context, cursor.Schema, cursor.Position, id, objects, active));
+            _rows.Add(DataViewValuesRow.Create(context, cursor.Schema, cursor.Position, id, objects, active));
          }
          // Memorizza righe
-         Rows = rows.AsReadOnly();
          Cols = Array.AsReadOnly((from col in Schema select new Col(this, col.Index)).ToArray());
       }
+      /// <summary>
+      /// Aggiunge una riga alla griglia di dati
+      /// </summary>
+      /// <param name="values">Valori</param>
+      public void Add(params object[] values)
+      {
+         _context.ML.NET.AssertNonEmpty(values);
+         _context.ML.NET.Assert(values.Length == Schema.Count, $"The length of {nameof(values)} must be equal to the length of schema");
+         for (var i = 0; i < values.Length; i++) {
+            _context.ML.NET.Assert(DataValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
+            values[i] = DataValue.Convert(values[i], Schema[i].Type.RawType);
+         }
+         _rows.Add(DataViewValuesRow.Create(_context, Schema, _rows.Count, default, values, Enumerable.Range(0, values.Length).Select(i => true).ToArray()));
+      }
+      /// <summary>
+      /// Aggiunge una riga alla griglia di dati
+      /// </summary>
+      /// <param name="values">Valori</param>
+      public void Add(params DataValue[] values) => Add(values.Select(v => v.Value).ToArray());
       /// <summary>
       /// Crea una griglia di dati
       /// </summary>
@@ -121,12 +143,12 @@ namespace MachineLearning
       /// Enumeratore di righe
       /// </summary>
       /// <returns>L'enumeratore</returns>
-      public IEnumerator<DataViewValuesRow> GetEnumerator() => ((IEnumerable<DataViewValuesRow>)Rows).GetEnumerator();
+      public IEnumerator<DataViewValuesRow> GetEnumerator() => _rows.GetEnumerator();
       /// <summary>
       /// Restituisce il numero di righe
       /// </summary>
       /// <returns>Il numero di righe</returns>
-      public long? GetRowCount() => Rows.Count;
+      public long? GetRowCount() => _rows.Count;
       /// <summary>
       /// Legge un valore dal cursore della dataview
       /// </summary>
@@ -160,7 +182,7 @@ namespace MachineLearning
       /// Enumeratore di righe
       /// </summary>
       /// <returns>L'enumeratore</returns>
-      IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)Rows).GetEnumerator();
+      IEnumerator IEnumerable.GetEnumerator() => _rows.GetEnumerator();
    }
 
    public partial class DataViewGrid // Cursor
@@ -208,7 +230,7 @@ namespace MachineLearning
          /// <returns>Il getter</returns>
          public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
          {
-            void Getter(ref TValue value) => value = (TValue)_owner.Rows[(int)Position][column].Value;
+            void Getter(ref TValue value) => value = (TValue)_owner._rows[(int)Position][column].Value;
             return Getter;
          }
          /// <summary>
@@ -217,7 +239,7 @@ namespace MachineLearning
          /// <returns>Il getter dell'identificativo</returns>
          public override ValueGetter<DataViewRowId> GetIdGetter()
          {
-            void Getter(ref DataViewRowId value) => value = _owner.Rows[(int)Position].Id;
+            void Getter(ref DataViewRowId value) => value = _owner._rows[(int)Position].Id;
             return Getter;
          }
          /// <summary>
@@ -225,7 +247,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="column">Colonna richiesta</param>
          /// <returns>Stato di attivita'</returns>
-         public override bool IsColumnActive(DataViewSchema.Column column) => _owner.Rows[(int)Position].IsColumnActive(column);
+         public override bool IsColumnActive(DataViewSchema.Column column) => _owner._rows[(int)Position].IsColumnActive(column);
          /// <summary>
          /// Muove il cursore alla posizione successiva
          /// </summary>
@@ -265,7 +287,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="row">Indice di riga</param>
          /// <returns>Il valore</returns>
-         public DataValue this[int row] => _owner.Rows[row][_index];
+         public DataValue this[int row] => _owner._rows[row][_index];
          #endregion
          #region Methods
          /// <summary>
@@ -286,7 +308,7 @@ namespace MachineLearning
          /// Enumeratore di valori
          /// </summary>
          /// <returns>L'enumeratore</returns>
-         public IEnumerator<DataValue> GetEnumerator() => (from row in _owner.Rows select row[_index]).GetEnumerator();
+         public IEnumerator<DataValue> GetEnumerator() => (from row in _owner._rows select row[_index]).GetEnumerator();
          #endregion
       }
    }

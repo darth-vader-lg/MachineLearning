@@ -341,7 +341,7 @@ namespace MachineLearning
          var tmpFileName = Path.GetTempFileName();
          try {
             // Dati di storage e di training concatenati
-            var mergedData = DataViewMerged.Create(this, null, dataStorage.LoadData(this), trainingData.LoadData(this));
+            var mergedData = dataStorage.LoadData(this).Merge(this, trainingData.LoadData(this));
             // Salva in un file temporaneo il merge
             var tmpStorage = new DataStorageBinaryFile(tmpFileName) { KeepHidden = true };
             tmpStorage.SaveData(this, mergedData);
@@ -635,7 +635,7 @@ namespace MachineLearning
          {
             if (DataStorage != null) {
                if (TrainingData != null)
-                  return DataViewMerged.Create(this, null, DataStorage.LoadData(this), TrainingData.LoadData(this));
+                  return DataStorage.LoadData(this).Merge(this, TrainingData.LoadData(this));
                else
                   return DataStorage.LoadData(this);
             }

@@ -305,7 +305,7 @@ namespace MachineLearning
                      var formatter = new DataStorageTextMemory() { TextData = trainingData };
                      var trainingDataView = formatter.LoadData(this);
                      formatter.SaveData(this, trainingDataView);
-                     ML.NET.WriteLog($"Found new image: {DataViewGrid.Create(this, trainingDataView)["ImagePath"][0]}");
+                     ML.NET.WriteLog($"Found new image: {trainingDataView.ToDataGrid(this)[0]["ImagePath"]}");
                      tmpStream.Write(formatter.TextData);
                      updateDataStorage = true;
                   }
@@ -371,8 +371,8 @@ namespace MachineLearning
          internal Prediction(PredictorImages predictor, IDataView data)
          {
             var grid = data.ToDataGrid(predictor);
-            Kind = grid["PredictedLabel"][0];
-            var scores = (float[])grid["Score"][0];
+            Kind = grid[0]["PredictedLabel"];
+            var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();
             Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
          }

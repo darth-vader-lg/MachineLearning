@@ -32,6 +32,22 @@ namespace MachineLearning
          { (typeof(VBuffer<TimeSpan>), typeof(TimeSpan[])), new Func<object, object>(value => VBufferToArray<TimeSpan>(value)) },
          { (typeof(VBuffer<DateTime>), typeof(DateTime[])), new Func<object, object>(value => VBufferToArray<DateTime>(value)) },
          { (typeof(VBuffer<DateTimeOffset>), typeof(DateTimeOffset[])), new Func<object, object>(value => VBufferToArray<DateTimeOffset>(value)) },
+         { (typeof(sbyte[]), typeof(VBuffer<sbyte>)), new Func<object, object>(value => ArrayToVBuffer(value as sbyte[])) },
+         { (typeof(byte[]), typeof(VBuffer<byte>)), new Func<object, object>(value => ArrayToVBuffer(value as byte[])) },
+         { (typeof(short[]), typeof(VBuffer<short>)), new Func<object, object>(value => ArrayToVBuffer(value as short[])) },
+         { (typeof(ushort[]), typeof(VBuffer<ushort>)), new Func<object, object>(value => ArrayToVBuffer(value as ushort[])) },
+         { (typeof(int[]), typeof(VBuffer<int>)), new Func<object, object>(value => ArrayToVBuffer(value as int[])) },
+         { (typeof(uint[]), typeof(VBuffer<uint>)), new Func<object, object>(value => ArrayToVBuffer(value as uint[])) },
+         { (typeof(long[]), typeof(VBuffer<long>)), new Func<object, object>(value => ArrayToVBuffer(value as long[])) },
+         { (typeof(ulong[]), typeof(VBuffer<ulong>)), new Func<object, object>(value => ArrayToVBuffer(value as ulong[])) },
+         { (typeof(float[]), typeof(VBuffer<float>)), new Func<object, object>(value => ArrayToVBuffer(value as float[])) },
+         { (typeof(double[]), typeof(VBuffer<double>)), new Func<object, object>(value => ArrayToVBuffer(value as double[])) },
+         { (typeof(string), typeof(ReadOnlyMemory<char>)), new Func<object, object>(value => new ReadOnlyMemory<char>(((string)value).ToCharArray())) },
+         { (typeof(string[]), typeof(VBuffer<ReadOnlyMemory<char>>)), new Func<object, object>(value => { var values = ((string[])value).Select(s => new ReadOnlyMemory<char>(s.ToCharArray())).ToArray(); return new VBuffer<ReadOnlyMemory<char>>(values.Length, values); }) },
+         { (typeof(bool[]), typeof(VBuffer<bool>)), new Func<object, object>(value => ArrayToVBuffer(value as bool[])) },
+         { (typeof(TimeSpan[]), typeof(VBuffer<TimeSpan>)), new Func<object, object>(value => ArrayToVBuffer(value as TimeSpan[])) },
+         { (typeof(DateTime[]), typeof(VBuffer<DateTime>)), new Func<object, object>(value => ArrayToVBuffer(value as DateTime[])) },
+         { (typeof(DateTimeOffset[]), typeof(VBuffer<DateTimeOffset>)), new Func<object, object>(value => ArrayToVBuffer(value as DateTimeOffset[])) },
       };
       /// <summary>
       /// Valore
@@ -42,19 +58,63 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
+      /// <param name="value">Valore</param>
       public DataValue(object value) => Value = value;
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="type">Tipo devinito nello schema delle viste di dati</param>
+      /// <param name="value">Valore</param>
+      public DataValue(DataViewType type, object value)
+      {
+         if (type.RawType == value.GetType())
+            Value = value;
+         else if (Converter.TryGetValue((type.RawType, value.GetType()), out var convertion))
+            Value = convertion(value);
+         else
+            throw new InvalidCastException($"Cannot convert {value.GetType()} to {type.RawType}");
+      }
+      /// <summary>
+      /// Converte da VBuffer ad array 
+      /// </summary>
+      /// <typeparam name="T">Tipo di VBuffer e di array</typeparam>
+      /// <param name="array">L'array</param>
+      /// <returns>Il VBuffer</returns>
+      private static VBuffer<T> ArrayToVBuffer<T>(T[] array) => new VBuffer<T>(array.Length, array);
       /// <summary>
       /// Funzione di casting senza eccezione
       /// </summary>
       /// <typeparam name="T">Tipo a cui castare</typeparam>
       /// <returns>Il tipo castato o eccezione se non possibile</returns>
-      public T As<T>()
+      public T As<T>() => CanConvert(Value.GetType(), typeof(T)) ? Convert<T>(Value) : default;
+      /// <summary>
+      /// Verifica se esiste una conversione possibile fra i valori
+      /// </summary>
+      /// <param name="from">Tipo sorgente</param>
+      /// <param name="to">Tipo destinazione</param>
+      /// <returns>true se conversione possibile</returns>
+      public static bool CanConvert(Type from, Type to) => to.IsAssignableFrom(from) || Converter.ContainsKey((from, to));
+      /// <summary>
+      /// Converte un valore
+      /// </summary>
+      /// <typeparam name="T">Tipo in cui convertire</typeparam>
+      /// <param name="value">Valore da convertire</param>
+      /// <returns>Il valore convertito</returns>
+      public static T Convert<T>(object value) => (T)Convert(value, typeof(T));
+      /// <summary>
+      /// Converte un valore
+      /// </summary>
+      /// <typeparam name="T">Tipo in cui convertire</typeparam>
+      /// <param name="value">Valore da convertire</param>
+      /// <param name="toType">Tipo in cui deve essere convertito</param>
+      /// <returns>Il valore convertito</returns>
+      public static object Convert(object value, Type toType)
       {
-         if (typeof(T).IsAssignableFrom(Value.GetType()))
-            return (T)Value;
-         if (Converter.TryGetValue((Value.GetType(), typeof(T)), out Func<dynamic, dynamic> convertion))
-            return convertion(Value);
-         return default;
+         if (Converter.TryGetValue((value.GetType(), toType), out Func<object, object> convertion))
+            return convertion(value);
+         if (toType.IsAssignableFrom(value.GetType()))
+            return value;
+         throw new InvalidCastException($"Type {value.GetType()} cannot be converted to {toType}");
       }
       /// <summary>
       /// Test di uguaglianza
@@ -72,14 +132,7 @@ namespace MachineLearning
       /// </summary>
       /// <typeparam name="T">Tipo a cui castare</typeparam>
       /// <returns>Il tipo castato o eccezione se non possibile</returns>
-      public T To<T>()
-      {
-         if (typeof(T).IsAssignableFrom(Value.GetType()))
-            return (T)Value;
-         if (Converter.TryGetValue((Value.GetType(), typeof(T)), out Func<dynamic, dynamic> convertion))
-            return convertion(Value);
-         throw new InvalidCastException($"Type {Value.GetType().Name} cannot be converted to {typeof(T).Name}");
-      }
+      public T To<T>() => Convert<T>(Value);
       /// <summary>
       /// Operatore di verifica uguaglianza
       /// </summary>
