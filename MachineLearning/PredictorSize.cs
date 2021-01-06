@@ -220,7 +220,7 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(PredictorSize predictor, IDataView data)
          {
-            var grid = data.ToDataGrid(predictor);
+            var grid = data.ToDataViewGrid(predictor);
             Meaning = grid[0]["PredictedLabel"];
             var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();

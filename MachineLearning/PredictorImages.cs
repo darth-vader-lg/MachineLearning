@@ -173,28 +173,6 @@ namespace MachineLearning
       }
       /// <summary>
       /// Ottiene un elenco di dati di training data la directory radice delle immagini.
-      /// </summary>
-      /// <param name="path">La directory radice delle immagini</param>
-      /// <param name="opt">Opzioni di formattazione del testo di input</param>
-      /// <returns>La lista di dati di training</returns>
-      /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
-      private static async Task<IEnumerable<string>> GetTrainingDataAsync(string path, TextLoader.Options opt)
-      {
-         return await Task.Run(() =>
-         {
-            var dirs = from item in Directory.GetDirectories(path, "*.*", SearchOption.TopDirectoryOnly)
-                       where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
-                       select item;
-            var data = from dir in dirs
-                       from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
-                       let ext = Path.GetExtension(file).ToLower()
-                       where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
-                       select $"\"{Path.GetFileName(dir)}\"{opt.Separators[0]}\"{file}\"{opt.Separators[0]}\"{File.GetLastWriteTimeUtc(file):o}\"";
-            return data;
-         });
-      }
-      /// <summary>
-      /// Ottiene un elenco di dati di training data la directory radice delle immagini.
       /// L'elenco puo' essere passato alla funzione di aggiunta di dati di training
       /// </summary>
       /// <param name="path">La directory radice delle immagini</param>
@@ -204,16 +182,25 @@ namespace MachineLearning
       /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
       public static async Task<string> GetTrainingDataFromPathAsync(string path, TextLoader.Options opt, CancellationToken cancellation = default)
       {
-         var sb = new StringBuilder();
-         var data = await GetTrainingDataAsync(path, opt);
-         await Task.Run(() =>
+         return await Task.Run(() =>
          {
+            var sb = new StringBuilder();
+            var dirs = from item in Directory.GetDirectories(path, "*.*", SearchOption.TopDirectoryOnly)
+                       where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
+                       select item;
+            var data = from dir in dirs
+                       from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
+                       let ext = Path.GetExtension(file).ToLower()
+                       where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
+                       let line = $"\"{Path.GetFileName(dir)}\"{opt.Separators[0]}\"{file}\"{opt.Separators[0]}\"{File.GetLastWriteTimeUtc(file):o}\""
+                       orderby line
+                       select line;
             foreach (var line in data) {
                sb.AppendLine(line);
                cancellation.ThrowIfCancellationRequested();
             }
+            return sb.ToString();
          }, cancellation);
-         return sb.ToString();
       }
       /// <summary>
       /// Aggiorna lo storage di dati con l'elenco delle immagini categorizzate contenute nella directory indicata
@@ -227,114 +214,22 @@ namespace MachineLearning
          if (DataStorage == null)
             return;
          // Ottiene i dati di training (l'elenco delle immagini classificate e datate)
-         var data = await GetTrainingDataAsync(path, TextLoaderOptions);
+         var data = await GetTrainingDataFromPathAsync(path, TextLoaderOptions, cancellation);
          cancellation.ThrowIfCancellationRequested();
          ML.NET.WriteLog("Updating image list", Name);
          // Effettua l'aggiornamento dello storage di dati sincronizzandolo con lo stato delle immagini
          await Task.Run(() =>
          {
-            // File temporaneo
-            var tmpFile = default(string);
-            // Stream temporaneo
-            var tmpStream = default(StreamWriter);
-            try {
-               // Hashset di immagini gia' esistenti nello storage
-               var existing = new HashSet<long>();
-               // Ottiene un file temporaneo e ne crea lo stream di scrittura
-               tmpFile = Path.GetTempFileName();
-               tmpStream = new StreamWriter(tmpFile);
-               // Flag di abilitazione aggiornamento storage
-               var updateDataStorage = false;
-               try {
-                  // Dati dello storage
-                  var storageData = DataStorage.LoadData(this);
-                  // Loop su tutte le rige di dati
-                  foreach (var dataRow in storageData.ToEnumerable(ML.NET)) {
-                     // Flag di abilitazione scrittura linea sullo stram temporaneo
-                     var writeLine = true;
-                     // Ottiene la linea in formato coppie chiave/valore
-                     var dataValues = dataRow.ToKeyValuePairs().First();
-                     // Dati della riga
-                     var label = Convert.ToString(dataValues.Last(item => item.Key == "Label").Value);
-                     var imagePath = Convert.ToString(dataValues.Last(item => item.Key == "ImagePath").Value).ToLower();
-                     var timestamp = Convert.ToDateTime(dataValues.Last(item => item.Key == "Timestamp").Value);
-                     // Spazzola i dati di training alla ricerca di uno che punti alla stessa immagine
-                     var ix = 0L;
-                     foreach (var trainingData in data) {
-                        // Linea di training
-                        var formatter = new DataStorageTextMemory() { TextData = trainingData };
-                        var trainingDataView = formatter.LoadData(this);
-                        formatter.SaveData(this, trainingDataView);
-                        var trainingLine = formatter.TextData;
-                        // Valori di training
-                        var trainingValues = trainingDataView.ToKeyValuePairs().First();
-                        // Verifica se l'immagine del set di training corrisponde a quella contenuta nel set di dati
-                        if (imagePath == Convert.ToString(trainingValues.Last(item => item.Key == "ImagePath").Value).ToLower()) {
-                           // Se l'immagine di training e' piu' vecchia o uguale a quella dello storage mantiene quella di storage, altrimenti quella di training
-                           if (timestamp >= Convert.ToDateTime(trainingValues.Last(item => item.Key == "Timestamp").Value)) {
-                              formatter = new DataStorageTextMemory();
-                              formatter.SaveData(this, dataRow);
-                           }
-                           else {
-                              ML.NET.WriteLog($"Found updated image: {trainingValues.Last(item => item.Key == "ImagePath").Value}");
-                              updateDataStorage = true;
-                           }
-                           // Scrive la linea scelta nel file temporaneo
-                           tmpStream.Write(formatter.TextData);
-                           existing.Add(ix);
-                           writeLine = false;
-                        }
-                        ix++;
-                        cancellation.ThrowIfCancellationRequested();
-                     }
-                     // Scrive la linea nel file temporaneo se non ci sono state modifiche
-                     if (writeLine) {
-                        var formatter = new DataStorageTextMemory();
-                        formatter.SaveData(this, dataRow);
-                        tmpStream.Write(formatter.TextData);
-                     }
-                  }
-               }
-               // Il file di storage potrebbe non esistere ancora
-               catch (FileNotFoundException) {
-               }
-               // Aggiunge tutte le linee del set di training che non siano gia' state elaborate nella fase precedente
-               var ixTraining = 0L;
-               foreach (var trainingData in data) {
-                  if (!existing.Contains(ixTraining)) {
-                     var formatter = new DataStorageTextMemory() { TextData = trainingData };
-                     var trainingDataView = formatter.LoadData(this);
-                     formatter.SaveData(this, trainingDataView);
-                     ML.NET.WriteLog($"Found new image: {trainingDataView.ToDataGrid(this)[0]["ImagePath"]}");
-                     tmpStream.Write(formatter.TextData);
-                     updateDataStorage = true;
-                  }
-                  ixTraining++;
-                  cancellation.ThrowIfCancellationRequested();
-               }
-               // Chiude il file temporaneo
-               tmpStream.Close();
-               tmpStream = null;
-               // Aggiorna lo storage con il contenuto del file temporaneo se necessario
-               if (updateDataStorage) {
-                  cancellation.ThrowIfCancellationRequested();
-                  DataStorage.SaveData(this, new DataStorageTextFile(tmpFile).LoadData(this));
-               }
-            }
-            finally {
-               // Chiude lo stream temporaneo
-               try {
-                  if (tmpStream != null)
-                     tmpStream.Close();
-               }
-               catch (Exception) { }
-               // Cancella il file temporaneo
-               try {
-                  if (File.Exists(tmpFile))
-                     File.Delete(tmpFile);
-               }
-               catch (Exception) { }
-            }
+            // Dati di training
+            var trainingData = new DataStorageTextMemory() { TextData = data };
+            // Formatta correttamente come fossero salvati
+            trainingData.SaveData(this, trainingData.LoadData(this));
+            // Legge i dati di storage
+            var storageData = new DataStorageTextMemory();
+            storageData.SaveData(this, DataStorage.LoadData(this));
+            // Confronta e aggiorna lo storage se rilevata variazione
+            if (trainingData.TextData != storageData.TextData)
+               DataStorage.SaveData(this, trainingData.LoadData(this));
          }, cancellation);
       }
       #endregion
@@ -370,7 +265,7 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(PredictorImages predictor, IDataView data)
          {
-            var grid = data.ToDataGrid(predictor);
+            var grid = data.ToDataViewGrid(predictor);
             Kind = grid[0]["PredictedLabel"];
             var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();
