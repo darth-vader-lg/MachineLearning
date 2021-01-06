@@ -97,13 +97,13 @@ namespace MachineLearning
       /// </summary>
       /// <param name="sentence">Significato da prevedere</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(string sentence) => new Prediction(GetPredictionData(null, sentence));
+      public Prediction GetPrediction(string sentence) => new Prediction(this, GetPredictionData(null, sentence));
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="sentence">Significato da prevedere</param>
       /// <returns>Il task della previsione</returns>
-      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(await GetPredictionDataAsync(cancel, null, sentence));
+      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, sentence));
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -216,14 +216,15 @@ namespace MachineLearning
          /// <summary>
          /// Costruttore
          /// </summary>
+         /// <param name="predictor">Previsore</param>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(IDataView data)
+         internal Prediction(PredictorSize predictor, IDataView data)
          {
-            Meaning = data.GetString("PredictedLabel");
-            var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
-            data.Schema["Score"].GetSlotNames(ref slotNames);
-            var scores = data.GetValue<VBuffer<float>>("Score");
-            Scores = slotNames.GetValues().ToArray().Zip(scores.GetValues().ToArray()).Select(item => new KeyValuePair<string, float>(item.First.ToString(), item.Second)).ToArray();
+            var grid = data.ToDataGrid(predictor);
+            Meaning = grid["PredictedLabel"][0];
+            var scores = (float[])grid["Score"][0];
+            var slotNames = grid.Schema["Score"].GetSlotNames();
+            Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
          }
          #endregion
       }

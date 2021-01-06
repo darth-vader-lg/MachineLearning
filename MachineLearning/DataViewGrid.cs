@@ -47,9 +47,9 @@ namespace MachineLearning
       /// <summary>
       /// Indicizzatore di righe
       /// </summary>
-      /// <param name="index"></param>
+      /// <param name="rowIndex"></param>
       /// <returns>La riga</returns>
-      public Row this[int index] => Rows[index];
+      public Row this[int rowIndex] => Rows[rowIndex];
       /// <summary>
       /// Indicizzatore di colonne
       /// </summary>
@@ -205,7 +205,7 @@ namespace MachineLearning
          /// <returns>Il getter</returns>
          public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
          {
-            void Getter(ref TValue value) => value = (TValue)_owner.Rows[(int)Position][column];
+            void Getter(ref TValue value) => value = (TValue)_owner.Rows[(int)Position][column].Value;
             return Getter;
          }
          /// <summary>
@@ -244,7 +244,7 @@ namespace MachineLearning
       /// <summary>
       /// Riga
       /// </summary>
-      public class Row : IEnumerable<object>
+      public class Row : IEnumerable<DataValue>
       {
          #region Fields
          /// <summary>
@@ -264,19 +264,19 @@ namespace MachineLearning
          /// <summary>
          /// Valori
          /// </summary>
-         public ReadOnlyCollection<object> Values { get; private set; }
+         public ReadOnlyCollection<DataValue> Values { get; private set; }
          /// <summary>
          /// Indicizzatore
          /// </summary>
-         /// <param name="index">Indice del valore</param>
+         /// <param name="columnIndex">Indice del valore</param>
          /// <returns>Il valore</returns>
-         public object this[int index] => Values[index];
+         public DataValue this[int columnIndex] => Values[columnIndex];
          /// <summary>
          /// Indicizzatore
          /// </summary>
          /// <param name="column">La colonna</param>
          /// <returns>Il valore</returns>
-         public object this[DataViewSchema.Column column] => Values[column.Index];
+         public DataValue this[DataViewSchema.Column column] => Values[column.Index];
          #endregion
          #region Methods
          /// <summary>
@@ -290,14 +290,14 @@ namespace MachineLearning
          {
             Position = position;
             Id = id;
-            Values = Array.AsReadOnly(values);
+            Values = Array.AsReadOnly(values.Select(v => new DataValue(v)).ToArray());
             _isColumnActive = isColumnActive;
          }
          /// <summary>
          /// Enumeratore di valori
          /// </summary>
          /// <returns>L'enumeratore</returns>
-         public IEnumerator<object> GetEnumerator() => ((IEnumerable<object>)Values).GetEnumerator();
+         public IEnumerator<DataValue> GetEnumerator() => ((IEnumerable<DataValue>)Values).GetEnumerator();
          /// <summary>
          /// Enumeratore di valori
          /// </summary>
@@ -324,7 +324,7 @@ namespace MachineLearning
       /// <summary>
       /// Colonna
       /// </summary>
-      public class Col : IEnumerable<object>
+      public class Col : IEnumerable<DataValue>
       {
          #region Fields
          /// <summary>
@@ -342,7 +342,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="row">Indice di riga</param>
          /// <returns>Il valore</returns>
-         public object this[int row] => _owner.Rows[row][_index];
+         public DataValue this[int row] => _owner.Rows[row][_index];
          #endregion
          #region Methods
          /// <summary>
@@ -363,7 +363,7 @@ namespace MachineLearning
          /// Enumeratore di valori
          /// </summary>
          /// <returns>L'enumeratore</returns>
-         public IEnumerator<object> GetEnumerator() => (from row in _owner.Rows select row[_index]).GetEnumerator();
+         public IEnumerator<DataValue> GetEnumerator() => (from row in _owner.Rows select row[_index]).GetEnumerator();
          #endregion
       }
    }

@@ -114,14 +114,14 @@ namespace MachineLearning
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <returns>Il tipo di immagine</returns>
-      public Prediction GetPrediction(string imagePath) => new Prediction(GetPredictionData(null, imagePath));
+      public Prediction GetPrediction(string imagePath) => new Prediction(this, GetPredictionData(null, imagePath));
       /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) => new Prediction(await GetPredictionDataAsync(cancel, null, imagePath));
+      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, imagePath));
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -305,7 +305,7 @@ namespace MachineLearning
                      var formatter = new DataStorageTextMemory() { TextData = trainingData };
                      var trainingDataView = formatter.LoadData(this);
                      formatter.SaveData(this, trainingDataView);
-                     ML.NET.WriteLog($"Found new image: {trainingDataView.GetString("ImagePath")}");
+                     ML.NET.WriteLog($"Found new image: {DataViewGrid.Create(this, trainingDataView)["ImagePath"][0]}");
                      tmpStream.Write(formatter.TextData);
                      updateDataStorage = true;
                   }
@@ -366,15 +366,15 @@ namespace MachineLearning
          /// <summary>
          /// Costruttore
          /// </summary>
+         /// <param name="predictor">Previsore</param>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(IDataView data)
+         internal Prediction(PredictorImages predictor, IDataView data)
          {
-            Kind = data.GetString("PredictedLabel");
-            var slotNames = default(VBuffer<ReadOnlyMemory<char>>);
-            data.Schema["Score"].GetSlotNames(ref slotNames);
-            var scores = data.GetValue<VBuffer<float>>("Score");
-            Scores = slotNames.GetValues().ToArray().Zip(scores.GetValues().ToArray()).Select(item => new KeyValuePair<string, float>(item.First.ToString(), item.Second)).ToArray();
-            Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
+            var grid = data.ToDataGrid(predictor);
+            Kind = grid["PredictedLabel"][0];
+            var scores = (float[])grid["Score"][0];
+            var slotNames = grid.Schema["Score"].GetSlotNames();
+            Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
          }
          #endregion
       }

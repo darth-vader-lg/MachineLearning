@@ -682,23 +682,6 @@ namespace MachineLearning
                      ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
                      // Carica i dati
                      data = LoadData();
-
-                     var dataTable = data.ToDataGrid(this);
-                     var dataTableRows = dataTable.ToDataViewRows().ToArray();
-
-                     //var rows = data.ToDataViewRows().ToArray();
-
-                     //var filter = new FilteredDataView(data);
-                     //var rc = 0;
-                     //foreach (var row in filter.GetRowCursor(filter.Schema).ToEnumerable()) {
-                     //   var values = row.ToKeyValuePairs();
-                     //   if (rc == 1 || rc == 3)
-                     //      filter.SetActiveState(row, false);
-                     //   rc++;
-                     //}
-                     //var filteredRows = filter.ToDataViewRows();
-
-
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });
