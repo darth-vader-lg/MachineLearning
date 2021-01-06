@@ -13,9 +13,13 @@ namespace MachineLearning
    /// <summary>
    /// Griglia di dati
    /// </summary>
-   public partial class DataViewGrid : IDataView, IEnumerable<DataViewGrid.Row>
+   public partial class DataViewGrid : IDataView, IEnumerable<DataViewValuesRow>
    {
       #region Fields
+      /// <summary>
+      /// Method info per l'ottenimento del getter
+      /// </summary>
+      private static readonly MethodInfo _getterMethodInfo = typeof(DataViewGrid).GetMethod(nameof(GetValue), BindingFlags.NonPublic | BindingFlags.Static);
       /// <summary>
       /// Host
       /// </summary>
@@ -33,7 +37,7 @@ namespace MachineLearning
       /// <summary>
       /// Righe della tabella
       /// </summary>
-      public ReadOnlyCollection<Row> Rows { get; private set; }
+      public ReadOnlyCollection<DataViewValuesRow> Rows { get; private set; }
       /// <summary>
       /// Schema dei dati
       /// </summary>
@@ -49,7 +53,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="rowIndex"></param>
       /// <returns>La riga</returns>
-      public Row this[int rowIndex] => Rows[rowIndex];
+      public DataViewValuesRow this[int rowIndex] => Rows[rowIndex];
       /// <summary>
       /// Indicizzatore di colonne
       /// </summary>
@@ -66,19 +70,18 @@ namespace MachineLearning
       {
          // Check
          Contracts.AssertValue(context?.ML?.NET, nameof(context));
-         _host = ((context?.ML?.NET ?? new MLContext()) as IHostEnvironment).Register(nameof(DataViewGrid));
+         _host = ((context?.ML?.NET ?? new MLContext()) as IHostEnvironment).Register(GetType().Name);
          _host.AssertValue(dataView, nameof(dataView));
          // Memorizza lo schema
          Schema = dataView.Schema;
          // Numero di colonne
          var n = Schema.Count;
          // Crea la lista di righe
-         var rows = new List<Row>();
-         // Creatore dei setter di valori riga
+         var rows = new List<DataViewValuesRow>();
+         // Creatore dei getter di valori riga
          var getter = new Func<DataViewRowCursor, int, object>[n];
          for (var i = 0; i < n; i++) {
-            var getterMethodInfo = GetType().GetMethod(nameof(GetValue), BindingFlags.NonPublic | BindingFlags.Static);
-            var getterGenericMethodInfo = getterMethodInfo.MakeGenericMethod(Schema[i].Type.RawType);
+            var getterGenericMethodInfo = _getterMethodInfo.MakeGenericMethod(Schema[i].Type.RawType);
             getter[i] = new Func<DataViewRowCursor, int, object>((cursor, col) => getterGenericMethodInfo.Invoke(null, new object[] { cursor, col }));
          }
          // Ottiene il cursore per la data view di input e itera su tutte le righe
@@ -96,7 +99,7 @@ namespace MachineLearning
             var id = default(DataViewRowId);
             if (cursor.GetIdGetter() is var idGetter && idGetter != null)
                idGetter(ref id);
-            rows.Add(new Row(cursor.Position, id, objects, active));
+            rows.Add(DataViewValuesRow.Create(context, cursor.Schema, cursor.Position, id, objects, active));
          }
          // Memorizza righe
          Rows = rows.AsReadOnly();
@@ -118,7 +121,7 @@ namespace MachineLearning
       /// Enumeratore di righe
       /// </summary>
       /// <returns>L'enumeratore</returns>
-      public IEnumerator<Row> GetEnumerator() => ((IEnumerable<Row>)Rows).GetEnumerator();
+      public IEnumerator<DataViewValuesRow> GetEnumerator() => ((IEnumerable<DataViewValuesRow>)Rows).GetEnumerator();
       /// <summary>
       /// Restituisce il numero di righe
       /// </summary>
@@ -239,87 +242,7 @@ namespace MachineLearning
       }
    }
 
-   public partial class DataViewGrid // Row
-   {
-      /// <summary>
-      /// Riga
-      /// </summary>
-      public class Row : IEnumerable<DataValue>
-      {
-         #region Fields
-         /// <summary>
-         /// Identificatore della riga
-         /// </summary>
-         private readonly bool[] _isColumnActive;
-         #endregion
-         #region Properties
-         /// <summary>
-         /// Identificatore della riga
-         /// </summary>
-         public DataViewRowId Id { get; private set; }
-         /// <summary>
-         /// Posizione
-         /// </summary>
-         public long Position { get; private set; }
-         /// <summary>
-         /// Valori
-         /// </summary>
-         public ReadOnlyCollection<DataValue> Values { get; private set; }
-         /// <summary>
-         /// Indicizzatore
-         /// </summary>
-         /// <param name="columnIndex">Indice del valore</param>
-         /// <returns>Il valore</returns>
-         public DataValue this[int columnIndex] => Values[columnIndex];
-         /// <summary>
-         /// Indicizzatore
-         /// </summary>
-         /// <param name="column">La colonna</param>
-         /// <returns>Il valore</returns>
-         public DataValue this[DataViewSchema.Column column] => Values[column.Index];
-         #endregion
-         #region Methods
-         /// <summary>
-         /// Costruttore
-         /// </summary>
-         /// <param name="position">Posizione della riga</param>
-         /// <param name="id">Identificatore univoco</param>
-         /// <param name="values">Valori</param>
-         /// <param name="isColumnActive">Indicatori di colonna attiva</param>
-         internal Row(long position, DataViewRowId id, object[] values, bool[] isColumnActive)
-         {
-            Position = position;
-            Id = id;
-            Values = Array.AsReadOnly(values.Select(v => new DataValue(v)).ToArray());
-            _isColumnActive = isColumnActive;
-         }
-         /// <summary>
-         /// Enumeratore di valori
-         /// </summary>
-         /// <returns>L'enumeratore</returns>
-         public IEnumerator<DataValue> GetEnumerator() => ((IEnumerable<DataValue>)Values).GetEnumerator();
-         /// <summary>
-         /// Enumeratore di valori
-         /// </summary>
-         /// <returns>L'enumeratore</returns>
-         IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)Values).GetEnumerator();
-         /// <summary>
-         /// Indica se la colonna e' attiva
-         /// </summary>
-         /// <param name="column">Colonna richiesta</param>
-         /// <returns>Stato di attivita'</returns>
-         public bool IsColumnActive(DataViewSchema.Column column) => _isColumnActive[column.Index];
-         /// <summary>
-         /// Indica se la colonna e' attiva
-         /// </summary>
-         /// <param name="columnIndex">Colonna richiesta</param>
-         /// <returns>Stato di attivita'</returns>
-         public bool IsColumnActive(int columnIndex) => _isColumnActive[columnIndex];
-         #endregion
-      }
-   }
-
-   public partial class DataViewGrid // Row
+   public partial class DataViewGrid // Col
    {
       /// <summary>
       /// Colonna
