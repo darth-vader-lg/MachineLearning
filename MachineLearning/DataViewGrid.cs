@@ -69,41 +69,49 @@ namespace MachineLearning
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto</param>
+      /// <param name="schema">Lo schema della vista di dati</param>
       /// <param name="dataView">Vista di dati</param>
-      private DataViewGrid(IMachineLearningContextProvider context, IDataView dataView)
+      private DataViewGrid(IMachineLearningContextProvider context, DataViewSchema schema, IDataView dataView)
       {
          // Check
          Contracts.AssertValue(context?.ML?.NET, nameof(context));
          ((_context = context).ML.NET as IHostEnvironment).Register(GetType().Name);
-         _context.ML.NET.AssertValue(dataView, nameof(dataView));
+         _context.ML.NET.Assert(schema != null || dataView != null, $"The parameter {nameof(schema)} or the parameter {nameof(dataView)} must be specified");
+         if (schema != null && dataView != null) {
+            _context.ML.NET.Assert(
+               schema.Zip(dataView.Schema).All(item => item.First.Type.SameSizeAndItemType(item.Second.Type)),
+               $"The {nameof(schema)} and the {nameof(dataView)}.{nameof(dataView.Schema)} are different");
+         }
          // Memorizza lo schema
-         Schema = dataView.Schema;
+         Schema = dataView?.Schema ?? schema;
          // Numero di colonne
          var n = Schema.Count;
          // Crea la lista di righe
          _rows = new List<DataViewValuesRow>();
-         // Creatore dei getter di valori riga
-         var getter = new Func<DataViewRowCursor, int, object>[n];
-         for (var i = 0; i < n; i++) {
-            var getterGenericMethodInfo = _getterMethodInfo.MakeGenericMethod(Schema[i].Type.RawType);
-            getter[i] = new Func<DataViewRowCursor, int, object>((cursor, col) => getterGenericMethodInfo.Invoke(null, new object[] { cursor, col }));
-         }
-         // Ottiene il cursore per la data view di input e itera su tutte le righe
-         var cursor = dataView.GetRowCursor(Schema);
-         while (cursor.MoveNext()) {
-            // Valori
-            var objects = new object[n];
-            var active = new bool[n];
-            // Legge la riga
+         if (dataView != null) {
+            // Creatore dei getter di valori riga
+            var getter = new Func<DataViewRowCursor, int, object>[n];
             for (var i = 0; i < n; i++) {
-               objects[i] = getter[i](cursor, i);
-               active[i] = cursor.IsColumnActive(Schema[i]);
+               var getterGenericMethodInfo = _getterMethodInfo.MakeGenericMethod(Schema[i].Type.RawType);
+               getter[i] = new Func<DataViewRowCursor, int, object>((cursor, col) => getterGenericMethodInfo.Invoke(null, new object[] { cursor, col }));
             }
-            // Aggiunge la riga di dati
-            var id = default(DataViewRowId);
-            if (cursor.GetIdGetter() is var idGetter && idGetter != null)
-               idGetter(ref id);
-            _rows.Add(DataViewValuesRow.Create(context, cursor.Schema, cursor.Position, id, objects, active));
+            // Ottiene il cursore per la data view di input e itera su tutte le righe
+            var cursor = dataView.GetRowCursor(Schema);
+            while (cursor.MoveNext()) {
+               // Valori
+               var objects = new object[n];
+               var active = new bool[n];
+               // Legge la riga
+               for (var i = 0; i < n; i++) {
+                  objects[i] = getter[i](cursor, i);
+                  active[i] = cursor.IsColumnActive(Schema[i]);
+               }
+               // Aggiunge la riga di dati
+               var id = default(DataViewRowId);
+               if (cursor.GetIdGetter() is var idGetter && idGetter != null)
+                  idGetter(ref id);
+               _rows.Add(DataViewValuesRow.Create(context, cursor.Schema, cursor.Position, id, objects, active));
+            }
          }
          // Memorizza righe
          Cols = Array.AsReadOnly((from col in Schema select new Col(this, col.Index)).ToArray());
@@ -128,7 +136,23 @@ namespace MachineLearning
       /// <param name="values">Valori</param>
       public void Add(params DataValue[] values) => Add(values.Select(v => v.Value).ToArray());
       /// <summary>
-      /// Crea una griglia di dati
+      /// Aggiunge una riga alla griglia di dati
+      /// </summary>
+      /// <param name="values">Valori</param>
+      public void Add(params (string Name, object Value)[] values)
+      {
+         _context.ML.NET.CheckNonEmpty(values, nameof(values));
+         var orderedValues = new object[Schema.Count];
+         for (var i = 0; i < orderedValues.Length; i++) {
+            _context.ML.NET.CheckNonEmpty(values[i].Name, $"{nameof(values)}[{i}]", "The name cannot be null");
+            var col = Schema.FirstOrDefault(c => c.Name == values[i].Name);
+            _context.ML.NET.CheckNonEmpty(col.Name, $"{nameof(values)}[{i}]", $"The schema doesn't contain the column {values[i].Name}");
+            orderedValues[i] = values[i].Value;
+         }
+         Add(orderedValues);
+      }
+      /// <summary>
+      /// Crea una griglia di dati a partire da una vista di dati
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="dataView">Vista di dati</param>
@@ -137,7 +161,19 @@ namespace MachineLearning
       {
          Contracts.CheckValue(context?.ML?.NET, nameof(context));
          context.ML.NET.CheckValue(dataView, nameof(dataView));
-         return new DataViewGrid(context, dataView);
+         return new DataViewGrid(context, null, dataView);
+      }
+      /// <summary>
+      /// Crea una griglia di dati a partire da uno schema
+      /// </summary>
+      /// <param name="context">Contesto</param>
+      /// <param name="schema">Schema</param>
+      /// <returns>La griglia di dati</returns>
+      public static DataViewGrid Create(IMachineLearningContextProvider context, DataViewSchema schema)
+      {
+         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         context.ML.NET.CheckValue(schema, nameof(schema));
+         return new DataViewGrid(context, schema, null);
       }
       /// <summary>
       /// Enumeratore di righe
@@ -228,20 +264,12 @@ namespace MachineLearning
          /// <typeparam name="TValue">Tipo di valore</typeparam>
          /// <param name="column">Colonna richiesta</param>
          /// <returns>Il getter</returns>
-         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
-         {
-            void Getter(ref TValue value) => value = (TValue)_owner._rows[(int)Position][column].Value;
-            return Getter;
-         }
+         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column) => _owner.Rows[(int)Position].GetGetter<TValue>(column);
          /// <summary>
          /// Restituzione del getter dell'identificativo
          /// </summary>
          /// <returns>Il getter dell'identificativo</returns>
-         public override ValueGetter<DataViewRowId> GetIdGetter()
-         {
-            void Getter(ref DataViewRowId value) => value = _owner._rows[(int)Position].Id;
-            return Getter;
-         }
+         public override ValueGetter<DataViewRowId> GetIdGetter() => Position > -1 && Position < _owner.Rows.Count ? _owner.Rows[(int)Position].GetIdGetter() : delegate (ref DataViewRowId id) { id = new DataViewRowId(); };
          /// <summary>
          /// Indica se la colonna e' attiva
          /// </summary>
