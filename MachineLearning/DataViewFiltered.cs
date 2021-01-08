@@ -49,7 +49,7 @@ namespace MachineLearning
          _host.AssertValue(dataView, nameof(dataView));
          _host.AssertValueOrNull(filter);
          _dataView = dataView;
-         _filter = filter ?? (this as IDataViewRowFilter).IsValidRow;
+         _filter = filter ?? (column => true);
       }
       /// <summary>
       /// Crea una vista di dati filtrata
@@ -88,9 +88,9 @@ namespace MachineLearning
       /// <summary>
       /// Validita' delle righe
       /// </summary>
-      /// <param name="row">Riga</param>
-      /// <returns>Sempre true</returns>
-      bool IDataViewRowFilter.IsValidRow(DataViewRow row) => true;
+      /// <param name="cursor">Cursore</param>
+      /// <returns>La validita'</returns>
+      bool IDataViewRowFilter.IsValidRow(DataViewRowCursor cursor) => _filter(cursor);
       #endregion
    }
 
@@ -161,7 +161,10 @@ namespace MachineLearning
          /// <returns>true se il cursore e' puntato su una nuova riga</returns>
          public override bool MoveNext()
          {
-            while (_cursor.MoveNext() && !_owner._filter(_cursor)) ;
+            while (_cursor.MoveNext()) {
+               if ((_owner as IDataViewRowFilter).IsValidRow(_cursor))
+                  return true;
+            }
             return false;
          }
          #endregion
