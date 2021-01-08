@@ -18,6 +18,14 @@ namespace MachineLearning
    {
       #region Fields
       /// <summary>
+      /// Nome colonna path immagine
+      /// </summary>
+      private const string _imagePathColumnName = "ImagePath";
+      /// <summary>
+      /// Nome colonna label
+      /// </summary>
+      private const string _labelColumnName = "Label";
+      /// <summary>
       /// Pipe di training
       /// </summary>
       [NonSerialized]
@@ -31,6 +39,10 @@ namespace MachineLearning
       /// Formato dati di training
       /// </summary>
       private TextLoader.Options _textLoaderOptions;
+      /// <summary>
+      /// Nome colonna data e ora immagine
+      /// </summary>
+      private const string _timestampColumnName = "Timestamp";
       #endregion
       #region Properties
       /// <summary>
@@ -70,9 +82,9 @@ namespace MachineLearning
                Separators = new[] { ',' },
                Columns = new[]
                {
-                  new TextLoader.Column("Label", DataKind.String, 0),
-                  new TextLoader.Column("ImagePath", DataKind.String, 1),
-                  new TextLoader.Column("Timestamp", DataKind.DateTime, 2),
+                  new TextLoader.Column(_labelColumnName, DataKind.String, 0),
+                  new TextLoader.Column(_imagePathColumnName, DataKind.String, 1),
+                  new TextLoader.Column(_timestampColumnName, DataKind.DateTime, 2),
                }
             };
          }
@@ -157,13 +169,13 @@ namespace MachineLearning
             return null;
          // Pipe di training
          Pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label").
-            Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, "ImagePath")).
+            ML.NET.Transforms.Conversion.MapValueToKey("Label", _labelColumnName).
+            Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, _imagePathColumnName)).
             Append(Trainers.ImageClassification()).
             Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
          // Training
          if (CrossValidation) {
-            var result = ML.NET.MulticlassClassification.CrossValidate(dataView, Pipe, 5, "Label", null, Seed++);
+            var result = ML.NET.MulticlassClassification.CrossValidate(dataView, Pipe, 5, Name, null, Seed++);
             return result.Best().Model;
          }
          else {
@@ -172,19 +184,16 @@ namespace MachineLearning
          }
       }
       /// <summary>
-      /// Ottiene un elenco di dati di training data la directory radice delle immagini.
-      /// L'elenco puo' essere passato alla funzione di aggiunta di dati di training
+      /// Ottiene un elenco di dati di training data dalla directory radice delle immagini.
       /// </summary>
       /// <param name="path">La directory radice delle immagini</param>
-      /// <param name="opt">Opzioni di formattazione del testo di input</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>La lista di dati di training</returns>
       /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
-      public static async Task<string> GetTrainingDataFromPathAsync(string path, TextLoader.Options opt, CancellationToken cancellation = default)
+      private async Task<DataViewGrid> GetTrainingDataFromPathAsync(string path, CancellationToken cancellation = default)
       {
          return await Task.Run(() =>
          {
-            var sb = new StringBuilder();
             var dirs = from item in Directory.GetDirectories(path, "*.*", SearchOption.TopDirectoryOnly)
                        where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
                        select item;
@@ -192,14 +201,15 @@ namespace MachineLearning
                        from file in Directory.GetFiles(dir, "*.*", SearchOption.TopDirectoryOnly)
                        let ext = Path.GetExtension(file).ToLower()
                        where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
-                       let line = $"\"{Path.GetFileName(dir)}\"{opt.Separators[0]}\"{file}\"{opt.Separators[0]}\"{File.GetLastWriteTimeUtc(file):o}\""
-                       orderby line
+                       let line = new { Label = Path.GetFileName(dir), ImagePath = file, Timestamp = File.GetLastWriteTimeUtc(file) }
+                       orderby line.ImagePath
                        select line;
+            var dataGrid = DataViewGrid.Create(this, ML.NET.Data.CreateTextLoader(TextLoaderOptions).GetOutputSchema());
             foreach (var line in data) {
-               sb.AppendLine(line);
+               dataGrid.Add((_labelColumnName, line.Label), (_imagePathColumnName, line.ImagePath), (_timestampColumnName, line.Timestamp));
                cancellation.ThrowIfCancellationRequested();
             }
-            return sb.ToString();
+            return dataGrid;
          }, cancellation);
       }
       /// <summary>
@@ -214,23 +224,72 @@ namespace MachineLearning
          if (DataStorage == null)
             return;
          // Ottiene i dati di training (l'elenco delle immagini classificate e datate)
-         var data = await GetTrainingDataFromPathAsync(path, TextLoaderOptions, cancellation);
+         var trainingData = await GetTrainingDataFromPathAsync(path, cancellation);
          cancellation.ThrowIfCancellationRequested();
          ML.NET.WriteLog("Updating image list", Name);
          // Effettua l'aggiornamento dello storage di dati sincronizzandolo con lo stato delle immagini
-         await Task.Run(() =>
+         await Task.Run(async () =>
          {
-            // Dati di training
-            var trainingData = new DataStorageTextMemory() { TextData = data };
-            // Formatta correttamente come fossero salvati
-            trainingData.SaveData(this, trainingData.LoadData(this));
-            // Legge i dati di storage
-            var storageData = new DataStorageTextMemory();
-            storageData.SaveData(this, DataStorage.LoadData(this));
-            // Confronta e aggiorna lo storage se rilevata variazione
-            if (trainingData.TextData != storageData.TextData)
-               DataStorage.SaveData(this, trainingData.LoadData(this));
+            // Immagini da scartare nello storage
+            var invalidStorageImages = new HashSet<long>();
+            // Immagini da scartare nel training
+            var invalidTrainingImages = new HashSet<long>();
+            // Task per parallelizzare i confronti
+            var tasks = Enumerable.Range(0, Environment.ProcessorCount).Select(i => Task.CompletedTask).ToArray();
+            var taskIx = 0;
+            // Scandisce lo storage alla ricerca di elementi non piu' validi o aggiornati
+            foreach (var cursor in DataStorage.LoadData(this).GetRowCursor(trainingData.Schema).AsEnumerable()) {
+               cancellation.ThrowIfCancellationRequested();
+               // Riga di dati di storage
+               var storageRow = cursor.ToDataViewValuesRow(this);
+               var position = cursor.Position;
+               // Task di comparazione
+               tasks[taskIx] = Task.Run(() =>
+               {
+                  // Verifica esistenza del file
+                  if (!File.Exists(storageRow[_imagePathColumnName])) {
+                     lock (invalidStorageImages)
+                        invalidStorageImages.Add(position);
+                  }
+                  else {
+                     // Verifica incrociata con i dati di training
+                     foreach (var dataRow in trainingData) {
+                        cancellation.ThrowIfCancellationRequested();
+                        // Verifica se nel training esiste un immagine con lo stesso path del file nello storage
+                        if (storageRow[_imagePathColumnName].ToString() == dataRow[_imagePathColumnName].ToString()) {
+                           // Verifica se 
+                           if (storageRow.ToString() != dataRow.ToString()) {
+                              lock (invalidStorageImages)
+                                 invalidStorageImages.Add(position);
+                              break;
+                           }
+                           else {
+                              lock (invalidTrainingImages)
+                                 invalidTrainingImages.Add(dataRow.Position);
+                           }
+                        }
+                     }
+                  }
+               }, cancellation);
+               // Attende i task
+               if (++taskIx == tasks.Length) {
+                  await Task.WhenAll(tasks);
+                  taskIx = 0;
+               }
+            }
+            // Attende termine di tutti i task
+            cancellation.ThrowIfCancellationRequested();
+            await Task.WhenAll(tasks);
+            // Verifica se deve aggiornare lo storage
+            if (invalidStorageImages.Count > 0 || invalidTrainingImages.Count == 0) {
+               var mergedDataView =
+                  DataStorage.LoadData(this).ToDataViewFiltered(this, cursor => !invalidStorageImages.Contains(cursor.Position)).
+                  Merge(this, trainingData.ToDataViewFiltered(this, cursor => !invalidTrainingImages.Contains(cursor.Position)));
+               cancellation.ThrowIfCancellationRequested();
+               DataStorage.SaveData(this, mergedDataView);
+            }
          }, cancellation);
+         cancellation.ThrowIfCancellationRequested();
       }
       #endregion
    }
