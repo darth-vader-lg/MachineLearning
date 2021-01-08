@@ -16,38 +16,38 @@ namespace MachineLearning
       /// </summary>
       private static readonly Dictionary<(Type from, Type to), Func<object, object>> Converter = new Dictionary<(Type from, Type to), Func<object, object>>
       {
-         { (typeof(VBuffer<sbyte>), typeof(sbyte[])), new Func<object, object>(value => VBufferToArray<sbyte>(value)) },
-         { (typeof(VBuffer<byte>), typeof(byte[])), new Func<object, object>(value => VBufferToArray<byte>(value)) },
-         { (typeof(VBuffer<short>), typeof(short[])), new Func<object, object>(value => VBufferToArray<short>(value)) },
-         { (typeof(VBuffer<ushort>), typeof(ushort[])), new Func<object, object>(value => VBufferToArray<ushort>(value)) },
-         { (typeof(VBuffer<int>), typeof(int[])), new Func<object, object>(value => VBufferToArray<int>(value)) },
-         { (typeof(VBuffer<uint>), typeof(uint[])), new Func<object, object>(value => VBufferToArray<uint>(value)) },
-         { (typeof(VBuffer<long>), typeof(long[])), new Func<object, object>(value => VBufferToArray<long>(value)) },
-         { (typeof(VBuffer<ulong>), typeof(ulong[])), new Func<object, object>(value => VBufferToArray<ulong>(value)) },
-         { (typeof(VBuffer<float>), typeof(float[])), new Func<object, object>(value => VBufferToArray<float>(value)) },
-         { (typeof(VBuffer<double>), typeof(double[])), new Func<object, object>(value => VBufferToArray<double>(value)) },
-         { (typeof(ReadOnlyMemory<char>), typeof(string)), new Func<object, object>(value => ((ReadOnlyMemory<char>)value).ToString()) },
-         { (typeof(VBuffer<ReadOnlyMemory<char>>), typeof(string[])), new Func<object, object>(value => ((VBuffer<ReadOnlyMemory<char>>)value).DenseValues().Select(s => s.ToString()).ToArray()) },
-         { (typeof(VBuffer<bool>), typeof(bool[])), new Func<object, object>(value => VBufferToArray<bool>(value)) },
-         { (typeof(VBuffer<TimeSpan>), typeof(TimeSpan[])), new Func<object, object>(value => VBufferToArray<TimeSpan>(value)) },
-         { (typeof(VBuffer<DateTime>), typeof(DateTime[])), new Func<object, object>(value => VBufferToArray<DateTime>(value)) },
-         { (typeof(VBuffer<DateTimeOffset>), typeof(DateTimeOffset[])), new Func<object, object>(value => VBufferToArray<DateTimeOffset>(value)) },
-         { (typeof(sbyte[]), typeof(VBuffer<sbyte>)), new Func<object, object>(value => ArrayToVBuffer(value as sbyte[])) },
-         { (typeof(byte[]), typeof(VBuffer<byte>)), new Func<object, object>(value => ArrayToVBuffer(value as byte[])) },
-         { (typeof(short[]), typeof(VBuffer<short>)), new Func<object, object>(value => ArrayToVBuffer(value as short[])) },
-         { (typeof(ushort[]), typeof(VBuffer<ushort>)), new Func<object, object>(value => ArrayToVBuffer(value as ushort[])) },
-         { (typeof(int[]), typeof(VBuffer<int>)), new Func<object, object>(value => ArrayToVBuffer(value as int[])) },
-         { (typeof(uint[]), typeof(VBuffer<uint>)), new Func<object, object>(value => ArrayToVBuffer(value as uint[])) },
-         { (typeof(long[]), typeof(VBuffer<long>)), new Func<object, object>(value => ArrayToVBuffer(value as long[])) },
-         { (typeof(ulong[]), typeof(VBuffer<ulong>)), new Func<object, object>(value => ArrayToVBuffer(value as ulong[])) },
-         { (typeof(float[]), typeof(VBuffer<float>)), new Func<object, object>(value => ArrayToVBuffer(value as float[])) },
-         { (typeof(double[]), typeof(VBuffer<double>)), new Func<object, object>(value => ArrayToVBuffer(value as double[])) },
-         { (typeof(string), typeof(ReadOnlyMemory<char>)), new Func<object, object>(value => new ReadOnlyMemory<char>(((string)value).ToCharArray())) },
-         { (typeof(string[]), typeof(VBuffer<ReadOnlyMemory<char>>)), new Func<object, object>(value => { var values = ((string[])value).Select(s => new ReadOnlyMemory<char>(s.ToCharArray())).ToArray(); return new VBuffer<ReadOnlyMemory<char>>(values.Length, values); }) },
-         { (typeof(bool[]), typeof(VBuffer<bool>)), new Func<object, object>(value => ArrayToVBuffer(value as bool[])) },
-         { (typeof(TimeSpan[]), typeof(VBuffer<TimeSpan>)), new Func<object, object>(value => ArrayToVBuffer(value as TimeSpan[])) },
-         { (typeof(DateTime[]), typeof(VBuffer<DateTime>)), new Func<object, object>(value => ArrayToVBuffer(value as DateTime[])) },
-         { (typeof(DateTimeOffset[]), typeof(VBuffer<DateTimeOffset>)), new Func<object, object>(value => ArrayToVBuffer(value as DateTimeOffset[])) },
+         { (typeof(VBuffer<sbyte>), typeof(sbyte[])), value => VBufferToArray<sbyte>(value) },
+         { (typeof(VBuffer<byte>), typeof(byte[])), value => VBufferToArray<byte>(value) },
+         { (typeof(VBuffer<short>), typeof(short[])), value => VBufferToArray<short>(value) },
+         { (typeof(VBuffer<ushort>), typeof(ushort[])), value => VBufferToArray<ushort>(value) },
+         { (typeof(VBuffer<int>), typeof(int[])), value => VBufferToArray<int>(value) },
+         { (typeof(VBuffer<uint>), typeof(uint[])), value => VBufferToArray<uint>(value) },
+         { (typeof(VBuffer<long>), typeof(long[])), value => VBufferToArray<long>(value) },
+         { (typeof(VBuffer<ulong>), typeof(ulong[])), value => VBufferToArray<ulong>(value) },
+         { (typeof(VBuffer<float>), typeof(float[])), value => VBufferToArray<float>(value) },
+         { (typeof(VBuffer<double>), typeof(double[])), value => VBufferToArray<double>(value) },
+         { (typeof(ReadOnlyMemory<char>), typeof(string)), value => ((ReadOnlyMemory<char>)value).ToString() },
+         { (typeof(VBuffer<ReadOnlyMemory<char>>), typeof(string[])), value => ((VBuffer<ReadOnlyMemory<char>>)value).DenseValues().Select(s => s.ToString()).ToArray() },
+         { (typeof(VBuffer<bool>), typeof(bool[])), value => VBufferToArray<bool>(value) },
+         { (typeof(VBuffer<TimeSpan>), typeof(TimeSpan[])), value => VBufferToArray<TimeSpan>(value) },
+         { (typeof(VBuffer<DateTime>), typeof(DateTime[])), value => VBufferToArray<DateTime>(value) },
+         { (typeof(VBuffer<DateTimeOffset>), typeof(DateTimeOffset[])), value => VBufferToArray<DateTimeOffset>(value) },
+         { (typeof(sbyte[]), typeof(VBuffer<sbyte>)), value => ArrayToVBuffer(value as sbyte[]) },
+         { (typeof(byte[]), typeof(VBuffer<byte>)), value => ArrayToVBuffer(value as byte[]) },
+         { (typeof(short[]), typeof(VBuffer<short>)), value => ArrayToVBuffer(value as short[]) },
+         { (typeof(ushort[]), typeof(VBuffer<ushort>)), value => ArrayToVBuffer(value as ushort[]) },
+         { (typeof(int[]), typeof(VBuffer<int>)), value => ArrayToVBuffer(value as int[]) },
+         { (typeof(uint[]), typeof(VBuffer<uint>)), value => ArrayToVBuffer(value as uint[]) },
+         { (typeof(long[]), typeof(VBuffer<long>)), value => ArrayToVBuffer(value as long[]) },
+         { (typeof(ulong[]), typeof(VBuffer<ulong>)), value => ArrayToVBuffer(value as ulong[]) },
+         { (typeof(float[]), typeof(VBuffer<float>)), value => ArrayToVBuffer(value as float[]) },
+         { (typeof(double[]), typeof(VBuffer<double>)), value => ArrayToVBuffer(value as double[]) },
+         { (typeof(string), typeof(ReadOnlyMemory<char>)), value => new ReadOnlyMemory<char>(((string)value).ToCharArray()) },
+         { (typeof(string[]), typeof(VBuffer<ReadOnlyMemory<char>>)), value => { var values = ((string[])value).Select(s => new ReadOnlyMemory<char>(s.ToCharArray())).ToArray(); return new VBuffer<ReadOnlyMemory<char>>(values.Length, values); } },
+         { (typeof(bool[]), typeof(VBuffer<bool>)), value => ArrayToVBuffer(value as bool[]) },
+         { (typeof(TimeSpan[]), typeof(VBuffer<TimeSpan>)), value => ArrayToVBuffer(value as TimeSpan[]) },
+         { (typeof(DateTime[]), typeof(VBuffer<DateTime>)), value => ArrayToVBuffer(value as DateTime[]) },
+         { (typeof(DateTimeOffset[]), typeof(VBuffer<DateTimeOffset>)), value => ArrayToVBuffer(value as DateTimeOffset[]) },
       };
       /// <summary>
       /// Valore
@@ -121,7 +121,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="obj">Oggetto da testare</param>
       /// <returns>true se gli oggetti sono uguali</returns>
-      public override bool Equals(object obj) => Value.Equals(obj);
+      public override bool Equals(object obj) => (obj is DataValue dv ? dv.Value : obj) == Value;
       /// <summary>
       /// Restituisce il codice hash
       /// </summary>
