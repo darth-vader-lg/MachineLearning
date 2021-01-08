@@ -12,6 +12,59 @@ namespace Microsoft.ML
    {
       #region Methods
       /// <summary>
+      /// Trasforma un cursore in enumerabile
+      /// </summary>
+      /// <param name="cursor">Cursore di dato</param>
+      /// <returns>L'enumerabile</returns>
+      public static IEnumerable<DataViewRowCursor> AsEnumerable(this DataViewRowCursor cursor)
+      {
+         while (cursor.MoveNext())
+            yield return cursor;
+      }
+      /// <summary>
+      /// Restituisce un valore
+      /// </summary>
+      /// <param name="cursor">Il cursore</param>
+      /// <param name="column">La colonna</param>
+      /// <returns>Il valore</returns>
+      public static DataValue GetValue(this DataViewRowCursor cursor, DataViewSchema.Column column) => GetValue(cursor, column.Index);
+      /// <summary>
+      /// Restituisce un valore
+      /// </summary>
+      /// <param name="cursor">Il cursore</param>
+      /// <param name="columnIndex">L'indice di colonna</param>
+      /// <returns>Il valore</returns>
+      public static DataValue GetValue(this DataViewRowCursor cursor, int columnIndex)
+      {
+         // Crea il metodo generico del getter
+         var getterMethodInfo = typeof(DataViewExtensions).GetMethod(nameof(GetValue), 1, new[] { typeof(DataViewRowCursor), typeof(int) });
+         var getterGenericMethodInfo = getterMethodInfo.MakeGenericMethod(cursor.Schema[columnIndex].Type.RawType);
+         // Lo invoca e restituisce il risultato
+         return new DataValue(getterGenericMethodInfo.Invoke(null, new object[] { cursor, columnIndex }));
+      }
+      /// <summary>
+      /// Restituisce un valore
+      /// </summary>
+      /// <param name="cursor">Il cursore</param>
+      /// <param name="columnName">Il nome della colonna</param>
+      /// <returns>Il valore</returns>
+      public static DataValue GetValue(this DataViewRowCursor cursor, string columnName) => GetValue(cursor, cursor.Schema[columnName]);
+      /// <summary>
+      /// Restituisce un valore
+      /// </summary>
+      /// <typeparam name="T">Tipo di valore</typeparam>
+      /// <param name="cursor">Il cursore</param>
+      /// <param name="col">L'indice di colonna</param>
+      /// <returns>Il valore</returns>
+      public static T GetValue<T>(this DataViewRowCursor cursor, int col)
+      {
+         // Azione di restituzione dei valori
+         var getter = cursor.GetGetter<T>(cursor.Schema[col]);
+         T value = default;
+         getter(ref value);
+         return value;
+      }
+      /// <summary>
       /// Crea una IDataView che e' il merge dell'oggetto principale con una serie di altre IDataView
       /// </summary>
       /// <param name="dataView">Dati</param>
@@ -53,16 +106,12 @@ namespace Microsoft.ML
       /// <returns>La vista di dati filtrata</returns>
       public static DataViewGrid ToDataViewGrid(this IDataView dataView, IMachineLearningContextProvider context) => DataViewGrid.Create(context, dataView);
       /// <summary>
-      /// Trasforma un cursore in enumerabile
+      /// Trasforma un cursore di vista dati in una riga con valori
       /// </summary>
-      /// <param name="dataView">Dati</param>
-      /// <returns>L'enumerabile</returns>
-      public static IEnumerable<DataViewRow> ToEnumerable(this IDataView dataView)
-      {
-         var cursor = dataView.GetRowCursor(dataView.Schema);
-         while (cursor.MoveNext())
-            yield return cursor;
-      }
+      /// <param name="cursor">Cursore</param>
+      /// <param name="context">Contesto</param>
+      /// <returns>La riga di dati</returns>
+      public static DataViewValuesRow ToDataViewValuesRow(this DataViewRowCursor cursor, IMachineLearningContextProvider context) => DataViewValuesRow.Create(context, cursor);
       #endregion
    }
 }
