@@ -99,12 +99,12 @@ namespace MachineLearning
          _isColumnActive = Schema.Select(c => cursor.IsColumnActive(c)).ToArray();
          // Creatore dei getter di valori riga
          var n = Schema.Count;
-         var getters = new Func<DataViewRowCursor, int, object>[n];
+         var values = new DataValue[n];
          for (var i = 0; i < n; i++) {
             var getterGenericMethodInfo = _getterMethodInfo.MakeGenericMethod(Schema[i].Type.RawType);
-            getters[i] = new Func<DataViewRowCursor, int, object>((cursor, col) => getterGenericMethodInfo.Invoke(null, new object[] { cursor, col }));
+            values[i] = new DataValue(getterGenericMethodInfo.Invoke(null, new object[] { cursor, i }));
          }
-         Values = Array.AsReadOnly(getters.Select((getter, i) => new DataValue(getter(cursor, i))).ToArray());
+         Values = Array.AsReadOnly(values);
       }
       /// <summary>
       /// Costruttore
