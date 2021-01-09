@@ -1,4 +1,5 @@
-﻿using Microsoft.ML.Data;
+﻿using MachineLearning.Extensions;
+using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -121,7 +122,11 @@ namespace MachineLearning
       /// </summary>
       /// <param name="obj">Oggetto da testare</param>
       /// <returns>true se gli oggetti sono uguali</returns>
-      public override bool Equals(object obj) => (obj is DataValue dv ? dv.Value : obj) == Value;
+      public override bool Equals(object obj)
+      {
+         obj = obj is DataValue dv ? dv.Value : obj;
+         return Value.GetType().IsArray ? VectorsComparer.CompareByValues(Value, obj) : Value.Equals(obj);
+      }
       /// <summary>
       /// Restituisce il codice hash
       /// </summary>
