@@ -1,4 +1,4 @@
-﻿using MachineLearning.Extensions;
+﻿using MachineLearning.Util;
 using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;

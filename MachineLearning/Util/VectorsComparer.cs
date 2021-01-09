@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 
-namespace MachineLearning.Extensions
+namespace MachineLearning.Util
 {
    /// <summary>
    /// Comparatore di vettori per valori
    /// </summary>
-   public static class VectorsComparer
+   internal static class VectorsComparer
    {
       #region Fields
       /// <summary>
