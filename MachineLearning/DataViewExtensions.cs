@@ -1,9 +1,9 @@
-﻿using MachineLearning;
+﻿using Microsoft.ML;
 using Microsoft.ML.Data;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Microsoft.ML
+namespace MachineLearning
 {
    /// <summary>
    /// Estensioni per l'accesso ai gestori di dati
