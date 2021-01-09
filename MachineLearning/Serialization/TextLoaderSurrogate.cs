@@ -6,9 +6,9 @@ namespace MachineLearning.Serialization
    /// <summary>
    /// Classe helper per la serializzazione dei dati del textLoader
    /// </summary>
-   internal class TextLoaderSerializer
+   internal class TextLoaderSurrogate
    {
-      internal class ColumnSurrogate : ISerializationSurrogate
+      internal class Column : ISerializationSurrogate<TextLoader.Column>
       {
          public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {
@@ -30,7 +30,7 @@ namespace MachineLearning.Serialization
             return data;
          }
       }
-      internal class OptionsSurrogate : ISerializationSurrogate
+      internal class Options : ISerializationSurrogate<TextLoader.Options>
       {
          public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {
@@ -71,7 +71,7 @@ namespace MachineLearning.Serialization
          }
       }
 
-      internal class RangeSurrogate : ISerializationSurrogate
+      internal class Range : ISerializationSurrogate<TextLoader.Range>
       {
          public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {

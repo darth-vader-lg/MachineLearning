@@ -1,8 +1,6 @@
-﻿using MachineLearning.Trainers;
-using Microsoft.ML.Data;
-using Microsoft.ML.Trainers;
-using Microsoft.ML.Vision;
-using System.IO;
+﻿using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
@@ -15,9 +13,9 @@ namespace MachineLearning.Serialization
    {
       #region Properties
       /// <summary>
-      /// Surrogato per la serializzazione
+      /// Selettore di surrogati per la serializzazione
       /// </summary>
-      public static SurrogateSelector Surrogator { get; }
+      public static SurrogateSelector SurrogateSelector { get; }
       #endregion
       #region Methods
       /// <summary>
@@ -25,22 +23,23 @@ namespace MachineLearning.Serialization
       /// </summary>
       static Serializer()
       {
-         Surrogator = new SurrogateSelector();
+         SurrogateSelector = new SurrogateSelector();
          var context = new StreamingContext(StreamingContextStates.All);
-         Surrogator.AddSurrogate(typeof(Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options), context, new Trainers.SdcaNonCalibratedMulticlassTrainer.OptionsSurrogate());
-         Surrogator.AddSurrogate(typeof(Microsoft.ML.Vision.ImageClassificationTrainer.Options), context, new Trainers.ImageClassificationTrainer.OptionsSurrogate());
-         Surrogator.AddSurrogate(typeof(TextLoader.Column), context, new TextLoaderSerializer.ColumnSurrogate());
-         Surrogator.AddSurrogate(typeof(TextLoader.Options), context, new TextLoaderSerializer.OptionsSurrogate());
-         Surrogator.AddSurrogate(typeof(TextLoader.Range), context, new TextLoaderSerializer.RangeSurrogate());
+         var surrogators = Assembly.GetExecutingAssembly().GetTypes()
+            .Select(t => (Surrogate: t, Interface: t.GetInterface($"{nameof(ISerializationSurrogate)}`1")))
+            .Where(t => t.Interface != null)
+            .Select(t => (Surrogate: t.Surrogate, Type: t.Interface.GetGenericArguments()[0]));
+         foreach (var s in surrogators)
+            SurrogateSelector.AddSurrogate(s.Type, context, (ISerializationSurrogate)Assembly.GetExecutingAssembly().CreateInstance(s.Surrogate.ToString()));
       }
       /// <summary>
       /// Clona un oggetto
       /// </summary>
-      /// <param name="serializable">Oggetto serializzabile</param>
+      /// <param name="obj">Oggetto da clonare</param>
       /// <returns>L'oggetto clonato</returns>
       public static T Clone<T>(T obj)
       {
-         var formatter = new BinaryFormatter(Surrogator, new StreamingContext(StreamingContextStates.Clone));
+         var formatter = new BinaryFormatter(SurrogateSelector, new StreamingContext(StreamingContextStates.Clone));
          using var memoryStream = new MemoryStream();
 #pragma warning disable SYSLIB0011 // Il tipo o il membro è obsoleto
          formatter.Serialize(memoryStream, obj);
