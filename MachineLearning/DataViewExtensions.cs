@@ -27,20 +27,20 @@ namespace MachineLearning
       /// <param name="cursor">Il cursore</param>
       /// <param name="column">La colonna</param>
       /// <returns>Il valore</returns>
-      public static DataValue GetValue(this DataViewRowCursor cursor, DataViewSchema.Column column) => GetValue(cursor, column.Index);
+      public static DataViewValue GetValue(this DataViewRowCursor cursor, DataViewSchema.Column column) => GetValue(cursor, column.Index);
       /// <summary>
       /// Restituisce un valore
       /// </summary>
       /// <param name="cursor">Il cursore</param>
       /// <param name="columnIndex">L'indice di colonna</param>
       /// <returns>Il valore</returns>
-      public static DataValue GetValue(this DataViewRowCursor cursor, int columnIndex)
+      public static DataViewValue GetValue(this DataViewRowCursor cursor, int columnIndex)
       {
          // Crea il metodo generico del getter
          var getterMethodInfo = typeof(DataViewExtensions).GetMethod(nameof(GetValue), 1, new[] { typeof(DataViewRowCursor), typeof(int) });
          var getterGenericMethodInfo = getterMethodInfo.MakeGenericMethod(cursor.Schema[columnIndex].Type.RawType);
          // Lo invoca e restituisce il risultato
-         return new DataValue(getterGenericMethodInfo.Invoke(null, new object[] { cursor, columnIndex }));
+         return new DataViewValue(getterGenericMethodInfo.Invoke(null, new object[] { cursor, columnIndex }));
       }
       /// <summary>
       /// Restituisce un valore
@@ -48,7 +48,7 @@ namespace MachineLearning
       /// <param name="cursor">Il cursore</param>
       /// <param name="columnName">Il nome della colonna</param>
       /// <returns>Il valore</returns>
-      public static DataValue GetValue(this DataViewRowCursor cursor, string columnName) => GetValue(cursor, cursor.Schema[columnName]);
+      public static DataViewValue GetValue(this DataViewRowCursor cursor, string columnName) => GetValue(cursor, cursor.Schema[columnName]);
       /// <summary>
       /// Restituisce un valore
       /// </summary>

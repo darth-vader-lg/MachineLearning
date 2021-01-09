@@ -125,8 +125,8 @@ namespace MachineLearning
          _context.ML.NET.AssertNonEmpty(values);
          _context.ML.NET.Assert(values.Length == Schema.Count, $"The length of {nameof(values)} must be equal to the length of schema");
          for (var i = 0; i < values.Length; i++) {
-            _context.ML.NET.Assert(DataValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
-            values[i] = DataValue.Convert(values[i], Schema[i].Type.RawType);
+            _context.ML.NET.Assert(DataViewValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
+            values[i] = DataViewValue.Convert(values[i], Schema[i].Type.RawType);
          }
          _rows.Add(DataViewValuesRow.Create(_context, Schema, _rows.Count, default, values, Enumerable.Range(0, values.Length).Select(i => true).ToArray()));
       }
@@ -134,7 +134,7 @@ namespace MachineLearning
       /// Aggiunge una riga alla griglia di dati
       /// </summary>
       /// <param name="values">Valori</param>
-      public void Add(params DataValue[] values) => Add(values.Select(v => v.Value).ToArray());
+      public void Add(params DataViewValue[] values) => Add(values.Select(v => v.Value).ToArray());
       /// <summary>
       /// Aggiunge una riga alla griglia di dati
       /// </summary>
@@ -297,7 +297,7 @@ namespace MachineLearning
       /// <summary>
       /// Colonna
       /// </summary>
-      public class Col : IEnumerable<DataValue>
+      public class Col : IEnumerable<DataViewValue>
       {
          #region Fields
          /// <summary>
@@ -315,7 +315,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="row">Indice di riga</param>
          /// <returns>Il valore</returns>
-         public DataValue this[int row] => _owner._rows[row][_index];
+         public DataViewValue this[int row] => _owner._rows[row][_index];
          #endregion
          #region Methods
          /// <summary>
@@ -336,7 +336,7 @@ namespace MachineLearning
          /// Enumeratore di valori
          /// </summary>
          /// <returns>L'enumeratore</returns>
-         public IEnumerator<DataValue> GetEnumerator() => (from row in _owner._rows select row[_index]).GetEnumerator();
+         public IEnumerator<DataViewValue> GetEnumerator() => (from row in _owner._rows select row[_index]).GetEnumerator();
          #endregion
       }
    }

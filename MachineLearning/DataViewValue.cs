@@ -9,7 +9,7 @@ namespace MachineLearning
    /// <summary>
    /// Valore di vista dati
    /// </summary>
-   public struct DataValue
+   public struct DataViewValue
    {
       #region Fields
       /// <summary>
@@ -60,13 +60,13 @@ namespace MachineLearning
       /// Costruttore
       /// </summary>
       /// <param name="value">Valore</param>
-      public DataValue(object value) => Value = value;
+      public DataViewValue(object value) => Value = value;
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="type">Tipo devinito nello schema delle viste di dati</param>
       /// <param name="value">Valore</param>
-      public DataValue(DataViewType type, object value)
+      public DataViewValue(DataViewType type, object value)
       {
          if (type.RawType == value.GetType())
             Value = value;
@@ -124,7 +124,7 @@ namespace MachineLearning
       /// <returns>true se gli oggetti sono uguali</returns>
       public override bool Equals(object obj)
       {
-         obj = obj is DataValue dv ? dv.Value : obj;
+         obj = obj is DataViewValue dv ? dv.Value : obj;
          return Value.GetType().IsArray ? VectorsComparer.CompareByValues(Value, obj) : Value.Equals(obj);
       }
       /// <summary>
@@ -144,14 +144,14 @@ namespace MachineLearning
       /// <param name="left">Operando di sinistra</param>
       /// <param name="right">Operando di destra</param>
       /// <returns>true se uguali</returns>
-      public static bool operator ==(DataValue left, DataValue right) => left.Equals(right);
+      public static bool operator ==(DataViewValue left, DataViewValue right) => left.Equals(right);
       /// <summary>
       /// Operatore di verifica uguaglianza
       /// </summary>
       /// <param name="left">Operando di sinistra</param>
       /// <param name="right">Operando di destra</param>
       /// <returns>true se diversi</returns>
-      public static bool operator !=(DataValue left, DataValue right) => !(left == right);
+      public static bool operator !=(DataViewValue left, DataViewValue right) => !(left == right);
       /// <summary>
       /// Rappresentazione in formato stringa
       /// </summary>
@@ -168,152 +168,152 @@ namespace MachineLearning
       /// Operatore di conversione a sbyte
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator sbyte(DataValue value) => value.To<sbyte>();
+      public static implicit operator sbyte(DataViewValue value) => value.To<sbyte>();
       /// <summary>
       /// Operatore di conversione ad array di sbyte
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator sbyte[](DataValue value) => value.To<sbyte[]>();
+      public static implicit operator sbyte[](DataViewValue value) => value.To<sbyte[]>();
       /// <summary>
       /// Operatore di conversione a byte
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator byte(DataValue value) => value.To<byte>();
+      public static implicit operator byte(DataViewValue value) => value.To<byte>();
       /// <summary>
       /// Operatore di conversione ad array di byte
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator byte[](DataValue value) => value.To<byte[]>();
+      public static implicit operator byte[](DataViewValue value) => value.To<byte[]>();
       /// <summary>
       /// Operatore di conversione a short
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator short(DataValue value) => value.To<short>();
+      public static implicit operator short(DataViewValue value) => value.To<short>();
       /// <summary>
       /// Operatore di conversione ad array di short
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator short[](DataValue value) => value.To<short[]>();
+      public static implicit operator short[](DataViewValue value) => value.To<short[]>();
       /// <summary>
       /// Operatore di conversione a ushort
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator ushort(DataValue value) => value.To<ushort>();
+      public static implicit operator ushort(DataViewValue value) => value.To<ushort>();
       /// <summary>
       /// Operatore di conversione ad array di ushort
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator ushort[](DataValue value) => value.To<ushort[]>();
+      public static implicit operator ushort[](DataViewValue value) => value.To<ushort[]>();
       /// <summary>
       /// Operatore di conversione a int
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator int(DataValue value) => value.To<int>();
+      public static implicit operator int(DataViewValue value) => value.To<int>();
       /// <summary>
       /// Operatore di conversione ad array di int
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator int[](DataValue value) => value.To<int[]>();
+      public static implicit operator int[](DataViewValue value) => value.To<int[]>();
       /// <summary>
       /// Operatore di conversione a uint
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator uint(DataValue value) => value.To<uint>();
+      public static implicit operator uint(DataViewValue value) => value.To<uint>();
       /// <summary>
       /// Operatore di conversione ad array di uint
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator uint[](DataValue value) => value.To<uint[]>();
+      public static implicit operator uint[](DataViewValue value) => value.To<uint[]>();
       /// <summary>
       /// Operatore di conversione a long
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator long(DataValue value) => value.To<long>();
+      public static implicit operator long(DataViewValue value) => value.To<long>();
       /// <summary>
       /// Operatore di conversione ad array di long
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator long[](DataValue value) => value.To<long[]>();
+      public static implicit operator long[](DataViewValue value) => value.To<long[]>();
       /// <summary>
       /// Operatore di conversione a ulong
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator ulong(DataValue value) => value.To<ulong>();
+      public static implicit operator ulong(DataViewValue value) => value.To<ulong>();
       /// <summary>
       /// Operatore di conversione ad array di ulong
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator ulong[](DataValue value) => value.To<ulong[]>();
+      public static implicit operator ulong[](DataViewValue value) => value.To<ulong[]>();
       /// <summary>
       /// Operatore di conversione a float
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator float(DataValue value) => value.To<float>();
+      public static implicit operator float(DataViewValue value) => value.To<float>();
       /// <summary>
       /// Operatore di conversione ad array di float
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator float[](DataValue value) => value.To<float[]>();
+      public static implicit operator float[](DataViewValue value) => value.To<float[]>();
       /// <summary>
       /// Operatore di conversione a double
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator double(DataValue value) => value.To<double>();
+      public static implicit operator double(DataViewValue value) => value.To<double>();
       /// <summary>
       /// Operatore di conversione ad array di double
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator double[](DataValue value) => value.To<double[]>();
+      public static implicit operator double[](DataViewValue value) => value.To<double[]>();
       /// <summary>
       /// Operatore di conversione a stringa
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator string(DataValue value) => value.To<string>();
+      public static implicit operator string(DataViewValue value) => value.To<string>();
       /// <summary>
       /// Operatore di conversione ad array di stringhe
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator string[](DataValue value) => value.To<string[]>();
+      public static implicit operator string[](DataViewValue value) => value.To<string[]>();
       /// <summary>
       /// Operatore di conversione a bool
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator bool(DataValue value) => value.To<bool>();
+      public static implicit operator bool(DataViewValue value) => value.To<bool>();
       /// <summary>
       /// Operatore di conversione ad array di bool
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator bool[](DataValue value) => value.To<bool[]>();
+      public static implicit operator bool[](DataViewValue value) => value.To<bool[]>();
       /// <summary>
       /// Operatore di conversione a TimeSpan
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator TimeSpan(DataValue value) => value.To<TimeSpan>();
+      public static implicit operator TimeSpan(DataViewValue value) => value.To<TimeSpan>();
       /// <summary>
       /// Operatore di conversione ad array di TimeSpan
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator TimeSpan[](DataValue value) => value.To<TimeSpan[]>();
+      public static implicit operator TimeSpan[](DataViewValue value) => value.To<TimeSpan[]>();
       /// <summary>
       /// Operatore di conversione a data
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator DateTime(DataValue value) => value.To<DateTime>();
+      public static implicit operator DateTime(DataViewValue value) => value.To<DateTime>();
       /// <summary>
       /// Operatore di conversione ad array di date
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator DateTime[](DataValue value) => value.To<DateTime[]>();
+      public static implicit operator DateTime[](DataViewValue value) => value.To<DateTime[]>();
       /// <summary>
       /// Operatore di conversione a offset di data
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator DateTimeOffset(DataValue value) => value.To<DateTimeOffset>();
+      public static implicit operator DateTimeOffset(DataViewValue value) => value.To<DateTimeOffset>();
       /// <summary>
       /// Operatore di conversione ad array di offset di date
       /// </summary>
       /// <param name="value"></param>
-      public static implicit operator DateTimeOffset[](DataValue value) => value.To<DateTimeOffset[]>();
+      public static implicit operator DateTimeOffset[](DataViewValue value) => value.To<DateTimeOffset[]>();
       #endregion
    }
 }

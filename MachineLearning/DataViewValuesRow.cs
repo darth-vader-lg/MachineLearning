@@ -14,7 +14,7 @@ namespace MachineLearning
    /// <summary>
    /// Riga di vista di dati
    /// </summary>
-   public class DataViewValuesRow : DataViewRow, IEnumerable<DataValue>
+   public class DataViewValuesRow : DataViewRow, IEnumerable<DataViewValue>
    {
       #region Fields
       /// <summary>
@@ -58,25 +58,25 @@ namespace MachineLearning
       /// <summary>
       /// Valori
       /// </summary>
-      public ReadOnlyCollection<DataValue> Values { get; private set; }
+      public ReadOnlyCollection<DataViewValue> Values { get; private set; }
       /// <summary>
       /// Indicizzatore
       /// </summary>
       /// <param name="columnIndex">Indice del valore</param>
       /// <returns>Il valore</returns>
-      public DataValue this[int columnIndex] => Values[columnIndex];
+      public DataViewValue this[int columnIndex] => Values[columnIndex];
       /// <summary>
       /// Indicizzatore
       /// </summary>
       /// <param name="column">La colonna</param>
       /// <returns>Il valore</returns>
-      public DataValue this[DataViewSchema.Column column] => Values[column.Index];
+      public DataViewValue this[DataViewSchema.Column column] => Values[column.Index];
       /// <summary>
       /// Indicizzatore
       /// </summary>
       /// <param name="columnName">Il nome di colonna</param>
       /// <returns>Il valore</returns>
-      public DataValue this[string columnName] => Values[Schema[columnName].Index];
+      public DataViewValue this[string columnName] => Values[Schema[columnName].Index];
       #endregion
       #region Methods
       /// <summary>
@@ -99,10 +99,10 @@ namespace MachineLearning
          _isColumnActive = Schema.Select(c => cursor.IsColumnActive(c)).ToArray();
          // Creatore dei getter di valori riga
          var n = Schema.Count;
-         var values = new DataValue[n];
+         var values = new DataViewValue[n];
          for (var i = 0; i < n; i++) {
             var getterGenericMethodInfo = _getterMethodInfo.MakeGenericMethod(Schema[i].Type.RawType);
-            values[i] = new DataValue(getterGenericMethodInfo.Invoke(null, new object[] { cursor, i }));
+            values[i] = new DataViewValue(getterGenericMethodInfo.Invoke(null, new object[] { cursor, i }));
          }
          Values = Array.AsReadOnly(values);
       }
@@ -127,7 +127,7 @@ namespace MachineLearning
          _schema = schema;
          _position = position;
          Id = id;
-         Values = Array.AsReadOnly(values.Select(v => new DataValue(v)).ToArray());
+         Values = Array.AsReadOnly(values.Select(v => new DataViewValue(v)).ToArray());
          _isColumnActive = isColumnActive;
       }
       /// <summary>
@@ -165,7 +165,7 @@ namespace MachineLearning
       /// Enumeratore di valori
       /// </summary>
       /// <returns>L'enumeratore</returns>
-      public IEnumerator<DataValue> GetEnumerator() => ((IEnumerable<DataValue>)Values).GetEnumerator();
+      public IEnumerator<DataViewValue> GetEnumerator() => ((IEnumerable<DataViewValue>)Values).GetEnumerator();
       /// <summary>
       /// Restituisce il getter di un valore di colonna
       /// </summary>
