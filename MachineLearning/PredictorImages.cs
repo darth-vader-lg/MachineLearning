@@ -256,8 +256,8 @@ namespace MachineLearning
                      foreach (var dataRow in trainingData) {
                         cancellation.ThrowIfCancellationRequested();
                         // Verifica se nel training esiste un immagine con lo stesso path del file nello storage
-                        if (storageRow[_imagePathColumnName].ToString() == dataRow[_imagePathColumnName].ToString()) {
-                           // Verifica se 
+                        if (storageRow[_imagePathColumnName] == dataRow[_imagePathColumnName]) {
+                           // Verifica se i dati relativi all'immagine sono variati
                            if (storageRow.ToString() != dataRow.ToString()) {
                               lock (invalidStorageImages)
                                  invalidStorageImages.Add(position);
@@ -282,11 +282,32 @@ namespace MachineLearning
             await Task.WhenAll(tasks);
             // Verifica se deve aggiornare lo storage
             if (invalidStorageImages.Count > 0 || invalidTrainingImages.Count == 0) {
+               // Crea la vista dati mergiata e filtrata
                var mergedDataView =
                   DataStorage.LoadData(this).ToDataViewFiltered(this, cursor => !invalidStorageImages.Contains(cursor.Position)).
                   Merge(this, trainingData.ToDataViewFiltered(this, cursor => !invalidTrainingImages.Contains(cursor.Position)));
                cancellation.ThrowIfCancellationRequested();
-               DataStorage.SaveData(this, mergedDataView);
+               // File temporaneo per il merge
+               var tmpFileName = default(string);
+               try {
+                  // Crea il file temporaneo
+                  tmpFileName = Path.GetTempFileName();
+                  var mergedStorage = new DataStorageTextFile(tmpFileName);
+                  // Salva il mix di dati nel file temporaneo
+                  mergedStorage.SaveData(this, mergedDataView);
+                  // Salva il file temporaneo nello storage
+                  mergedDataView = mergedStorage.LoadData(this);
+                  DataStorage.SaveData(this, mergedStorage.LoadData(this));
+               }
+               finally {
+                  try {
+                     // Cancella il file temporaneo
+                     if (tmpFileName != null)
+                        File.Delete(tmpFileName);
+                  }
+                  catch {
+                  }
+               }
             }
          }, cancellation);
          cancellation.ThrowIfCancellationRequested();
