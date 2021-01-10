@@ -264,12 +264,17 @@ namespace MachineLearning
          /// <typeparam name="TValue">Tipo di valore</typeparam>
          /// <param name="column">Colonna richiesta</param>
          /// <returns>Il getter</returns>
-         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column) => _owner.Rows[(int)Position].GetGetter<TValue>(column);
+         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
+         {
+            if (!typeof(TValue).IsAssignableFrom(column.Type.RawType))
+               throw _owner._context.ML.NET.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
+            return (ref TValue value) => value = (TValue)_owner.Rows[(int)Position].Values[column.Index].Value;
+         }
          /// <summary>
          /// Restituzione del getter dell'identificativo
          /// </summary>
          /// <returns>Il getter dell'identificativo</returns>
-         public override ValueGetter<DataViewRowId> GetIdGetter() => Position > -1 && Position < _owner.Rows.Count ? _owner.Rows[(int)Position].GetIdGetter() : delegate (ref DataViewRowId id) { id = new DataViewRowId(); };
+         public override ValueGetter<DataViewRowId> GetIdGetter() => (ref DataViewRowId id) => id = _owner.Rows[(int)Position].Id;
          /// <summary>
          /// Indica se la colonna e' attiva
          /// </summary>
