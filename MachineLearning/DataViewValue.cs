@@ -122,11 +122,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="obj">Oggetto da testare</param>
       /// <returns>true se gli oggetti sono uguali</returns>
-      public override bool Equals(object obj)
-      {
-         obj = obj is DataViewValue dv ? dv.Value : obj;
-         return Value.GetType().IsArray ? VectorsComparer.CompareByValues(Value, obj) : Value.Equals(obj);
-      }
+      public override bool Equals(object obj) => VectorsComparer.CompareByValues(Value, obj is DataViewValue dv ? dv.Value : obj);
       /// <summary>
       /// Restituisce il codice hash
       /// </summary>
