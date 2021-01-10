@@ -197,6 +197,10 @@ namespace MachineLearning
          /// </summary>
          public string Meaning { get; }
          /// <summary>
+         /// Punteggio per il tipo previsto
+         /// </summary>
+         public float Score { get; }
+         /// <summary>
          /// Punteggi per label
          /// </summary>
          public KeyValuePair<string, float>[] Scores { get; }
@@ -214,6 +218,7 @@ namespace MachineLearning
             var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();
             Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
+            Score = Scores.FirstOrDefault(s => s.Key == Meaning).Value;
          }
          #endregion
       }

@@ -350,6 +350,7 @@ namespace MachineLearning
             var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();
             Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
+            Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
          }
          #endregion
       }
