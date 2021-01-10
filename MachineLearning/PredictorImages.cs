@@ -1,4 +1,5 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning.Util;
+using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
@@ -292,7 +293,7 @@ namespace MachineLearning
                try {
                   // Crea il file temporaneo
                   tmpFileName = Path.GetTempFileName();
-                  var mergedStorage = new DataStorageTextFile(tmpFileName);
+                  var mergedStorage = new DataStorageBinaryFile(tmpFileName);
                   // Salva il mix di dati nel file temporaneo
                   mergedStorage.SaveData(this, mergedDataView);
                   // Salva il file temporaneo nello storage
@@ -303,10 +304,9 @@ namespace MachineLearning
                   try {
                      // Cancella il file temporaneo
                      if (tmpFileName != null)
-                        File.Delete(tmpFileName);
+                        FileUtil.Delete(tmpFileName);
                   }
-                  catch {
-                  }
+                  catch {  }
                }
             }
          }, cancellation);
