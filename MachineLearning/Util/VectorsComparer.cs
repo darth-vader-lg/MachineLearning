@@ -26,7 +26,7 @@ namespace MachineLearning.Util
       /// </summary>
       /// <param name="obj1">Primo oggetto</param>
       /// <param name="obj2">Secondo oggetto</param>
-      /// <returns></returns>
+      /// <returns>true se oggetti uguali</returns>
       public static bool CompareByValues(object obj1, object obj2)
       {
          // Verifica se deve comparare un VBuffer<T>
