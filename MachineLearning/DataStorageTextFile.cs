@@ -28,7 +28,7 @@ namespace MachineLearning
       public DataStorageTextFile(string filePath)
       {
          if (string.IsNullOrEmpty(filePath))
-            throw new ArgumentException($"{nameof(File)} cannot be null");
+            throw new ArgumentNullException(nameof(filePath), $"{nameof(filePath)} cannot be null");
          FilePath = filePath;
       }
       /// <summary>
@@ -40,18 +40,7 @@ namespace MachineLearning
       /// Restituisce uno stream leggibile.
       /// </summary>
       /// <returns>Lo stream di lettura</returns>
-      protected override Stream GetReadStream() => File.OpenRead(FilePath);
-      /// <summary>
-      /// Carica i dati
-      /// </summary>
-      /// <param name="context">Contesto</param>
-      /// <returns>L'accesso ai dati</returns>
-      public override IDataView LoadData(IMachineLearningContextProvider context)
-      {
-         if (string.IsNullOrEmpty(FilePath) || !File.Exists(FilePath))
-            throw new FileNotFoundException("File not found", FilePath);
-         return base.LoadData(context);
-      }
+      protected override Stream GetReadStream() => File.Exists(FilePath) ? File.OpenRead(FilePath) : new MemoryStream();
       /// <summary>
       /// Salva i dati
       /// </summary>
