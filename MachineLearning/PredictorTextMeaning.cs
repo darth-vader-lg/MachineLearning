@@ -80,7 +80,7 @@ namespace MachineLearning
       /// <summary>
       /// Funzione di inizializzazione
       /// </summary>
-      private void Init() => SetDataFormat("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
+      private void Init() => SetInputSchema("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
@@ -162,7 +162,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="labelColumnName">Nome colonna label (significato delle frasi)</param>
       /// <param name="options">Opzioni</param>
-      public void SetDataFormat(string labelColumnName = "Label", TextLoader.Options options = default)
+      public void SetInputSchema(string labelColumnName = "Label", TextLoader.Options options = default)
       {
          _labelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
          options ??= new TextLoader.Options();

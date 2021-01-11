@@ -3,12 +3,9 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   /// <summary>
-   /// Surrogato di serializzazione
-   /// </summary>
    internal class SdcaRegressionTrainerSurrogate
    {
-      internal class Options : ISerializationSurrogate<SdcaRegressionTrainer.Options>
+      internal class OptionsSurrogate : ISerializationSurrogate<SdcaRegressionTrainer.Options>
       {
          public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {

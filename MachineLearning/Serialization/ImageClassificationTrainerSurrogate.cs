@@ -12,7 +12,7 @@ namespace MachineLearning.Serialization
    /// </summary>
    internal class ImageClassificationTrainerSurrogate
    {
-      internal class Options : ISerializationSurrogate<ImageClassificationTrainer.Options>
+      internal class OptionsSurrogate : ISerializationSurrogate<ImageClassificationTrainer.Options>
       {
          public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {

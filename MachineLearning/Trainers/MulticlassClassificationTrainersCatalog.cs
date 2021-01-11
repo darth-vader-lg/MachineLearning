@@ -1,7 +1,4 @@
-﻿using ML = Microsoft.ML.Trainers;
-using MLVision = Microsoft.ML.Vision;
-
-namespace MachineLearning.Trainers
+﻿namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers multiclasse
@@ -25,13 +22,15 @@ namespace MachineLearning.Trainers
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
-      public SdcaNonCalibratedMulticlassTrainer SdcaNonCalibrated(ML.SdcaNonCalibratedMulticlassTrainer.Options options = default) => new SdcaNonCalibratedMulticlassTrainer(_ml, options);
+      public SdcaNonCalibratedMulticlassTrainer SdcaNonCalibrated(Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options options = default) =>
+         new SdcaNonCalibratedMulticlassTrainer(_ml, options);
       /// <summary>
       /// Restituisce un trainer di tipo ImageClassification
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
-      public ImageClassificationTrainer ImageClassification(MLVision.ImageClassificationTrainer.Options options = default) => new ImageClassificationTrainer(_ml, options);
+      public ImageClassificationTrainer ImageClassification(Microsoft.ML.Vision.ImageClassificationTrainer.Options options = default) =>
+         new ImageClassificationTrainer(_ml, options);
       #endregion
    }
 }

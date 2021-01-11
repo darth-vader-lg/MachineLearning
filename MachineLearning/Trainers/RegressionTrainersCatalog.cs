@@ -1,6 +1,4 @@
-﻿using ML = Microsoft.ML.Trainers;
-
-namespace MachineLearning.Trainers
+﻿namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers di regressione
@@ -24,7 +22,15 @@ namespace MachineLearning.Trainers
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
-      public SdcaRegressionTrainer Sdca(ML.SdcaRegressionTrainer.Options options = default) => new SdcaRegressionTrainer(_ml, options);
+      public LightGbmRegressionTrainer LightGbm(Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options options = default) =>
+         new LightGbmRegressionTrainer(_ml, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo SdcaRegression
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public SdcaRegressionTrainer Sdca(Microsoft.ML.Trainers.SdcaRegressionTrainer.Options options = default) =>
+         new SdcaRegressionTrainer(_ml, options);
       #endregion
    }
 }

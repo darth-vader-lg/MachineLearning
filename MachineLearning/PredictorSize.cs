@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
-using Microsoft.ML.Transforms.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +12,7 @@ namespace MachineLearning
    /// <summary>
    /// Classe per la previsione delle taglie
    /// </summary>
-   public sealed partial class PredictorSize : Predictor, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider
+   public sealed partial class PredictorSize : PredictorRegression, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider, ITrainingDataProvider
    {
       #region Fields
       /// <summary>
@@ -56,6 +55,10 @@ namespace MachineLearning
       /// Opzioni di caricamento dati testuali
       /// </summary>
       public TextLoader.Options TextLoaderOptions { get; private set; }
+      /// <summary>
+      /// Dati di training
+      /// </summary>
+      public IDataStorage TrainingData { get; set; }
       #endregion
       #region Methods
       /// <summary>
@@ -75,7 +78,7 @@ namespace MachineLearning
       /// <summary>
       /// Funzione di inizializzazione
       /// </summary>
-      private void Init() => SetDataFormat("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
+      private void Init() => SetInputSchema("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
@@ -139,15 +142,13 @@ namespace MachineLearning
             return null;
          // Pipe di training
          Pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", _labelColumnName).
-            Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
-                                                                                                                  where c.Name != _labelColumnName
-                                                                                                                  select c.Name).ToArray())).
-            Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
-            Append(ML.NET.Transforms.NormalizeMinMax("Features")).
-            AppendCacheCheckpoint(ML.NET).
-            Append(ML.NET.MulticlassClassification.Trainers.SdcaNonCalibrated()).
-            Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
+            ML.NET.Transforms.Concatenate("Features", (from c in Evaluation.InputSchema
+                                                       where c.Name != _labelColumnName
+                                                       select c.Name).ToArray()).
+            Append(Trainers.LightGbm(new Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options
+            {
+               LabelColumnName = _labelColumnName,
+            }));
          // Mischia le linee
          var data = ML.NET.Data.ShuffleRows(dataView, Seed++);
          return Pipe.Fit(data);
@@ -157,7 +158,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="labelColumnName">Nome colonna label (significato delle frasi)</param>
       /// <param name="options">Opzioni</param>
-      public void SetDataFormat(string labelColumnName = "Label", TextLoader.Options options = default)
+      public void SetInputSchema(string labelColumnName = "Label", TextLoader.Options options = default)
       {
          _labelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
          options ??= new TextLoader.Options();
@@ -166,8 +167,8 @@ namespace MachineLearning
             {
                Columns = new[]
                {
-                  new TextLoader.Column(!string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label", DataKind.String, 0),
-                  new TextLoader.Column("Sentence", DataKind.String, 1),
+                  new TextLoader.Column(!string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label", DataKind.Single, 0),
+                  new TextLoader.Column("Data", DataKind.Single, 1),
                }
             }.Columns;
          }

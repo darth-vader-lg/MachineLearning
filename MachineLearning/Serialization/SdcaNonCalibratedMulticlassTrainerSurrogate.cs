@@ -3,12 +3,9 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   /// <summary>
-   /// Surrogato di serializzazione
-   /// </summary>
    internal class SdcaNonCalibratedMulticlassTrainerSurrogate
    {
-      internal class Options : ISerializationSurrogate<SdcaNonCalibratedMulticlassTrainer.Options>
+      internal class OptionsSurrogate : ISerializationSurrogate<SdcaNonCalibratedMulticlassTrainer.Options>
       {
          public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {
