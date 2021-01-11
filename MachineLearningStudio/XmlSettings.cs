@@ -143,16 +143,16 @@ namespace MachineLearningStudio
       /// Elenco di tipi extra conosciuti
       /// </summary>
       [NonSerialized]
-      Type[] extraTypes;
+      private Type[] extraTypes;
       /// <summary>
       /// Elenco di tipi extra conosciuti filtrati fra quelli che possono essere serializzati in xml
       /// </summary>
       [NonSerialized]
-      Type[] extraTypesFiltered;
+      private Type[] extraTypesFiltered;
       /// <summary>
       /// Path del file
       /// </summary>
-      string path;
+      private string path;
       #endregion
       #region Properties
       /// <summary>
@@ -328,10 +328,10 @@ namespace MachineLearningStudio
    /// <summary>
    /// Implementazione custom della XmlWriter
    /// </summary>
-   partial class XmlSettings
+   public partial class XmlSettings
    {
       #region Writer
-      class Writer : XmlWriter
+      private class Writer : XmlWriter
       {
          #region Fields
          /// <summary>

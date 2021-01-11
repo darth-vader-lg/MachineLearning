@@ -1,5 +1,4 @@
-﻿using MachineLearning;
-using System.Linq;
+﻿using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Microsoft.ML.Data
