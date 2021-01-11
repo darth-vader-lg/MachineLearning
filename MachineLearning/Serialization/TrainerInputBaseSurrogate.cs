@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   internal class TrainerInputBaseSurrogate : ISerializationSurrogate<TrainerInputBase>
+   internal class TrainerInputBaseSurrogate
    {
       public virtual void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
       {

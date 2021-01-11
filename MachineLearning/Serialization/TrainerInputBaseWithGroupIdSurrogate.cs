@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   internal class TrainerInputBaseWithGroupIdSurrogate : ISerializationSurrogate<TrainerInputBaseWithGroupId>
+   internal class TrainerInputBaseWithGroupIdSurrogate
    {
       private static TrainerInputBaseWithWeightSurrogate Base => new TrainerInputBaseWithWeightSurrogate();
       public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)

@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -24,13 +26,21 @@ namespace MachineLearning.Serialization
       static Serializer()
       {
          SurrogateSelector = new SurrogateSelector();
-         var context = new StreamingContext(StreamingContextStates.All);
-         var surrogators = Assembly.GetExecutingAssembly().GetTypes()
-            .Select(t => (Surrogate: t, Interface: t.GetInterface($"{nameof(ISerializationSurrogate)}`1")))
-            .Where(t => t.Interface != null)
-            .Select(t => (Surrogate: t.Surrogate, Type: t.Interface.GetGenericArguments()[0]));
-         foreach (var s in surrogators)
-            SurrogateSelector.AddSurrogate(s.Type, context, (ISerializationSurrogate)Assembly.GetExecutingAssembly().CreateInstance(s.Surrogate.ToString()));
+         try {
+            var context = new StreamingContext(StreamingContextStates.All);
+            var surrogators = Assembly.GetExecutingAssembly().GetTypes()
+               .Select(t => (Surrogate: t, Interface: t.GetInterface($"{nameof(ISerializationSurrogate)}`1")))
+               .Where(t => t.Interface != null)
+               .Select(t => (t.Surrogate, Type: t.Interface.GetGenericArguments()[0]));
+            foreach (var s in surrogators) {
+               var surrogate = (ISerializationSurrogate)Assembly.GetExecutingAssembly().CreateInstance(s.Surrogate.ToString());
+               SurrogateSelector.AddSurrogate(s.Type, context, surrogate);
+            }
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+            throw;
+         }
       }
       /// <summary>
       /// Clona un oggetto

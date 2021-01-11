@@ -5,7 +5,7 @@ namespace MachineLearning.Serialization
 {
    internal class BoosterParameterBaseSurrogate
    {
-      internal class OptionsBaseSurrogate : ISerializationSurrogate<BoosterParameterBase.OptionsBase>
+      internal class OptionsBaseSurrogate
       {
          public virtual void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
          {
