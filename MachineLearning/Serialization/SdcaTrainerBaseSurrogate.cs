@@ -4,17 +4,16 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   internal class SdcaTrainerBaseSurrogate<TOptions, TTransformer, TModel>
+   internal abstract class SdcaTrainerBaseSurrogate<TOptions, TTransformer, TModel>
       where TOptions : SdcaTrainerBase<TOptions, TTransformer, TModel>.OptionsBase, new()
       where TTransformer : ISingleFeaturePredictionTransformer<TModel>
       where TModel : class
    {
-      internal class OptionsBaseSurrogate
+      internal abstract class OptionsBaseSurrogate : TrainerInputBaseWithWeightSurrogate
       {
-         private static TrainerInputBaseWithWeightSurrogate Base => new TrainerInputBaseWithWeightSurrogate();
-         public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
+         protected static new void GetObjectData(object obj, SerializationInfo info)
          {
-            Base.GetObjectData(obj, info, context);
+            TrainerInputBaseWithWeightSurrogate.GetObjectData(obj, info);
             var data = (TOptions)obj;
             info.AddValue(nameof(data.BiasLearningRate), data.BiasLearningRate);
             info.AddValue(nameof(data.ConvergenceCheckFrequency), data.ConvergenceCheckFrequency);
@@ -25,9 +24,9 @@ namespace MachineLearning.Serialization
             info.AddValue(nameof(data.NumberOfThreads), data.NumberOfThreads);
             info.AddValue(nameof(data.Shuffle), data.Shuffle);
          }
-         public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
+         public static new object SetObjectData(object obj, SerializationInfo info)
          {
-            var data = (TOptions)Base.SetObjectData(obj, info, context, selector);
+            var data = (TOptions)TrainerInputBaseWithWeightSurrogate.SetObjectData(obj, info);
             info.Set(nameof(data.BiasLearningRate), out data.BiasLearningRate);
             info.Set(nameof(data.ConvergenceCheckFrequency), out data.ConvergenceCheckFrequency);
             info.Set(nameof(data.ConvergenceTolerance), out data.ConvergenceTolerance);

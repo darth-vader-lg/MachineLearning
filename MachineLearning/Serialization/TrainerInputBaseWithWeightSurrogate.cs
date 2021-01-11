@@ -3,18 +3,17 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   internal class TrainerInputBaseWithWeightSurrogate
+   internal abstract class TrainerInputBaseWithWeightSurrogate : TrainerInputBaseWithLabelSurrogate
    {
-      private static TrainerInputBaseWithLabelSurrogate Base => new TrainerInputBaseWithLabelSurrogate();
-      public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
+      public static new void GetObjectData(object obj, SerializationInfo info)
       {
-         Base.GetObjectData(obj, info, context);
+         TrainerInputBaseWithLabelSurrogate.GetObjectData(obj, info);
          var data = (TrainerInputBaseWithWeight)obj;
          info.AddValue(nameof(data.ExampleWeightColumnName), data.ExampleWeightColumnName);
       }
-      public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
+      public static new object SetObjectData(object obj, SerializationInfo info)
       {
-         var data = (TrainerInputBaseWithWeight)Base.SetObjectData(obj, info, context, selector);
+         var data = (TrainerInputBaseWithWeight)TrainerInputBaseWithLabelSurrogate.SetObjectData(obj, info);
          info.Set(nameof(data.ExampleWeightColumnName), out data.ExampleWeightColumnName);
          return data;
       }

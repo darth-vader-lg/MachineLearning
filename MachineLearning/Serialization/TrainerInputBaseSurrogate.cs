@@ -3,14 +3,14 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   internal class TrainerInputBaseSurrogate
+   internal abstract class TrainerInputBaseSurrogate
    {
-      public virtual void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
+      protected static void GetObjectData(object obj, SerializationInfo info)
       {
          var data = (TrainerInputBase)obj;
          info.AddValue(nameof(data.FeatureColumnName), data.FeatureColumnName);
       }
-      public virtual object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
+      protected static object SetObjectData(object obj, SerializationInfo info)
       {
          var data = (TrainerInputBase)obj;
          info.Set(nameof(data.FeatureColumnName), out data.FeatureColumnName);

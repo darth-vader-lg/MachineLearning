@@ -1,31 +1,20 @@
-﻿using Microsoft.ML.Data;
+﻿using Microsoft.ML;
 using Microsoft.ML.Trainers.LightGbm;
 using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   internal class LightGbmTrainerBaseSurrogate
+   internal abstract class LightGbmTrainerBaseSurrogate<TOptions, TOutput, TTransformer, TModel>
+      where TOptions : LightGbmTrainerBase<TOptions, TOutput, TTransformer, TModel>.OptionsBase, new()
+      where TTransformer : ISingleFeaturePredictionTransformer<TModel>
+      where TModel : class
    {
-      internal class OptionsBaseSurrogate :
-         ISerializationSurrogate<
-            LightGbmTrainerBase<
-               LightGbmRegressionTrainer.Options,
-               float,
-               RegressionPredictionTransformer<LightGbmRegressionModelParameters>,
-               LightGbmRegressionModelParameters>
-            .OptionsBase>
+      internal abstract class OptionsBaseSurrogate : TrainerInputBaseWithGroupIdSurrogate
       {
-         private static TrainerInputBaseWithGroupIdSurrogate Base => new TrainerInputBaseWithGroupIdSurrogate();
-         public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
+         protected static new void GetObjectData(object obj, SerializationInfo info)
          {
-            Base.GetObjectData(obj, info, context);
-            var data = (
-               LightGbmTrainerBase<
-                  LightGbmRegressionTrainer.Options,
-                  float,
-                  RegressionPredictionTransformer<LightGbmRegressionModelParameters>,
-                  LightGbmRegressionModelParameters>
-               .OptionsBase)obj;
+            TrainerInputBaseWithGroupIdSurrogate.GetObjectData(obj, info);
+            var data = (LightGbmTrainerBase<TOptions, TOutput, TTransformer, TModel>.OptionsBase)obj;
             info.AddValue(nameof(data.BatchSize), data.BatchSize);
             info.AddValue(nameof(data.Booster), data.Booster);
             info.AddValue(nameof(data.CategoricalSmoothing), data.CategoricalSmoothing);
@@ -46,15 +35,9 @@ namespace MachineLearning.Serialization
             info.AddValue(nameof(data.UseZeroAsMissingValue), data.UseZeroAsMissingValue);
             info.AddValue(nameof(data.Verbose), data.Verbose);
          }
-         public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
+         protected static new object SetObjectData(object obj, SerializationInfo info)
          {
-            var data = (
-               LightGbmTrainerBase<
-                  LightGbmRegressionTrainer.Options,
-                  float,
-                  RegressionPredictionTransformer<LightGbmRegressionModelParameters>,
-                  LightGbmRegressionModelParameters>
-               .OptionsBase)Base.SetObjectData(obj, info, context, selector);
+            var data = (LightGbmTrainerBase<TOptions, TOutput, TTransformer, TModel>.OptionsBase)TrainerInputBaseWithGroupIdSurrogate.SetObjectData(obj, info);
             info.Set(nameof(data.BatchSize), out data.BatchSize);
             info.Set(nameof(data.Booster), () => data.Booster, value => { if (value != null) data.Booster = value; });
             info.Set(nameof(data.CategoricalSmoothing), out data.CategoricalSmoothing);

@@ -3,11 +3,11 @@ using System.Runtime.Serialization;
 
 namespace MachineLearning.Serialization
 {
-   internal class BoosterParameterBaseSurrogate
+   internal abstract class BoosterParameterBaseSurrogate
    {
-      internal class OptionsBaseSurrogate
+      internal abstract class OptionsBaseSurrogate
       {
-         public virtual void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
+         protected static void GetObjectData(object obj, SerializationInfo info)
          {
             var data = (BoosterParameterBase.OptionsBase)obj;
             info.AddValue(nameof(data.FeatureFraction), data.FeatureFraction);
@@ -19,7 +19,7 @@ namespace MachineLearning.Serialization
             info.AddValue(nameof(data.SubsampleFraction), data.SubsampleFraction);
             info.AddValue(nameof(data.SubsampleFrequency), data.SubsampleFrequency);
          }
-         public virtual object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
+         protected static object SetObjectData(object obj, SerializationInfo info)
          {
             var data = (BoosterParameterBase.OptionsBase)obj;
             void Set<T>(string name, ref T value) => value = (T)info.GetValue(name, typeof(T));

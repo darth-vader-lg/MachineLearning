@@ -8,17 +8,10 @@ namespace MachineLearning.Serialization
       SdcaTrainerBaseSurrogate<SdcaMulticlassTrainerBase<TModel>.MulticlassOptions, MulticlassPredictionTransformer<TModel>, TModel>
       where TModel : class
    {
-      internal class MulticlassOptionsSurrogate
+      internal abstract class MulticlassOptionsSurrogate : OptionsBaseSurrogate
       {
-         private static OptionsBaseSurrogate Base => new OptionsBaseSurrogate();
-         public void GetObjectData(object obj, SerializationInfo info, StreamingContext context)
-         {
-            Base.GetObjectData(obj, info, context);
-         }
-         public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
-         {
-            return Base.SetObjectData(obj, info, context, selector);
-         }
+         protected static new void GetObjectData(object obj, SerializationInfo info) => OptionsBaseSurrogate.GetObjectData(obj, info);
+         protected static new  object SetObjectData(object obj, SerializationInfo info) => OptionsBaseSurrogate.SetObjectData(obj, info);
       }
    }
 }
