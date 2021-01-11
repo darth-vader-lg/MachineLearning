@@ -15,7 +15,7 @@ namespace MachineLearning.Util
       /// <summary>
       /// Dizionario dei metodi
       /// </summary>
-      private static Dictionary<string, MethodInfo> _comparer =
+      private static readonly Dictionary<string, MethodInfo> _comparer =
          (from m in typeof(VectorsComparer).GetMethods()
           where m.Name == nameof(CompareByValues) && m.IsGenericMethod
           select m).ToDictionary(m => m.GetParameters()[0].ParameterType.Name);
