@@ -12,7 +12,7 @@
     <Compile Update="PageImageClassification.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="PageFeetSdca.cs">
+    <Compile Update="PageFeetRegression.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="PageFeetKMeans.cs">

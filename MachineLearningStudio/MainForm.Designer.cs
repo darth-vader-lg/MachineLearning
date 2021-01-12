@@ -31,27 +31,27 @@ namespace MachineLearningStudio
          this.tabControlMain = new System.Windows.Forms.TabControl();
          this.tabPageTextMeaning = new System.Windows.Forms.TabPage();
          this.pageTextMeaning = new MachineLearningStudio.PageTextMeaning();
-         this.tabPageFeetSdca = new System.Windows.Forms.TabPage();
-         this.pageFeetSdca = new MachineLearningStudio.PageFeetSdca();
+         this.tabPageImageClassification = new System.Windows.Forms.TabPage();
+         this.pageImageClassification = new MachineLearningStudio.PageImageClassification();
+         this.tabPageFeetRegression = new System.Windows.Forms.TabPage();
          this.tabPageFeetKMeans = new System.Windows.Forms.TabPage();
          this.pageFeetKMeans = new MachineLearningStudio.PageFeetKMeans();
          this.tabPageIrisKMeans = new System.Windows.Forms.TabPage();
          this.pageIrisKMeans = new MachineLearningStudio.PageIrisKMeans();
-         this.tabPageImageClassification = new System.Windows.Forms.TabPage();
-         this.pageImageClassification = new MachineLearningStudio.PageImageClassification();
+         this.pageFeetRegression = new MachineLearningStudio.PageFeetRegression();
          this.tabControlMain.SuspendLayout();
          this.tabPageTextMeaning.SuspendLayout();
-         this.tabPageFeetSdca.SuspendLayout();
+         this.tabPageImageClassification.SuspendLayout();
+         this.tabPageFeetRegression.SuspendLayout();
          this.tabPageFeetKMeans.SuspendLayout();
          this.tabPageIrisKMeans.SuspendLayout();
-         this.tabPageImageClassification.SuspendLayout();
          this.SuspendLayout();
          // 
          // tabControlMain
          // 
          this.tabControlMain.Controls.Add(this.tabPageTextMeaning);
          this.tabControlMain.Controls.Add(this.tabPageImageClassification);
-         this.tabControlMain.Controls.Add(this.tabPageFeetSdca);
+         this.tabControlMain.Controls.Add(this.tabPageFeetRegression);
          this.tabControlMain.Controls.Add(this.tabPageFeetKMeans);
          this.tabControlMain.Controls.Add(this.tabPageIrisKMeans);
          this.tabControlMain.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -81,25 +81,36 @@ namespace MachineLearningStudio
          this.pageTextMeaning.Size = new System.Drawing.Size(1157, 742);
          this.pageTextMeaning.TabIndex = 0;
          // 
-         // tabPageFeetSdca
+         // tabPageImageClassification
          // 
-         this.tabPageFeetSdca.Controls.Add(this.pageFeetSdca);
-         this.tabPageFeetSdca.Location = new System.Drawing.Point(4, 24);
-         this.tabPageFeetSdca.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-         this.tabPageFeetSdca.Name = "tabPageFeetSdca";
-         this.tabPageFeetSdca.Size = new System.Drawing.Size(1157, 742);
-         this.tabPageFeetSdca.TabIndex = 2;
-         this.tabPageFeetSdca.Text = "Feed Sdca";
-         this.tabPageFeetSdca.UseVisualStyleBackColor = true;
+         this.tabPageImageClassification.Controls.Add(this.pageImageClassification);
+         this.tabPageImageClassification.Location = new System.Drawing.Point(4, 24);
+         this.tabPageImageClassification.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+         this.tabPageImageClassification.Name = "tabPageImageClassification";
+         this.tabPageImageClassification.Size = new System.Drawing.Size(1157, 742);
+         this.tabPageImageClassification.TabIndex = 3;
+         this.tabPageImageClassification.Text = "Image classification";
+         this.tabPageImageClassification.UseVisualStyleBackColor = true;
          // 
-         // pageFeetSdca
+         // pageImageClassification
          // 
-         this.pageFeetSdca.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.pageFeetSdca.Location = new System.Drawing.Point(0, 0);
-         this.pageFeetSdca.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
-         this.pageFeetSdca.Name = "pageFeetSdca";
-         this.pageFeetSdca.Size = new System.Drawing.Size(1157, 742);
-         this.pageFeetSdca.TabIndex = 0;
+         this.pageImageClassification.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageImageClassification.Location = new System.Drawing.Point(0, 0);
+         this.pageImageClassification.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
+         this.pageImageClassification.Name = "pageImageClassification";
+         this.pageImageClassification.Size = new System.Drawing.Size(1157, 742);
+         this.pageImageClassification.TabIndex = 0;
+         // 
+         // tabPageFeetRegression
+         // 
+         this.tabPageFeetRegression.Controls.Add(this.pageFeetRegression);
+         this.tabPageFeetRegression.Location = new System.Drawing.Point(4, 24);
+         this.tabPageFeetRegression.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+         this.tabPageFeetRegression.Name = "tabPageFeetRegression";
+         this.tabPageFeetRegression.Size = new System.Drawing.Size(1157, 742);
+         this.tabPageFeetRegression.TabIndex = 2;
+         this.tabPageFeetRegression.Text = "Feed Regression";
+         this.tabPageFeetRegression.UseVisualStyleBackColor = true;
          // 
          // tabPageFeetKMeans
          // 
@@ -143,25 +154,14 @@ namespace MachineLearningStudio
          this.pageIrisKMeans.Size = new System.Drawing.Size(1149, 736);
          this.pageIrisKMeans.TabIndex = 0;
          // 
-         // tabPageImageClassification
+         // pageFeetRegression
          // 
-         this.tabPageImageClassification.Controls.Add(this.pageImageClassification);
-         this.tabPageImageClassification.Location = new System.Drawing.Point(4, 24);
-         this.tabPageImageClassification.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-         this.tabPageImageClassification.Name = "tabPageImageClassification";
-         this.tabPageImageClassification.Size = new System.Drawing.Size(1157, 742);
-         this.tabPageImageClassification.TabIndex = 3;
-         this.tabPageImageClassification.Text = "Image classification";
-         this.tabPageImageClassification.UseVisualStyleBackColor = true;
-         // 
-         // pageImageClassification
-         // 
-         this.pageImageClassification.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.pageImageClassification.Location = new System.Drawing.Point(0, 0);
-         this.pageImageClassification.Margin = new System.Windows.Forms.Padding(5, 3, 5, 3);
-         this.pageImageClassification.Name = "pageImageClassification";
-         this.pageImageClassification.Size = new System.Drawing.Size(1157, 742);
-         this.pageImageClassification.TabIndex = 0;
+         this.pageFeetRegression.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageFeetRegression.Location = new System.Drawing.Point(0, 0);
+         this.pageFeetRegression.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+         this.pageFeetRegression.Name = "pageFeetRegression";
+         this.pageFeetRegression.Size = new System.Drawing.Size(1157, 742);
+         this.pageFeetRegression.TabIndex = 0;
          // 
          // MainForm
          // 
@@ -174,10 +174,10 @@ namespace MachineLearningStudio
          this.Text = "MainForm";
          this.tabControlMain.ResumeLayout(false);
          this.tabPageTextMeaning.ResumeLayout(false);
-         this.tabPageFeetSdca.ResumeLayout(false);
+         this.tabPageImageClassification.ResumeLayout(false);
+         this.tabPageFeetRegression.ResumeLayout(false);
          this.tabPageFeetKMeans.ResumeLayout(false);
          this.tabPageIrisKMeans.ResumeLayout(false);
-         this.tabPageImageClassification.ResumeLayout(false);
          this.ResumeLayout(false);
 
       }
@@ -188,12 +188,12 @@ namespace MachineLearningStudio
       private System.Windows.Forms.TabPage tabPageIrisKMeans;
       private PageFeetKMeans pageFeetKMeans;
       private PageIrisKMeans pageIrisKMeans;
-      private System.Windows.Forms.TabPage tabPageFeetSdca;
-      private PageFeetSdca pageFeetSdca;
+      private System.Windows.Forms.TabPage tabPageFeetRegression;
       private System.Windows.Forms.TabPage tabPageImageClassification;
       private PageImageClassification pageImageClassification;
       private System.Windows.Forms.TabPage tabPageTextMeaning;
       private PageTextMeaning pageTextMeaning;
+      private PageFeetRegression pageFeetRegression;
    }
 }
 

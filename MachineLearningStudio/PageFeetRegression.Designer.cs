@@ -1,7 +1,7 @@
 ﻿
 namespace MachineLearningStudio
 {
-   partial class PageFeetSdca
+   partial class PageFeetRegression
    {
       /// <summary> 
       /// Variabile di progettazione necessaria.
@@ -52,11 +52,12 @@ namespace MachineLearningStudio
          this.tableLayoutPanelMain.Controls.Add(this.textBoxOutput, 0, 1);
          this.tableLayoutPanelMain.Dock = System.Windows.Forms.DockStyle.Fill;
          this.tableLayoutPanelMain.Location = new System.Drawing.Point(0, 0);
+         this.tableLayoutPanelMain.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.tableLayoutPanelMain.Name = "tableLayoutPanelMain";
          this.tableLayoutPanelMain.RowCount = 2;
          this.tableLayoutPanelMain.RowStyles.Add(new System.Windows.Forms.RowStyle());
          this.tableLayoutPanelMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-         this.tableLayoutPanelMain.Size = new System.Drawing.Size(596, 473);
+         this.tableLayoutPanelMain.Size = new System.Drawing.Size(695, 546);
          this.tableLayoutPanelMain.TabIndex = 0;
          // 
          // panelControls
@@ -73,85 +74,95 @@ namespace MachineLearningStudio
          this.panelControls.Controls.Add(this.labelLength);
          this.panelControls.Controls.Add(this.buttonTrain);
          this.panelControls.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.panelControls.Location = new System.Drawing.Point(3, 3);
+         this.panelControls.Location = new System.Drawing.Point(4, 3);
+         this.panelControls.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.panelControls.Name = "panelControls";
-         this.panelControls.Size = new System.Drawing.Size(590, 43);
+         this.panelControls.Size = new System.Drawing.Size(687, 49);
          this.panelControls.TabIndex = 0;
          // 
          // labelDataSetName
          // 
          this.labelDataSetName.AutoSize = true;
-         this.labelDataSetName.Location = new System.Drawing.Point(85, 3);
+         this.labelDataSetName.Location = new System.Drawing.Point(99, 3);
+         this.labelDataSetName.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelDataSetName.Name = "labelDataSetName";
-         this.labelDataSetName.Size = new System.Drawing.Size(47, 13);
+         this.labelDataSetName.Size = new System.Drawing.Size(49, 15);
          this.labelDataSetName.TabIndex = 1;
          this.labelDataSetName.Text = "Data set";
          // 
          // labelNumberResult
          // 
          this.labelNumberResult.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-         this.labelNumberResult.Location = new System.Drawing.Point(406, 20);
+         this.labelNumberResult.Location = new System.Drawing.Point(474, 23);
+         this.labelNumberResult.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelNumberResult.Name = "labelNumberResult";
-         this.labelNumberResult.Size = new System.Drawing.Size(45, 20);
+         this.labelNumberResult.Size = new System.Drawing.Size(52, 23);
          this.labelNumberResult.TabIndex = 8;
          this.labelNumberResult.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
          // 
          // textBoxInstep
          // 
-         this.textBoxInstep.Location = new System.Drawing.Point(300, 20);
+         this.textBoxInstep.Location = new System.Drawing.Point(350, 23);
+         this.textBoxInstep.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxInstep.Name = "textBoxInstep";
-         this.textBoxInstep.Size = new System.Drawing.Size(100, 20);
+         this.textBoxInstep.Size = new System.Drawing.Size(116, 23);
          this.textBoxInstep.TabIndex = 6;
          this.textBoxInstep.TextChanged += new System.EventHandler(this.textBoxInstep_TextChanged);
          // 
          // labelNumber
          // 
          this.labelNumber.AutoSize = true;
-         this.labelNumber.Location = new System.Drawing.Point(403, 3);
+         this.labelNumber.Location = new System.Drawing.Point(470, 3);
+         this.labelNumber.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelNumber.Name = "labelNumber";
-         this.labelNumber.Size = new System.Drawing.Size(44, 13);
+         this.labelNumber.Size = new System.Drawing.Size(51, 15);
          this.labelNumber.TabIndex = 7;
          this.labelNumber.Text = "Number";
          // 
          // labelInstep
          // 
          this.labelInstep.AutoSize = true;
-         this.labelInstep.Location = new System.Drawing.Point(297, 3);
+         this.labelInstep.Location = new System.Drawing.Point(346, 3);
+         this.labelInstep.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelInstep.Name = "labelInstep";
-         this.labelInstep.Size = new System.Drawing.Size(36, 13);
+         this.labelInstep.Size = new System.Drawing.Size(39, 15);
          this.labelInstep.TabIndex = 5;
          this.labelInstep.Text = "Instep";
          // 
          // textBoxDataSetName
          // 
-         this.textBoxDataSetName.Location = new System.Drawing.Point(88, 20);
+         this.textBoxDataSetName.Location = new System.Drawing.Point(103, 23);
+         this.textBoxDataSetName.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxDataSetName.Name = "textBoxDataSetName";
-         this.textBoxDataSetName.Size = new System.Drawing.Size(100, 20);
+         this.textBoxDataSetName.Size = new System.Drawing.Size(116, 23);
          this.textBoxDataSetName.TabIndex = 2;
          this.textBoxDataSetName.TextChanged += new System.EventHandler(this.textBoxDataSetName_TextChanged);
          // 
          // textBoxLength
          // 
-         this.textBoxLength.Location = new System.Drawing.Point(194, 20);
+         this.textBoxLength.Location = new System.Drawing.Point(226, 23);
+         this.textBoxLength.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxLength.Name = "textBoxLength";
-         this.textBoxLength.Size = new System.Drawing.Size(100, 20);
+         this.textBoxLength.Size = new System.Drawing.Size(116, 23);
          this.textBoxLength.TabIndex = 4;
          this.textBoxLength.TextChanged += new System.EventHandler(this.textBoxLength_TextChanged);
          // 
          // labelLength
          // 
          this.labelLength.AutoSize = true;
-         this.labelLength.Location = new System.Drawing.Point(191, 3);
+         this.labelLength.Location = new System.Drawing.Point(223, 3);
+         this.labelLength.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
          this.labelLength.Name = "labelLength";
-         this.labelLength.Size = new System.Drawing.Size(40, 13);
+         this.labelLength.Size = new System.Drawing.Size(44, 15);
          this.labelLength.TabIndex = 3;
          this.labelLength.Text = "Length";
          // 
          // buttonTrain
          // 
-         this.buttonTrain.Location = new System.Drawing.Point(3, 3);
+         this.buttonTrain.Location = new System.Drawing.Point(4, 3);
+         this.buttonTrain.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.buttonTrain.Name = "buttonTrain";
-         this.buttonTrain.Size = new System.Drawing.Size(75, 37);
+         this.buttonTrain.Size = new System.Drawing.Size(88, 43);
          this.buttonTrain.TabIndex = 0;
          this.buttonTrain.Text = "Train";
          this.buttonTrain.UseVisualStyleBackColor = true;
@@ -160,21 +171,24 @@ namespace MachineLearningStudio
          // textBoxOutput
          // 
          this.textBoxOutput.Dock = System.Windows.Forms.DockStyle.Fill;
-         this.textBoxOutput.Location = new System.Drawing.Point(3, 52);
+         this.textBoxOutput.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+         this.textBoxOutput.Location = new System.Drawing.Point(4, 58);
+         this.textBoxOutput.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
          this.textBoxOutput.MaxLength = 0;
          this.textBoxOutput.Multiline = true;
          this.textBoxOutput.Name = "textBoxOutput";
          this.textBoxOutput.ReadOnly = true;
-         this.textBoxOutput.Size = new System.Drawing.Size(590, 418);
+         this.textBoxOutput.Size = new System.Drawing.Size(687, 485);
          this.textBoxOutput.TabIndex = 1;
          // 
-         // PageFeetSdca
+         // PageFeetRegression
          // 
-         this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+         this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
          this.Controls.Add(this.tableLayoutPanelMain);
-         this.Name = "PageFeetSdca";
-         this.Size = new System.Drawing.Size(596, 473);
+         this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+         this.Name = "PageFeetRegression";
+         this.Size = new System.Drawing.Size(695, 546);
          this.tableLayoutPanelMain.ResumeLayout(false);
          this.tableLayoutPanelMain.PerformLayout();
          this.panelControls.ResumeLayout(false);
