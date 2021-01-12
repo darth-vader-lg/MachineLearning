@@ -2,6 +2,7 @@
 using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -89,8 +90,8 @@ namespace MachineLearning
       protected override object GetBestModelEvaluation(object modelEvaluation1, object modelEvaluation2)
       {
          var best = modelEvaluation2;
-         if (modelEvaluation1 is MulticlassClassificationMetrics metrics1 && modelEvaluation2 is MulticlassClassificationMetrics metrics2)
-            best = metrics2.MicroAccuracy >= metrics1.MicroAccuracy && metrics2.LogLoss < metrics1.LogLoss ? modelEvaluation2 : modelEvaluation1;
+         if (modelEvaluation1 is RegressionMetrics metrics1 && modelEvaluation2 is RegressionMetrics metrics2)
+            best = metrics2.RSquared > metrics1.RSquared ? modelEvaluation2 : modelEvaluation1;
          if (best == modelEvaluation2)
             _retrainCount = 0;
          return best;
@@ -98,15 +99,35 @@ namespace MachineLearning
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="sentence">Significato da prevedere</param>
+      /// <param name="values">Valori di input</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(string sentence) => new Prediction(this, GetPredictionData(null, sentence));
+      public Prediction GetPrediction(params float[] values)
+      {
+         var nfi = new NumberFormatInfo { NumberDecimalSeparator = char.ToString(TextLoaderOptions.DecimalMarker), NumberGroupSeparator = "" };
+         var data = new List<string>();
+         for (var i = 0; i < values.Length; i++) {
+            if (TextLoaderOptions.Columns[i].Name == _labelColumnName)
+               data.Add(null);
+            data.Add(values[i].ToString(nfi));
+         }
+         return new Prediction(this, GetPredictionData(data));
+      }
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="sentence">Significato da prevedere</param>
       /// <returns>Il task della previsione</returns>
-      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, sentence));
+      public async Task<Prediction> GetPredictionAsync(CancellationToken cancel = default, params float[] values)
+      {
+         var nfi = new NumberFormatInfo { NumberDecimalSeparator = char.ToString(TextLoaderOptions.DecimalMarker), NumberGroupSeparator = "" };
+         var data = new List<string>();
+         for (var i = 0; i < values.Length; i++) {
+            if (TextLoaderOptions.Columns[i].Name == _labelColumnName)
+               data.Add(null);
+            data.Add(values[i].ToString(nfi));
+         }
+         return new Prediction(this, await GetPredictionDataAsync(data, cancel));
+      }
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -114,7 +135,7 @@ namespace MachineLearning
       /// <param name="data">Dati attuali caricati</param>
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected override object GetModelEvaluation(ITransformer model, IDataView data) => ML.NET.MulticlassClassification.Evaluate(model.Transform(data));
+      protected override object GetModelEvaluation(ITransformer model, IDataView data) => ML.NET.Regression.Evaluate(model.Transform(data));
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -122,11 +143,10 @@ namespace MachineLearning
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected override string GetModelEvaluationInfo(object modelEvaluation)
       {
-         if (modelEvaluation is not MulticlassClassificationMetrics metrics)
+         if (modelEvaluation is not RegressionMetrics metrics)
             return null;
          var sb = new StringBuilder();
          sb.AppendLine(metrics.ToText());
-         sb.AppendLine(metrics.ConfusionMatrix.GetFormattedConfusionTable());
          return sb.ToString();
       }
       /// <summary>
@@ -207,11 +227,7 @@ namespace MachineLearning
          /// <summary>
          /// Significato
          /// </summary>
-         public string Meaning { get; }
-         /// <summary>
-         /// Punteggi per label
-         /// </summary>
-         public KeyValuePair<string, float>[] Scores { get; }
+         public float Size { get; }
          #endregion
          #region Methods
          /// <summary>
@@ -222,10 +238,7 @@ namespace MachineLearning
          internal Prediction(PredictorSize predictor, IDataView data)
          {
             var grid = data.ToDataViewGrid(predictor);
-            Meaning = grid[0]["PredictedLabel"];
-            var scores = (float[])grid[0]["Score"];
-            var slotNames = grid.Schema["Score"].GetSlotNames();
-            Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
+            Size = grid[0]["Score"];
          }
          #endregion
       }
