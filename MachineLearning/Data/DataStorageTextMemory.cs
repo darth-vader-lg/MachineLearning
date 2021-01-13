@@ -9,7 +9,7 @@ namespace MachineLearning.Data
    /// Classe per lo storage di dati di tipo testo in memoria
    /// </summary>
    [Serializable]
-   public sealed class DataStorageTextMemory : DataStorageText, IDataTextProvider, ITimestamp
+   public sealed class DataStorageTextMemory : DataStorageText, IDataTextProvider, IDataTimestamp
    {
       #region Fields
       /// <summary>
@@ -21,11 +21,11 @@ namespace MachineLearning.Data
       /// <summary>
       /// Dati testuali
       /// </summary>
-      public string TextData { get => _textData; set { _textData = value; Timestamp = DateTime.UtcNow; } }
+      public string TextData { get => _textData; set { _textData = value; DataTimestamp = DateTime.UtcNow; } }
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp { get; private set; }
+      public DateTime DataTimestamp { get; private set; }
       #endregion
       #region Methods
       /// <summary>
@@ -51,7 +51,7 @@ namespace MachineLearning.Data
             using var reader = new StreamReader(stream);
             // Aggiorna la stringa
             TextData = reader.ReadToEnd();
-            Timestamp = timestamp;
+            DataTimestamp = timestamp;
          }
       }
       #endregion

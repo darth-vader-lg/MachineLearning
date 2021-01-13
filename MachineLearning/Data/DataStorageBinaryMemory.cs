@@ -8,7 +8,7 @@ namespace MachineLearning.Data
    /// Classe per lo storage di dati di tipo binario in memoria
    /// </summary>
    [Serializable]
-   public sealed class DataStorageBinaryMemory : DataStorageBinary, ITimestamp
+   public sealed class DataStorageBinaryMemory : DataStorageBinary, IDataTimestamp
    {
       #region Fields
       /// <summary>
@@ -20,11 +20,11 @@ namespace MachineLearning.Data
       /// <summary>
       /// Dati testuali
       /// </summary>
-      public byte[] BinaryData { get => _binaryData; set { _binaryData = value; Timestamp = DateTime.UtcNow; } }
+      public byte[] BinaryData { get => _binaryData; set { _binaryData = value; DataTimestamp = DateTime.UtcNow; } }
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
+      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
       #endregion
       #region Methods
       /// <summary>
@@ -44,7 +44,7 @@ namespace MachineLearning.Data
             var stream = new MemoryStream();
             SaveBinaryData(context, data, stream, KeepHidden);
             BinaryData = stream.ToArray();
-            Timestamp = timestamp;
+            DataTimestamp = timestamp;
          }
       }
       #endregion

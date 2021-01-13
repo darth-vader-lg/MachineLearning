@@ -1,4 +1,5 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning.Data;
+using Microsoft.ML;
 using System;
 using System.IO;
 
@@ -8,7 +9,7 @@ namespace MachineLearning
    /// Gestore dello storage su stream dei modelli
    /// </summary>
    [Serializable]
-   public sealed class ModelStorageStream : IModelStorage, ITimestamp
+   public sealed class ModelStorageStream : IModelStorage, IDataTimestamp
    {
       #region Properties
       /// <summary>
@@ -19,7 +20,7 @@ namespace MachineLearning
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
+      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
       /// <summary>
       /// Funzione di ottenimento dello stream di scrittura
       /// </summary>

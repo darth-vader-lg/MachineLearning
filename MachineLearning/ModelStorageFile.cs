@@ -1,4 +1,5 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning.Data;
+using Microsoft.ML;
 using System;
 using System.IO;
 
@@ -8,7 +9,7 @@ namespace MachineLearning
    /// Gestore su file dello storage dei modelli
    /// </summary>
    [Serializable]
-   public sealed class ModelStorageFile : IModelStorage, ITimestamp
+   public sealed class ModelStorageFile : IModelStorage, IDataTimestamp
    {
       #region Properties
       /// <summary>
@@ -18,7 +19,7 @@ namespace MachineLearning
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp => File.GetLastWriteTimeUtc(FilePath);
+      public DateTime DataTimestamp => File.GetLastWriteTimeUtc(FilePath);
       #endregion
       #region Methods
       /// <summary>

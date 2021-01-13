@@ -8,7 +8,7 @@ namespace MachineLearning.Data
    /// Classe per lo storage di dati di tipo file di testo
    /// </summary>
    [Serializable]
-   public sealed class DataStorageTextFile : DataStorageText, ITimestamp
+   public sealed class DataStorageTextFile : DataStorageText, IDataTimestamp
    {
       #region Properties
       /// <summary>
@@ -18,7 +18,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp => File.GetLastWriteTimeUtc(FilePath);
+      public DateTime DataTimestamp => File.GetLastWriteTimeUtc(FilePath);
       #endregion
       #region Methods
       /// <summary>

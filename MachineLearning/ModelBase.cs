@@ -488,7 +488,7 @@ namespace MachineLearning
       public async Task<IDataView> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
       {
          // Avvia il task di training se necessario
-         if (((TrainingData as ITimestamp)?.Timestamp ?? default) > Evaluation.Timestamp || ((DataStorage as ITimestamp)?.Timestamp ?? default) > Evaluation.Timestamp)
+         if (((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp || ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp)
             _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
          var dataView = new DataStorageTextMemory() { TextData = data }.LoadData(this);
@@ -683,8 +683,8 @@ namespace MachineLearning
                      firstRun = false;
                      // Carica il modello
                      var loadExistingModel =
-                        ((ModelStorage as ITimestamp)?.Timestamp ?? default) >= ((DataStorage as ITimestamp)?.Timestamp ?? default) &&
-                        ((ModelStorage as ITimestamp)?.Timestamp ?? default) >= ((TrainingData as ITimestamp)?.Timestamp ?? default);
+                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
+                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((TrainingData as IDataTimestamp)?.DataTimestamp ?? default);
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;

@@ -8,7 +8,7 @@ namespace MachineLearning.Data
    /// Classe per lo storage di dati di tipo testo su stream
    /// </summary>
    [Serializable]
-   public sealed class DataStorageTextStream : DataStorageText, ITimestamp
+   public sealed class DataStorageTextStream : DataStorageText, IDataTimestamp
    {
       #region Properties
       /// <summary>
@@ -19,7 +19,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp { get; private set; }
+      public DateTime DataTimestamp { get; private set; }
       /// <summary>
       /// Funzione di ottenimento dello stream di scrittura
       /// </summary>
@@ -51,7 +51,7 @@ namespace MachineLearning.Data
             throw new InvalidOperationException("Cannot write to the stream");
          lock (this) {
             SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
-            Timestamp = timestamp;
+            DataTimestamp = timestamp;
          }
       }
       #endregion

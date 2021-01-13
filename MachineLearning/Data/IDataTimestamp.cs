@@ -1,17 +1,17 @@
 ﻿using System;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Interfaccia per gli oggetti dotati di timestamp
    /// </summary>
-   public interface ITimestamp
+   public interface IDataTimestamp
    {
       #region Properties
       /// <summary>
-      /// Data e ora dell'oggetto
+      /// Data e ora dell'oggetto contenente dati
       /// </summary>
-      DateTime Timestamp { get; }
+      DateTime DataTimestamp { get; }
       #endregion
    }
 }

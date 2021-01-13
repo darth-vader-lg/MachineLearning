@@ -1,4 +1,5 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning.Data;
+using Microsoft.ML;
 using System;
 using System.IO;
 
@@ -8,7 +9,7 @@ namespace MachineLearning
    /// Gestore dello storage in memoria dei modelli
    /// </summary>
    [Serializable]
-   public sealed class ModelStorageMemory : IModelStorage, ITimestamp
+   public sealed class ModelStorageMemory : IModelStorage, IDataTimestamp
    {
       #region Properties
       /// <summary>
@@ -18,7 +19,7 @@ namespace MachineLearning
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
+      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
       #endregion
       #region Methods
       /// <summary>
@@ -60,7 +61,7 @@ namespace MachineLearning
             using var memoryStream = new MemoryStream();
             (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, memoryStream);
             Bytes = memoryStream.ToArray();
-            Timestamp = timestamp;
+            DataTimestamp = timestamp;
          }
       }
       #endregion

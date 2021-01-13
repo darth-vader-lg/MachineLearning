@@ -1,6 +1,6 @@
 ﻿using Microsoft.ML.Data;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Interfaccia per i providers di opzioni di testo

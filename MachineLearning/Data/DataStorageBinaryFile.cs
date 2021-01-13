@@ -8,7 +8,7 @@ namespace MachineLearning.Data
    /// Classe per lo storage di dati di tipo binario su file
    /// </summary>
    [Serializable]
-   public sealed class DataStorageBinaryFile : DataStorageBinary, ITimestamp
+   public sealed class DataStorageBinaryFile : DataStorageBinary, IDataTimestamp
    {
       #region Properties
       /// <summary>
@@ -18,7 +18,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime Timestamp => File.GetLastWriteTimeUtc(FilePath);
+      public DateTime DataTimestamp => File.GetLastWriteTimeUtc(FilePath);
       #endregion
       #region Methods
       /// <summary>
