@@ -3,7 +3,7 @@ using Microsoft.ML.Data;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Estensioni per l'accesso ai gestori di dati
@@ -27,7 +27,7 @@ namespace MachineLearning
       /// <param name="cursor">Il cursore</param>
       /// <param name="column">La colonna</param>
       /// <returns>Il valore</returns>
-      public static DataViewValue GetValue(this DataViewRowCursor cursor, DataViewSchema.Column column) => GetValue(cursor, column.Index);
+      public static DataViewValue GetValue(this DataViewRowCursor cursor, DataViewSchema.Column column) => cursor.GetValue(column.Index);
       /// <summary>
       /// Restituisce un valore
       /// </summary>
@@ -48,7 +48,7 @@ namespace MachineLearning
       /// <param name="cursor">Il cursore</param>
       /// <param name="columnName">Il nome della colonna</param>
       /// <returns>Il valore</returns>
-      public static DataViewValue GetValue(this DataViewRowCursor cursor, string columnName) => GetValue(cursor, cursor.Schema[columnName]);
+      public static DataViewValue GetValue(this DataViewRowCursor cursor, string columnName) => cursor.GetValue(cursor.Schema[columnName]);
       /// <summary>
       /// Restituisce un valore
       /// </summary>

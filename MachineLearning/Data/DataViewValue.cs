@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Valore di vista dati

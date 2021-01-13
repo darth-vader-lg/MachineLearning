@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Classe per lo storage di dati di tipo testo su stream

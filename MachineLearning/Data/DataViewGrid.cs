@@ -8,7 +8,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Griglia di dati

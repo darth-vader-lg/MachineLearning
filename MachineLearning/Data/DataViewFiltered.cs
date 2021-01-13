@@ -4,7 +4,7 @@ using Microsoft.ML.Runtime;
 using System;
 using System.Collections.Generic;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Vista di dati filtrata

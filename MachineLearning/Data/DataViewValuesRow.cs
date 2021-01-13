@@ -9,7 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Riga di vista di dati

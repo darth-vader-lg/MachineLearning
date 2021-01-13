@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Classe per lo storage di dati di tipo testo in memoria

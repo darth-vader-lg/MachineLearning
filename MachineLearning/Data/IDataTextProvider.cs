@@ -1,4 +1,4 @@
-﻿namespace MachineLearning
+﻿namespace MachineLearning.Data
 {
    /// <summary>
    /// Provider di dati di tipo testuale
@@ -9,7 +9,7 @@
       /// <summary>
       /// Dati testuali
       /// </summary>
-      public string TextData { get; set;  }
+      public string TextData { get; set; }
       #endregion
    }
 }

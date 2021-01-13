@@ -1,7 +1,7 @@
 ﻿using Microsoft.ML;
 using System;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Classe base per lo storage di dati di tipo binario

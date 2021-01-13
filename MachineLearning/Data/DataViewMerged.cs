@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    // REVIEW: Currently, to enable shuffling, we require the row counts of the sources to be known.
    // We can think of the shuffling in MergedDataView as a two-stage process:

@@ -2,13 +2,13 @@
 using System;
 using System.IO;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
-   /// Classe per lo storage di dati di tipo binario su file
+   /// Classe per lo storage di dati di tipo file di testo
    /// </summary>
    [Serializable]
-   public sealed class DataStorageBinaryFile : DataStorageBinary, ITimestamp
+   public sealed class DataStorageTextFile : DataStorageText, ITimestamp
    {
       #region Properties
       /// <summary>
@@ -25,10 +25,10 @@ namespace MachineLearning
       /// Costruttore
       /// </summary>
       /// <param name="filePath">Path del file</param>
-      public DataStorageBinaryFile(string filePath)
+      public DataStorageTextFile(string filePath)
       {
          if (string.IsNullOrEmpty(filePath))
-            throw new ArgumentException($"{nameof(filePath)} cannot be null or empty");
+            throw new ArgumentNullException(nameof(filePath), $"{nameof(filePath)} cannot be null");
          FilePath = filePath;
       }
       /// <summary>
@@ -51,7 +51,7 @@ namespace MachineLearning
          using var stream = File.Create(FilePath);
          if (stream == null)
             throw new IOException($"Cannot write to file {FilePath}");
-         SaveBinaryData(context, data, stream, KeepHidden);
+         SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
       }
       #endregion
    }

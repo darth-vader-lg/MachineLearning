@@ -1,6 +1,6 @@
 ﻿using Microsoft.ML;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Interfaccia per il filtro di righe di una vista di dati

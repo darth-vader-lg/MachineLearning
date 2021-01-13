@@ -1,4 +1,4 @@
-﻿namespace MachineLearning
+﻿namespace MachineLearning.Data
 {
    /// <summary>
    /// Interfaccia per i provider di dati

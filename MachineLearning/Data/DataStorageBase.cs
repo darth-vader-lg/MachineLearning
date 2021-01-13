@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 
-namespace MachineLearning
+namespace MachineLearning.Data
 {
    /// <summary>
    /// Classe base per lo storage di dati
