@@ -16,7 +16,7 @@ namespace MachineLearning
    /// Classe per l'interpretazione del significato si testi
    /// </summary>
    [Serializable]
-   public sealed partial class ImagesRecognizer :
+   public sealed partial class ImageRecognizer :
       MulticlassModelBase,
       ICrossValidatable,
       IDataStorageProvider,
@@ -85,17 +85,17 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public ImagesRecognizer() { }
+      public ImageRecognizer() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public ImagesRecognizer(int? seed) : base(seed) { }
+      public ImageRecognizer(int? seed) : base(seed) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public ImagesRecognizer(MachineLearningContext ml) : base(ml) { }
+      public ImageRecognizer(MachineLearningContext ml) : base(ml) { }
       /// <summary>
       /// Restituisce la pipe di training del modello
       /// </summary>
@@ -256,7 +256,7 @@ namespace MachineLearning
    /// <summary>
    /// Risultato della previsione
    /// </summary>
-   public sealed partial class ImagesRecognizer // Prediction
+   public sealed partial class ImageRecognizer // Prediction
    {
       [Serializable]
       public class Prediction
@@ -281,7 +281,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="predictor">Previsore</param>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(ImagesRecognizer predictor, IDataView data)
+         internal Prediction(ImageRecognizer predictor, IDataView data)
          {
             var grid = data.ToDataViewGrid(predictor);
             Kind = grid[0]["PredictedLabel"];
