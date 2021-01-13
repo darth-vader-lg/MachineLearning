@@ -75,6 +75,12 @@ namespace MachineLearningStudio
                return;
             var crossValidate = cb.Checked;
             if (crossValidate != Settings.Default.PageImageClassification.CrossValidate) {
+               try {
+                  var modelPath = Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxImageSetName.Text.Trim(), "model.zip"));
+                  if (File.Exists(modelPath))
+                     File.Delete(modelPath);
+               }
+               catch  { }
                Settings.Default.PageImageClassification.CrossValidate = crossValidate;
                Settings.Default.Save();
             }
