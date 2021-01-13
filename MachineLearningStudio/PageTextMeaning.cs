@@ -26,6 +26,10 @@ namespace MachineLearningStudio
       /// </summary>
       private bool initialized;
       /// <summary>
+      /// Previsore di significato testi
+      /// </summary>
+      private PredictorTextMeaning predictor;
+      /// <summary>
       /// Task di previsione
       /// </summary>
       private (Task task, CancellationTokenSource cancellation) taskPrediction = (Task.CompletedTask, new CancellationTokenSource());
@@ -33,10 +37,6 @@ namespace MachineLearningStudio
       /// Colore di background dei testi
       /// </summary>
       private readonly Color textBoxBackColor;
-      /// <summary>
-      /// Previsore di significato testi
-      /// </summary>
-      private PredictorTextMeaning textMeaningPredictor;
       #endregion
       #region Methods
       /// <summary>
@@ -70,9 +70,9 @@ namespace MachineLearningStudio
       private void Log(object sender, LoggingEventArgs e)
       {
          try {
-            if (e.Kind < ChannelMessageKind.Info || e.Source != textMeaningPredictor.Name)
+            if (e.Kind < ChannelMessageKind.Info || e.Source != predictor.Name)
                return;
-            textMeaningPredictor.Post(() =>
+            predictor.Post(() =>
             {
                var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
                var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
@@ -117,7 +117,7 @@ namespace MachineLearningStudio
             // Imposta il nome del file di dati
             textBoxDataSetName.Text = Settings.Default.PageTextMeaning.DataSetName?.Trim();
             // Crea il previsore
-            textMeaningPredictor = new PredictorTextMeaning
+            predictor = new PredictorTextMeaning
             {
                AutoCommitData = true,
                AutoSaveModel = true,
@@ -126,9 +126,9 @@ namespace MachineLearningStudio
                Name = "Predictor",
                TrainingData = new DataStorageTextMemory(),
             };
-            textMeaningPredictor.TextLoaderOptions.Separators = new[] { '|' };
+            predictor.TextLoaderOptions.Separators = new[] { '|' };
             // Aggancia il log
-            textMeaningPredictor.ML.NET.Log += Log;
+            predictor.ML.NET.Log += Log;
             // Indicatore di inizializzazione ok
             initialized = true;
          }
@@ -154,11 +154,11 @@ namespace MachineLearningStudio
             cancel.ThrowIfCancellationRequested();
             // Rilancia o avvia il task di training
             if (forceRebuildModel) {
-               await textMeaningPredictor.StopTrainingAsync();
-               _ = textMeaningPredictor.StartTrainingAsync(cancel);
+               await predictor.StopTrainingAsync();
+               _ = predictor.StartTrainingAsync(cancel);
             }
             cancel.ThrowIfCancellationRequested();
-            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await textMeaningPredictor.GetPredictionAsync(sentence, cancel)).Meaning;
+            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await predictor.GetPredictionAsync(sentence, cancel)).Meaning;
             textBoxIntent.BackColor = textBoxBackColor;
          }
          catch (OperationCanceledException) { }
@@ -166,7 +166,7 @@ namespace MachineLearningStudio
             Trace.WriteLine(exc);
             textBoxIntent.Text = "";
             textBoxIntent.BackColor = Color.Red;
-            textMeaningPredictor.ML.NET.WriteLog(exc.ToString(), nameof(TaskPrediction));
+            predictor.ML.NET.WriteLog(exc.ToString(), nameof(TaskPrediction));
          }
       }
       /// <summary>
@@ -223,7 +223,7 @@ namespace MachineLearningStudio
                return;
             if (string.IsNullOrWhiteSpace(dataSetName))
                return;
-            textMeaningPredictor.AddTrainingData(true, textBoxIntent.Text.Trim(), textBoxSentence.Text.Trim());
+            predictor.AddTrainingData(true, textBoxIntent.Text.Trim(), textBoxSentence.Text.Trim());
             MakePrediction(default, true);
          }
          catch (Exception exc) {

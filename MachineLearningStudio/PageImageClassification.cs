@@ -166,7 +166,7 @@ namespace MachineLearningStudio
                   await predictor.UpdateStorageAsync(Path.ChangeExtension(dataStoragePath, null), cancel);
                   predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(dataStoragePath, "model.zip")));
                   cancel.ThrowIfCancellationRequested();
-                  predictor.CrossValidation = crossValidation;
+                  predictor.ValidationLevel = crossValidation ? 5 : 1;
                }, cancel);
             }
             cancel.ThrowIfCancellationRequested();

@@ -438,6 +438,11 @@ namespace MachineLearning
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
       /// <summary>
+      /// Restituisce la pipe di training del modello
+      /// </summary>
+      /// <returns></returns>
+      protected abstract IEstimator<ITransformer> GetPipe();
+      /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Elenco di dati da usare per la previsione</param>
@@ -496,12 +501,23 @@ namespace MachineLearning
          return prediction;
       }
       /// <summary>
-      /// Restituisce il modello effettuando il training. Da implementare nelle classi derivate
+      /// Restituisce il modello effettuando il training
       /// </summary>
-      /// <param name="dataView">Dati di training</param>
+      /// <param name="dataView">Datidi training</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      protected virtual ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation) => default;
+      protected virtual ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation)
+      {
+         // Ottiene la pipe
+         var pipe = GetPipe();
+         cancellation.ThrowIfCancellationRequested();
+         if (pipe == null)
+            return null;
+         // Riempe la pipe
+         var result = pipe.Fit(dataView);
+         cancellation.ThrowIfCancellationRequested();
+         return result;
+      }
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
       /// </summary>

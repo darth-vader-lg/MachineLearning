@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,7 +12,12 @@ namespace MachineLearning
    /// <summary>
    /// Classe per la previsione delle taglie
    /// </summary>
-   public sealed partial class PredictorSize : PredictorRegression, IDataStorageProvider, IModelStorageProvider, ITextLoaderOptionsProvider, ITrainingDataProvider
+   public sealed partial class PredictorSize :
+      PredictorRegressionRetrainable,
+      IDataStorageProvider,
+      IModelStorageProvider,
+      ITextLoaderOptionsProvider,
+      ITrainingDataProvider
    {
       #region Fields
       /// <summary>
@@ -25,11 +29,6 @@ namespace MachineLearning
       /// </summary>
       [NonSerialized]
       private IEstimator<ITransformer> _pipe;
-      /// <summary>
-      /// Contatore di retrain
-      /// </summary>
-      [NonSerialized]
-      private int _retrainCount;
       #endregion
       #region Properties
       /// <summary>
@@ -37,21 +36,9 @@ namespace MachineLearning
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
-      /// Numero massimo di tentativi di retrain del modello
-      /// </summary>
-      public int MaxRetrain { get; set; } = 1;
-      /// <summary>
       /// Storage del modello
       /// </summary>
       public IModelStorage ModelStorage { get; set; }
-      /// <summary>
-      /// Pipe di training
-      /// </summary>
-      private IEstimator<ITransformer> Pipe { get => _pipe; set => _pipe = value; }
-      /// <summary>
-      /// Seme per le operazioni random
-      /// </summary>
-      private int Seed { get; set; }
       /// <summary>
       /// Opzioni di caricamento dati testuali
       /// </summary>
@@ -76,26 +63,6 @@ namespace MachineLearning
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       public PredictorSize(MachineLearningContext ml) : base(ml) => Init();
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => SetInputSchema("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
-      /// <summary>
-      /// Funzione di restituzione della migliore fra due valutazioni modello
-      /// </summary>
-      /// <param name="modelEvaluation1">Prima valutazione</param>
-      /// <param name="modelEvaluation2">Seconda valutazione</param>
-      /// <returns>La migliore delle due valutazioni</returns>
-      /// <remarks>Tenere conto che le valutazioni potrebbero essere null</remarks>
-      protected override object GetBestModelEvaluation(object modelEvaluation1, object modelEvaluation2)
-      {
-         var best = modelEvaluation2;
-         if (modelEvaluation1 is RegressionMetrics metrics1 && modelEvaluation2 is RegressionMetrics metrics2)
-            best = metrics2.RSquared > metrics1.RSquared ? modelEvaluation2 : modelEvaluation1;
-         if (best == modelEvaluation2)
-            _retrainCount = 0;
-         return best;
-      }
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
@@ -129,39 +96,13 @@ namespace MachineLearning
          return new Prediction(this, await GetPredictionDataAsync(data, cancel));
       }
       /// <summary>
-      /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
+      /// Restituisce la pipe di training del modello
       /// </summary>
-      /// <param name="model">Modello da valutare</param>
-      /// <param name="data">Dati attuali caricati</param>
-      /// <returns>Il risultato della valutazione</returns>
-      /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected override object GetModelEvaluation(ITransformer model, IDataView data) => ML.NET.Regression.Evaluate(model.Transform(data));
-      /// <summary>
-      /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
-      /// </summary>
-      /// <param name="modelEvaluation">Il risultato della valutazione di un modello</param>
-      /// <returns>Il risultato della valutazione in formato testo</returns>
-      protected override string GetModelEvaluationInfo(object modelEvaluation)
+      /// <returns></returns>
+      protected override IEstimator<ITransformer> GetPipe()
       {
-         if (modelEvaluation is not RegressionMetrics metrics)
-            return null;
-         var sb = new StringBuilder();
-         sb.AppendLine(metrics.ToText());
-         return sb.ToString();
-      }
-      /// <summary>
-      /// Restituisce il modello effettuando il training. Da implementare nelle classi derivate
-      /// </summary>
-      /// <param name="dataView">Datidi training</param>
-      /// <param name="cancellation">Token di annullamento</param>
-      /// <returns>Il modello appreso</returns>
-      protected override ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation)
-      {
-         // Verifica numero di tentativi massimi di retrain raggiunto
-         if (++_retrainCount > MaxRetrain)
-            return null;
          // Pipe di training
-         Pipe ??=
+         return _pipe ??=
             ML.NET.Transforms.Concatenate("Features", (from c in Evaluation.InputSchema
                                                        where c.Name != _labelColumnName
                                                        select c.Name).ToArray()).
@@ -169,10 +110,11 @@ namespace MachineLearning
             {
                LabelColumnName = _labelColumnName,
             }));
-         // Mischia le linee
-         var data = ML.NET.Data.ShuffleRows(dataView, Seed++);
-         return Pipe.Fit(data);
       }
+      /// <summary>
+      /// Funzione di inizializzazione
+      /// </summary>
+      private void Init() => SetInputSchema("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
       /// <summary>
       /// Imposta il formato di input dei dati
       /// </summary>

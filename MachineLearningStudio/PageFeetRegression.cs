@@ -27,13 +27,13 @@ namespace MachineLearningStudio
       /// </summary>
       private bool initialized;
       /// <summary>
-      /// Task di previsione
-      /// </summary>
-      private (Task task, CancellationTokenSource cancellation) taskPrediction = (Task.CompletedTask, new CancellationTokenSource());
-      /// <summary>
       /// Previsore di significato testi
       /// </summary>
       private PredictorSize predictor;
+      /// <summary>
+      /// Task di previsione
+      /// </summary>
+      private (Task task, CancellationTokenSource cancellation) taskPrediction = (Task.CompletedTask, new CancellationTokenSource());
       /// <summary>
       /// Colore di background dei testi
       /// </summary>
