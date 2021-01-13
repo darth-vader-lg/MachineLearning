@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
-using Microsoft.ML.Transforms.Text;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,11 +10,10 @@ using System.Threading.Tasks;
 namespace MachineLearning
 {
    /// <summary>
-   /// Classe per l'interpretazione del significato si testi
+   /// Classe per la previsione delle taglie
    /// </summary>
-   [Serializable]
-   public sealed partial class PredictorTextMeaning :
-      PredictorMulticlassRetrainable,
+   public sealed partial class SizeRecognizer :
+      RetrainableRegressionModelBase,
       IDataStorageProvider,
       IModelStorageProvider,
       ITextLoaderOptionsProvider,
@@ -53,17 +52,49 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorTextMeaning() => Init();
+      public SizeRecognizer() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public PredictorTextMeaning(int? seed) : base(seed) => Init();
+      public SizeRecognizer(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorTextMeaning(MachineLearningContext ml) : base(ml) => Init();
+      public SizeRecognizer(MachineLearningContext ml) : base(ml) => Init();
+      /// <summary>
+      /// Restituisce la previsione
+      /// </summary>
+      /// <param name="values">Valori di input</param>
+      /// <returns>La previsione</returns>
+      public Prediction GetPrediction(params float[] values)
+      {
+         var nfi = new NumberFormatInfo { NumberDecimalSeparator = char.ToString(TextLoaderOptions.DecimalMarker), NumberGroupSeparator = "" };
+         var data = new List<string>();
+         for (var i = 0; i < values.Length; i++) {
+            if (TextLoaderOptions.Columns[i].Name == _labelColumnName)
+               data.Add(null);
+            data.Add(values[i].ToString(nfi));
+         }
+         return new Prediction(this, GetPredictionData(data));
+      }
+      /// <summary>
+      /// Restituisce la previsione
+      /// </summary>
+      /// <param name="sentence">Significato da prevedere</param>
+      /// <returns>Il task della previsione</returns>
+      public async Task<Prediction> GetPredictionAsync(CancellationToken cancel = default, params float[] values)
+      {
+         var nfi = new NumberFormatInfo { NumberDecimalSeparator = char.ToString(TextLoaderOptions.DecimalMarker), NumberGroupSeparator = "" };
+         var data = new List<string>();
+         for (var i = 0; i < values.Length; i++) {
+            if (TextLoaderOptions.Columns[i].Name == _labelColumnName)
+               data.Add(null);
+            data.Add(values[i].ToString(nfi));
+         }
+         return new Prediction(this, await GetPredictionDataAsync(data, cancel));
+      }
       /// <summary>
       /// Restituisce la pipe di training del modello
       /// </summary>
@@ -72,28 +103,14 @@ namespace MachineLearning
       {
          // Pipe di training
          return _pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", _labelColumnName).
-            Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
-                                                                                                                  where c.Name != _labelColumnName
-                                                                                                                  select c.Name).ToArray())).
-            Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
-            Append(ML.NET.Transforms.NormalizeMinMax("Features")).
-            AppendCacheCheckpoint(ML.NET).
-            Append(Trainers.SdcaNonCalibrated()).
-            Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
+            ML.NET.Transforms.Concatenate("Features", (from c in Evaluation.InputSchema
+                                                       where c.Name != _labelColumnName
+                                                       select c.Name).ToArray()).
+            Append(Trainers.LightGbm(new Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options
+            {
+               LabelColumnName = _labelColumnName,
+            }));
       }
-      /// <summary>
-      /// Restituisce la previsione
-      /// </summary>
-      /// <param name="sentence">Significato da prevedere</param>
-      /// <returns>La previsione</returns>
-      public Prediction GetPrediction(string sentence) => new Prediction(this, GetPredictionData(null, sentence));
-      /// <summary>
-      /// Restituisce la previsione
-      /// </summary>
-      /// <param name="sentence">Significato da prevedere</param>
-      /// <returns>Il task della previsione</returns>
-      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, sentence));
       /// <summary>
       /// Funzione di inizializzazione
       /// </summary>
@@ -112,8 +129,8 @@ namespace MachineLearning
             {
                Columns = new[]
                {
-                  new TextLoader.Column(!string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label", DataKind.String, 0),
-                  new TextLoader.Column("Sentence", DataKind.String, 1),
+                  new TextLoader.Column(!string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label", DataKind.Single, 0),
+                  new TextLoader.Column("Data", DataKind.Single, 1),
                }
             }.Columns;
          }
@@ -125,9 +142,25 @@ namespace MachineLearning
    }
 
    /// <summary>
+   /// Algoritmo della previsione
+   /// </summary>
+   public sealed partial class SizeRecognizer // Prediction
+   {
+      [Serializable]
+      public enum Algorithms
+      {
+         LbfgsMaximumEntropy,
+         LightGbm,
+         NaiveBayes,
+         SdcaMaximumEntropy,
+         SdcaNonCalibrated
+      }
+   }
+
+   /// <summary>
    /// Risultato della previsione
    /// </summary>
-   public sealed partial class PredictorTextMeaning // Prediction
+   public sealed partial class SizeRecognizer // Prediction
    {
       [Serializable]
       public class Prediction
@@ -136,15 +169,7 @@ namespace MachineLearning
          /// <summary>
          /// Significato
          /// </summary>
-         public string Meaning { get; }
-         /// <summary>
-         /// Punteggio per il tipo previsto
-         /// </summary>
-         public float Score { get; }
-         /// <summary>
-         /// Punteggi per label
-         /// </summary>
-         public KeyValuePair<string, float>[] Scores { get; }
+         public float Size { get; }
          #endregion
          #region Methods
          /// <summary>
@@ -152,14 +177,10 @@ namespace MachineLearning
          /// </summary>
          /// <param name="predictor">Previsore</param>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(PredictorTextMeaning predictor, IDataView data)
+         internal Prediction(SizeRecognizer predictor, IDataView data)
          {
             var grid = data.ToDataViewGrid(predictor);
-            Meaning = grid[0]["PredictedLabel"];
-            var scores = (float[])grid[0]["Score"];
-            var slotNames = grid.Schema["Score"].GetSlotNames();
-            Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
-            Score = Scores.FirstOrDefault(s => s.Key == Meaning).Value;
+            Size = grid[0]["Score"];
          }
          #endregion
       }

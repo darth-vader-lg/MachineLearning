@@ -17,7 +17,7 @@ namespace MachineLearning
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class Predictor : IDeserializationCallback, IMachineLearningContextProvider
+   public abstract partial class ModelBase : IDeserializationCallback, IMachineLearningContextProvider
    {
       #region Fields
       /// <summary>
@@ -122,17 +122,17 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public Predictor() : this(default(int?)) { }
+      public ModelBase() : this(default(int?)) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public Predictor(int? seed) : this(new MachineLearningContext(seed)) { }
+      public ModelBase(int? seed) : this(new MachineLearningContext(seed)) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public Predictor(MachineLearningContext ml)
+      public ModelBase(MachineLearningContext ml)
       {
          // Memorizza il contesto di machine learning
          ML = ml;
@@ -808,7 +808,7 @@ namespace MachineLearning
    /// <summary>
    /// Dati di valutazione
    /// </summary>
-   public partial class Predictor // Evaluator
+   public partial class ModelBase // Evaluator
    {
       [Serializable]
       public class Evaluator

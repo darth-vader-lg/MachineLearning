@@ -28,7 +28,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Previsore di significato testi
       /// </summary>
-      private PredictorTextMeaning predictor;
+      private TextMeaningRecognizer predictor;
       /// <summary>
       /// Task di previsione
       /// </summary>
@@ -117,7 +117,7 @@ namespace MachineLearningStudio
             // Imposta il nome del file di dati
             textBoxDataSetName.Text = Settings.Default.PageTextMeaning.DataSetName?.Trim();
             // Crea il previsore
-            predictor = new PredictorTextMeaning
+            predictor = new TextMeaningRecognizer
             {
                AutoCommitData = true,
                AutoSaveModel = true,

@@ -6,9 +6,9 @@ using System.Threading;
 namespace MachineLearning
 {
    /// <summary>
-   /// Modello a regressione con retrain
+   /// Modello multiclasse con retrain
    /// </summary>
-   public abstract class PredictorRegressionRetrainable : PredictorRegression
+   public abstract class MulticlassModelRetrainableBase : MulticlassModelBase
    {
       #region Fields
       /// <summary>
@@ -36,17 +36,17 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorRegressionRetrainable() { }
+      public MulticlassModelRetrainableBase() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public PredictorRegressionRetrainable(int? seed) : base(seed) { }
+      public MulticlassModelRetrainableBase(int? seed) : base(seed) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorRegressionRetrainable(MachineLearningContext ml) : base(ml) { }
+      public MulticlassModelRetrainableBase(MachineLearningContext ml) : base(ml) { }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>

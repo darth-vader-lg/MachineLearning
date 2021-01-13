@@ -24,7 +24,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Previsore di immagini
       /// </summary>
-      private PredictorImages predictor;
+      private ImagesRecognizer predictor;
       /// <summary>
       /// Task di previsione
       /// </summary>
@@ -134,7 +134,7 @@ namespace MachineLearningStudio
          try {
             base.OnLoad(e);
             // Crea il previsore
-            predictor = new PredictorImages { AutoSaveModel = true, Name = "Predictor", DataStorage = null };
+            predictor = new ImagesRecognizer { AutoSaveModel = true, Name = "Predictor", DataStorage = null };
             predictor.ML.NET.Log += Ml_Log;
             textBoxImageSetName.Text = Settings.Default.PageImageClassification.DataSetDir?.Trim();
             checkBoxCrossValidate.Checked = Settings.Default.PageImageClassification.CrossValidate;

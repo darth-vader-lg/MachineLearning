@@ -29,7 +29,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Previsore di significato testi
       /// </summary>
-      private PredictorSize predictor;
+      private SizeRecognizer predictor;
       /// <summary>
       /// Task di previsione
       /// </summary>
@@ -126,7 +126,7 @@ namespace MachineLearningStudio
             textBoxInstep.Text = Settings.Default.PageFeetRegression.Instep.Trim();
             textBoxLength.Text = Settings.Default.PageFeetRegression.Length.Trim();
             // Crea il previsore
-            predictor = new PredictorSize
+            predictor = new SizeRecognizer
             {
                AutoCommitData = true,
                AutoSaveModel = true,

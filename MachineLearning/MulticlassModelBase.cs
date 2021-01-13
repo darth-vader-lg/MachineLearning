@@ -9,7 +9,7 @@ namespace MachineLearning
    /// <summary>
    /// Classe base per i previsori di tipo multiclasse
    /// </summary>
-   public abstract class PredictorMulticlass : Predictor
+   public abstract class MulticlassModelBase : ModelBase
    {
       #region Properties
       /// <summary>
@@ -22,17 +22,17 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorMulticlass() : base() => Init();
+      public MulticlassModelBase() : base() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public PredictorMulticlass(int? seed) : base(seed) => Init();
+      public MulticlassModelBase(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorMulticlass(MachineLearningContext ml) : base(ml) => Init();
+      public MulticlassModelBase(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>

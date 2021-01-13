@@ -9,7 +9,7 @@ namespace MachineLearning
    /// <summary>
    /// Classe base per i previsori a regressione
    /// </summary>
-   public abstract class PredictorRegression : Predictor
+   public abstract class RegressionModelBase : ModelBase
    {
       #region Properties
       /// <summary>
@@ -22,17 +22,17 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public PredictorRegression() : base() => Init();
+      public RegressionModelBase() : base() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public PredictorRegression(int? seed) : base(seed) => Init();
+      public RegressionModelBase(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public PredictorRegression(MachineLearningContext ml) : base(ml) => Init();
+      public RegressionModelBase(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
