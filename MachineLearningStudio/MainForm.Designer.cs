@@ -109,7 +109,7 @@ namespace MachineLearningStudio
          this.tabPageFeetRegression.Name = "tabPageFeetRegression";
          this.tabPageFeetRegression.Size = new System.Drawing.Size(1157, 742);
          this.tabPageFeetRegression.TabIndex = 2;
-         this.tabPageFeetRegression.Text = "Feed Regression";
+         this.tabPageFeetRegression.Text = "Feet Regression";
          this.tabPageFeetRegression.UseVisualStyleBackColor = true;
          // 
          // tabPageFeetKMeans
