@@ -50,6 +50,16 @@ namespace MachineLearning.Model
       /// Opzioni di caricamento testi di default
       /// </summary>
       private TextLoader.Options _textLoaderOptionsDefault;
+      /// <summary>
+      /// Contatore di training
+      /// </summary>
+      [NonSerialized]
+      private int _trainsCount;
+      /// <summary>
+      /// Seme per le operazioni random di training
+      /// </summary>
+      [NonSerialized]
+      private int _trainSeed;
       #endregion
       #region Properties
       /// <summary>
@@ -100,6 +110,10 @@ namespace MachineLearning.Model
       /// Dati aggiuntivi di training
       /// </summary>
       private IDataStorage TrainingData => (this as ITrainingDataProvider)?.TrainingData;
+      /// <summary>
+      /// Livello di validazione. 0 semplice fit; 1 fit con shuffle delle righe se modello retrainable; > 1 validazione incrociata se disponibile
+      /// </summary>
+      public int ValidationLevel { get; set; }
       #endregion
       #region Events
       /// <summary>
@@ -142,82 +156,6 @@ namespace MachineLearning.Model
          if (SynchronizationContext.Current != null)
             _creationTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
       }
-      /// <summary>
-      /// Aggiunge un elenco di dati di training
-      /// </summary>
-      /// <param name="data">Dati da aggiungere</param>
-      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      /*public void AddTrainingData(IDataView data, bool checkForDuplicates = false)
-      {
-         // Verifica esistenza dati di training
-         if (TrainingData != null)
-            throw new InvalidOperationException("The object doesn't have training data characteristics");
-         if (checkForDuplicates) {
-         }
-
-
-         var sb = new StringBuilder();
-         var hash = new HashSet<int>();
-         var formatter = new DataStorageTextMemory();
-         // Genera le hash per ciascuna riga del sorgente se e' abilitato il controllo dei duplicati 
-         if (checkForDuplicates) {
-            void AddHashes(IMultiStreamSource source)
-            {
-               if (source == null)
-                  return;
-               for (var i = 0; i < source.Count; i++) {
-                  using var reader = source.OpenTextReader(i);
-                  for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
-                     formatter.TextData = line;
-                     formatter.SaveData(this, formatter.LoadData(this));
-                     hash.Add(formatter.TextData.GetHashCode());
-                  }
-               }
-            }
-            AddHashes(DataStorage as IMultiStreamSource);
-            AddHashes(TrainingData as IMultiStreamSource);
-         }
-         // Aggiunge i dati di training preesistenti
-         for (var i = 0; i < trainingDataSource.Count; i++) {
-            using var reader = trainingDataSource.OpenTextReader(i);
-            for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
-               if (checkForDuplicates) {
-                  formatter.TextData = line;
-                  formatter.SaveData(this, formatter.LoadData(this));
-                  if (!hash.Contains(formatter.TextData.GetHashCode())) {
-                     hash.Add(formatter.TextData.GetHashCode());
-                     sb.AppendLine(line);
-                  }
-               }
-               else
-                  sb.AppendLine(line);
-            }
-         }
-         // Aggiunge le linee di training
-         using var dataReader = new StringReader(data);
-         for (var line = dataReader.ReadLine(); line != null; line = dataReader.ReadLine()) {
-            if (checkForDuplicates) {
-               formatter.TextData = line;
-               formatter.SaveData(this, formatter.LoadData(this));
-               if (!hash.Contains(formatter.TextData.GetHashCode())) {
-                  hash.Add(formatter.TextData.GetHashCode());
-                  sb.AppendLine(line);
-               }
-            }
-            else
-               sb.AppendLine(line);
-         }
-         // Aggiorna i dati di training
-         if (sb.Length > 0) {
-            // Annulla il training
-            ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-            // Formatta in testo e salva
-            formatter.TextData = sb.ToString();
-            trainingData.SaveData(this, formatter.LoadData(this));
-            OnTrainingDataChanged(EventArgs.Empty);
-         }
-      }
-      */
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
@@ -363,6 +301,25 @@ namespace MachineLearning.Model
          }
       }
       /// <summary>
+      /// Effettua la validazione incrociata del modello
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="pipe">La pipe</param>
+      /// <param name="metrics">La metrica del modello migliore</param>
+      /// <param name="numberOfFolds">Numero di validazioni</param>
+      /// <param name="labelColumnName">Nome colonna contenente la label</param>
+      /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
+      /// <param name="seed">Seme per le operazioni random</param>
+      /// <returns>Il modello migliore</returns>
+      protected abstract ITransformer CrossValidate(
+         IDataView data,
+         IEstimator<ITransformer> pipe,
+         out object metrics,
+         int numberOfFolds = 5,
+         string labelColumnName = "Label",
+         string samplingKeyColumnName = null,
+         int? seed = null);
+      /// <summary>
       /// Formatta una riga di dati di input da un elenco di dati di input
       /// </summary>
       /// <param name="data"></param>
@@ -505,19 +462,54 @@ namespace MachineLearning.Model
       /// Restituisce il modello effettuando il training
       /// </summary>
       /// <param name="dataView">Datidi training</param>
+      /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      protected virtual ITransformer GetTrainedModel(IDataView dataView, CancellationToken cancellation)
+      protected ITransformer GetTrainedModel(IDataView dataView, out object evaluationMetrics, CancellationToken cancellation)
       {
-         // Ottiene la pipe
-         var pipe = GetPipe();
-         cancellation.ThrowIfCancellationRequested();
-         if (pipe == null)
-            return null;
-         // Riempe la pipe
-         var result = pipe.Fit(dataView);
-         cancellation.ThrowIfCancellationRequested();
-         return result;
+         // Verifica se e' un modello che prevede in retraining continuo
+         evaluationMetrics = null;
+         if (this is IModelRetrainable) {
+            // Ottiene la pipe di training
+            var pipe = GetPipe();
+            cancellation.ThrowIfCancellationRequested();
+            if (pipe == null)
+               return null;
+            // Training con selezione del tipo di validazione
+            if (ValidationLevel < 1) {
+               var result = pipe.Fit(dataView);
+               cancellation.ThrowIfCancellationRequested();
+               return result;
+            }
+            else if (ValidationLevel == 1 || this is not ICrossValidatable crossValidatable) {
+               var data = ML.NET.Data.ShuffleRows(dataView, _trainSeed++);
+               cancellation.ThrowIfCancellationRequested();
+               var result = pipe.Fit(data);
+               cancellation.ThrowIfCancellationRequested();
+               return result;
+            }
+            else {
+               var result = CrossValidate(dataView, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
+               cancellation.ThrowIfCancellationRequested();
+               return result;
+            }
+         }
+         // Modello con training semplice
+         else {
+            // Ottiene la pipe
+            var pipe = GetPipe();
+            cancellation.ThrowIfCancellationRequested();
+            if (pipe == null)
+               return null;
+            // Riempe la pipe
+            ITransformer result;
+            if (ValidationLevel > 1 && this is ICrossValidatable crossValidatable)
+               result = CrossValidate(dataView, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
+            else
+               result = pipe.Fit(dataView);
+            cancellation.ThrowIfCancellationRequested();
+            return result;
+         }
       }
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
@@ -664,6 +656,8 @@ namespace MachineLearning.Model
          // Task di salvataggio modello
          var taskSaveModel = Task.CompletedTask;
          try {
+            // Azzera contatore di train
+            _trainsCount = 0;
             // Segnala lo start del training
             cancel.ThrowIfCancellationRequested();
             OnTrainingStarted(EventArgs.Empty);
@@ -712,13 +706,9 @@ namespace MachineLearning.Model
                         ML.NET.WriteLog("Committing the new data", Name);
                         await Task.Run(() => CommitTrainingData(), cancel);
                      }
-                     // Valuta il modello attuale
+                     // Azzera il contatore di retraining
                      cancel.ThrowIfCancellationRequested();
-                     eval2 = model == null ? null : await Task.Run(() => GetModelEvaluation(model, data), cancel);
-                     // Verifica se deve ricalcolare il modello
-                     if (GetBestModelEvaluation(eval1, eval2) != eval2)
-                        return;
-                     eval1 = eval2;
+                     _trainsCount = 0;
                   }
                   // Ricarica i dati
                   else {
@@ -743,9 +733,21 @@ namespace MachineLearning.Model
                   }
                   // Timestamp attuale
                   timestamp = DateTime.UtcNow;
-                  // Effettua il training
                   cancel.ThrowIfCancellationRequested();
-                  var taskTrain = Task.Run(() => GetTrainedModel(data, cancel));
+                  // Verifica se non e' necessario un altro training
+                  if (this is IModelRetrainable retrainable) {
+                     if (EvaluationAvailable.WaitOne(0)) {
+                        if (_trainsCount >= retrainable.MaxTrains || ValidationLevel < 1)
+                           return;
+                     }
+                  }
+                  else if (ValidationLevel < 1 && EvaluationAvailable.WaitOne(0))
+                     return;
+                  // Effettua la valutazione del modello corrente
+                  var currentModel = model;
+                  var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
+                  // Effettua il training
+                  var taskTrain = Task.Run(() => GetTrainedModel(data, out eval2, cancel));
                   // Messaggio di training ritardato
                   cancel.ThrowIfCancellationRequested();
                   var taskTrainingMessage = Task.Run(async () =>
@@ -760,9 +762,13 @@ namespace MachineLearning.Model
                   cancel.ThrowIfCancellationRequested();
                   if ((model = await taskTrain) == default)
                      return;
+                  // Incrementa contatore di traning
+                  _trainsCount++;
                   // Attende output log
                   await taskTrainingMessage;
-                  eval2 = await Task.Run(() => GetModelEvaluation(model, data));
+                  eval2 ??= await Task.Run(() => GetModelEvaluation(model, data));
+                  // Attende la valutazione del primo modello
+                  eval1 = await taskEvaluate1;
                   // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
                   if (GetBestModelEvaluation(eval1, eval2) == eval2 || Evaluation?.Model == default) {
                      // Emette il log
@@ -782,6 +788,8 @@ namespace MachineLearning.Model
                      // Aggiorna la valutazione
                      cancel.ThrowIfCancellationRequested();
                      SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = Evaluation.InputSchema, Timestamp = timestamp });
+                     // Azzera coontatore retraining
+                     _trainsCount = 0;
                   }
                }
                catch (OperationCanceledException) { throw; }

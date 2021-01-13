@@ -16,8 +16,10 @@ namespace MachineLearning
    /// </summary>
    [Serializable]
    public sealed partial class TextMeaningRecognizer :
-      MulticlassModelRetrainableBase,
+      MulticlassModelBase,
+      ICrossValidatable,
       IDataStorageProvider,
+      IModelRetrainable,
       IModelStorageProvider,
       ITextLoaderOptionsProvider,
       ITrainingDataProvider
@@ -38,6 +40,14 @@ namespace MachineLearning
       /// Storage dei dati
       /// </summary>
       public IDataStorage DataStorage { get; set; }
+      /// <summary>
+      /// Nome colonna label
+      /// </summary>
+      string ICrossValidatable.LabelColumnName => _labelColumnName;
+      /// <summary>
+      /// Numero massimo di tentativi di training del modello
+      /// </summary>
+      public int MaxTrains { get; set; }
       /// <summary>
       /// Storage del modello
       /// </summary>

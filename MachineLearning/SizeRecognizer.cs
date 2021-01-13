@@ -15,8 +15,10 @@ namespace MachineLearning
    /// Classe per la previsione delle taglie
    /// </summary>
    public sealed partial class SizeRecognizer :
-      RetrainableRegressionModelBase,
+      RegressionModelBase,
+      ICrossValidatable,
       IDataStorageProvider,
+      IModelRetrainable,
       IModelStorageProvider,
       ITextLoaderOptionsProvider,
       ITrainingDataProvider
@@ -37,6 +39,14 @@ namespace MachineLearning
       /// Storage dei dati
       /// </summary>
       public IDataStorage DataStorage { get; set; }
+      /// <summary>
+      /// Nome colonna label
+      /// </summary>
+      string ICrossValidatable.LabelColumnName => _labelColumnName;
+      /// <summary>
+      /// Numero massimo di tentativi di training del modello
+      /// </summary>
+      public int MaxTrains { get; set; }
       /// <summary>
       /// Storage del modello
       /// </summary>

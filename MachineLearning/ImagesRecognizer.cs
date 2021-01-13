@@ -17,8 +17,10 @@ namespace MachineLearning
    /// </summary>
    [Serializable]
    public sealed partial class ImagesRecognizer :
-      MulticlassModelRetrainableBase,
+      MulticlassModelBase,
+      ICrossValidatable,
       IDataStorageProvider,
+      IModelRetrainable,
       IModelStorageProvider,
       ITextLoaderOptionsProvider
    {
@@ -27,10 +29,6 @@ namespace MachineLearning
       /// Nome colonna path immagine
       /// </summary>
       private const string _imagePathColumnName = "ImagePath";
-      /// <summary>
-      /// Nome colonna label
-      /// </summary>
-      private const string _labelColumnName = "Label";
       /// <summary>
       /// Pipe di training
       /// </summary>
@@ -51,6 +49,14 @@ namespace MachineLearning
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
+      /// Nome colonna label
+      /// </summary>
+      string ICrossValidatable.LabelColumnName => "Label";
+      /// <summary>
+      /// Numero massimo di tentativi di training del modello
+      /// </summary>
+      public int MaxTrains { get; set; }
+      /// <summary>
       /// Storage del modello
       /// </summary>
       public IModelStorage ModelStorage { get; set; }
@@ -67,7 +73,7 @@ namespace MachineLearning
                Separators = new[] { ',' },
                Columns = new[]
                {
-                  new TextLoader.Column(_labelColumnName, DataKind.String, 0),
+                  new TextLoader.Column(((ICrossValidatable)this).LabelColumnName, DataKind.String, 0),
                   new TextLoader.Column(_imagePathColumnName, DataKind.String, 1),
                   new TextLoader.Column(_timestampColumnName, DataKind.DateTime, 2),
                }
@@ -98,7 +104,7 @@ namespace MachineLearning
       {
          // Pipe di training
          return _pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", _labelColumnName).
+            ML.NET.Transforms.Conversion.MapValueToKey("Label", ((ICrossValidatable)this).LabelColumnName).
             Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, _imagePathColumnName)).
             Append(Trainers.ImageClassification()).
             Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
@@ -139,7 +145,7 @@ namespace MachineLearning
                        select line;
             var dataGrid = DataViewGrid.Create(this, ML.NET.Data.CreateTextLoader(TextLoaderOptions).GetOutputSchema());
             foreach (var line in data) {
-               dataGrid.Add((_labelColumnName, line.Label), (_imagePathColumnName, line.ImagePath), (_timestampColumnName, line.Timestamp));
+               dataGrid.Add((((ICrossValidatable)this).LabelColumnName, line.Label), (_imagePathColumnName, line.ImagePath), (_timestampColumnName, line.Timestamp));
                cancellation.ThrowIfCancellationRequested();
             }
             return dataGrid;
