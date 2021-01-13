@@ -1,5 +1,6 @@
 ﻿using MachineLearning;
 using MachineLearning.Data;
+using MachineLearning.Model;
 using Microsoft.ML;
 using Microsoft.ML.Runtime;
 using System;

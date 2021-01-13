@@ -3,7 +3,7 @@ using Microsoft.ML.Data;
 using System;
 using System.Threading;
 
-namespace MachineLearning
+namespace MachineLearning.Model
 {
    /// <summary>
    /// Modello a regressione con retrain

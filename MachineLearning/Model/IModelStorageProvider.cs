@@ -1,4 +1,4 @@
-﻿namespace MachineLearning
+﻿namespace MachineLearning.Model
 {
    /// <summary>
    /// Interfaccia per i provider di storage di modelli

@@ -4,7 +4,7 @@ using Microsoft.ML.Data;
 using System;
 using System.Text;
 
-namespace MachineLearning
+namespace MachineLearning.Model
 {
    /// <summary>
    /// Classe base per i previsori a regressione

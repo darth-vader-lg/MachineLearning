@@ -12,7 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace MachineLearning
+namespace MachineLearning.Model
 {
    /// <summary>
    /// Classe base per i predittori

@@ -3,7 +3,7 @@ using Microsoft.ML;
 using System;
 using System.IO;
 
-namespace MachineLearning
+namespace MachineLearning.Model
 {
    /// <summary>
    /// Gestore su file dello storage dei modelli
