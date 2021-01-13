@@ -9,6 +9,7 @@ namespace MachineLearning.Model
    /// <summary>
    /// Classe base per i previsori a regressione
    /// </summary>
+   [Serializable]
    public abstract class RegressionModelBase : ModelBase
    {
       #region Properties

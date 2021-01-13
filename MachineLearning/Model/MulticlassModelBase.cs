@@ -9,6 +9,7 @@ namespace MachineLearning.Model
    /// <summary>
    /// Classe base per i previsori di tipo multiclasse
    /// </summary>
+   [Serializable]
    public abstract class MulticlassModelBase : ModelBase
    {
       #region Properties
