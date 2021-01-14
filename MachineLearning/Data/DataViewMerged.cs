@@ -29,17 +29,18 @@ namespace MachineLearning.Data
    ///
    /// An MergedDataView instance is shuffleable iff all of its sources are shuffleable and their row counts are known.
    /// </summary>
-   internal sealed class DataViewMerged : IDataView
+   internal sealed class DataViewMerged : IDataAccess
    {
       public const string RegistrationName = nameof(DataViewMerged);
 
-      private readonly IDataView[] _sources;
+      private readonly IDataAccess[] _sources;
       private readonly int[] _counts;
-      private readonly IHost _host;
 
       public bool CanShuffle { get; }
 
       public DataViewSchema Schema { get; }
+
+      public MachineLearningContext ML { get; private set; }
 
       // REVIEW: MergedDataView now only checks schema consistency up to column names and types.
       // A future task will be to ensure that the sources are consistent on the metadata level.
@@ -54,9 +55,9 @@ namespace MachineLearning.Data
       /// <param name="schema">The schema for the result. If this is null, the first source's schema will be used.</param>
       /// <param name="sources">The sources to be appended.</param>
       /// <returns>The resulting IDataView.</returns>
-      public static IDataView Create(IMachineLearningContextProvider context, DataViewSchema schema, params IDataView[] sources)
+      public static IDataAccess Create(IMachineLearningContextProvider context, DataViewSchema schema, params IDataAccess[] sources)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(sources, nameof(sources));
          context.ML.NET.CheckNonEmpty(sources, nameof(sources), "There must be at least one source.");
          context.ML.NET.CheckParam(sources.All(s => s != null), nameof(sources));
@@ -66,14 +67,14 @@ namespace MachineLearning.Data
          return new DataViewMerged(context, schema, sources);
       }
 
-      private DataViewMerged(IMachineLearningContextProvider context, DataViewSchema schema, IDataView[] sources)
+      private DataViewMerged(IMachineLearningContextProvider context, DataViewSchema schema, IDataAccess[] sources)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
-         _host = (context.ML.NET as IHostEnvironment).Register(RegistrationName);
+         MachineLearningContext.AssertMLNET(context, nameof(context));
+         ML = context.ML;
 
-         _host.AssertValueOrNull(schema);
-         _host.AssertValue(sources);
-         _host.Assert(sources.Length >= 2);
+         ML.NET.AssertValueOrNull(schema);
+         ML.NET.AssertValue(sources);
+         ML.NET.Assert(sources.Length >= 2);
 
          _sources = sources;
          Schema = schema ?? _sources[0].Schema;
@@ -83,7 +84,7 @@ namespace MachineLearning.Data
          CanShuffle = true;
          _counts = new int[_sources.Length];
          for (int i = 0; i < _sources.Length; i++) {
-            IDataView dv = _sources[i];
+            IDataAccess dv = _sources[i];
             if (!dv.CanShuffle) {
                CanShuffle = false;
                _counts = null;
@@ -108,7 +109,7 @@ namespace MachineLearning.Data
          int colCount = Schema.Count;
 
          // Check if the column counts are identical.
-         _host.Check(_sources.All(source => source.Schema.Count == colCount), errMsg);
+         ML.NET.Check(_sources.All(source => source.Schema.Count == colCount), errMsg);
 
          for (int c = 0; c < colCount; c++) {
             string name = Schema[c].Name;
@@ -116,8 +117,8 @@ namespace MachineLearning.Data
 
             for (int i = startingSchemaIndex; i < _sources.Length; i++) {
                var schema = _sources[i].Schema;
-               _host.Check(schema[c].Name == name, errMsg);
-               _host.Check(schema[c].Type.SameSizeAndItemType(type), errMsg);
+               ML.NET.Check(schema[c].Name == name, errMsg);
+               ML.NET.Check(schema[c].Type.SameSizeAndItemType(type), errMsg);
             }
          }
       }
@@ -129,7 +130,7 @@ namespace MachineLearning.Data
             var cur = source.GetRowCount();
             if (cur == null)
                return null;
-            _host.Check(cur.Value >= 0, "One of the sources returned a negative row count");
+            ML.NET.Check(cur.Value >= 0, "One of the sources returned a negative row count");
 
             // In the case of overflow, the count is considered unknown.
             if (sum + cur.Value < sum)
@@ -155,7 +156,7 @@ namespace MachineLearning.Data
       {
          private static readonly MethodInfo _createTypedGetterMethodInfo = typeof(CursorBase).GetMethod(nameof(CreateTypedGetter), BindingFlags.Instance | BindingFlags.NonPublic);
 
-         protected readonly IDataView[] Sources;
+         protected readonly IDataAccess[] Sources;
          protected readonly Delegate[] Getters;
 
          public override long Batch => 0;
@@ -163,7 +164,7 @@ namespace MachineLearning.Data
          public sealed override DataViewSchema Schema { get; }
 
          public CursorBase(DataViewMerged parent)
-             : base(parent._host)
+             : base(parent.ML.NET)
          {
             Sources = parent._sources;
             Ch.AssertNonEmpty(Sources);

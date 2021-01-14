@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Runtime;
 using System;
 
 namespace MachineLearning
@@ -36,6 +37,28 @@ namespace MachineLearning
       /// </summary>
       /// <param name="seed">Seme per le operazioni random</param>
       public MachineLearningContext(int? seed = null) => this.seed = seed;
+      /// <summary>
+      /// Verifica che un provider di contesto sia valido per l'ML.NET
+      /// </summary>
+      /// <param name="provider">Il provider</param>
+      /// <param name="name">Nome del parametro</param>
+      public static void AssertMLNET(IMachineLearningContextProvider provider, string name)
+      {
+         Contracts.AssertValue(provider, name);
+         Contracts.AssertValue(provider.ML, $"{name}.{nameof(IMachineLearningContextProvider.ML)}");
+         Contracts.AssertValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContextProvider.ML.NET)}");
+      }
+      /// <summary>
+      /// Verifica che un provider di contesto sia valido per l'ML.NET
+      /// </summary>
+      /// <param name="provider">Il provider</param>
+      /// <param name="name">Nome del parametro</param>
+      public static void CheckMLNET(IMachineLearningContextProvider provider, string name)
+      {
+         Contracts.CheckValue(provider, name);
+         Contracts.CheckValue(provider.ML, $"{name}.{nameof(IMachineLearningContextProvider.ML)}");
+         Contracts.CheckValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContextProvider.ML.NET)}");
+      }
       #endregion
    }
 }

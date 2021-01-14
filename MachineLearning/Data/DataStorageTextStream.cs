@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Runtime;
 using System;
 using System.IO;
 
@@ -45,10 +46,10 @@ namespace MachineLearning.Data
       /// <param name="data">L'accesso ai dati</param>
       public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          var timestamp = DateTime.UtcNow;
          var stream = WriteStream?.Invoke();
-         if (stream == null)
-            throw new InvalidOperationException("Cannot write to the stream");
+         context.ML.NET.CheckIO(stream != null, "Cannot write to the stream");
          lock (this) {
             SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
             DataTimestamp = timestamp;

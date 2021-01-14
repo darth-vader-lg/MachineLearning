@@ -13,13 +13,9 @@ namespace MachineLearning.Data
    /// <summary>
    /// Griglia di dati
    /// </summary>
-   public partial class DataViewGrid : IDataView, IEnumerable<DataViewValuesRow>
+   public partial class DataViewGrid : IDataAccess, IEnumerable<DataViewValuesRow>
    {
       #region Fields
-      /// <summary>
-      /// Contesto
-      /// </summary>
-      private readonly IMachineLearningContextProvider _context;
       /// <summary>
       /// Method info per l'ottenimento del getter
       /// </summary>
@@ -38,6 +34,10 @@ namespace MachineLearning.Data
       /// Colonne della tabella
       /// </summary>
       public ReadOnlyCollection<Col> Cols { get; private set; }
+      /// <summary>
+      /// Contesto di machine learning
+      /// </summary>
+      public MachineLearningContext ML { get; private set; }
       /// <summary>
       /// Righe della tabella
       /// </summary>
@@ -70,25 +70,25 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="schema">Lo schema della vista di dati</param>
-      /// <param name="dataView">Vista di dati</param>
-      private DataViewGrid(IMachineLearningContextProvider context, DataViewSchema schema, IDataView dataView)
+      /// <param name="data">Vista di dati</param>
+      private DataViewGrid(IMachineLearningContextProvider context, DataViewSchema schema, IDataAccess data)
       {
          // Check
-         Contracts.AssertValue(context?.ML?.NET, nameof(context));
-         ((_context = context).ML.NET as IHostEnvironment).Register(GetType().Name);
-         _context.ML.NET.Assert(schema != null || dataView != null, $"The parameter {nameof(schema)} or the parameter {nameof(dataView)} must be specified");
-         if (schema != null && dataView != null) {
-            _context.ML.NET.Assert(
-               schema.Zip(dataView.Schema).All(item => item.First.Type.SameSizeAndItemType(item.Second.Type)),
-               $"The {nameof(schema)} and the {nameof(dataView)}.{nameof(dataView.Schema)} are different");
+         MachineLearningContext.AssertMLNET(context, nameof(context));
+         ML = context.ML;
+         ML.NET.Assert(schema != null || data != null, $"The parameter {nameof(schema)} or the parameter {nameof(data)} must be specified");
+         if (schema != null && data != null) {
+            ML.NET.Assert(
+               schema.Zip(data.Schema).All(item => item.First.Type.SameSizeAndItemType(item.Second.Type)),
+               $"The {nameof(schema)} and the {nameof(data)}.{nameof(data.Schema)} are different");
          }
          // Memorizza lo schema
-         Schema = dataView?.Schema ?? schema;
+         Schema = data?.Schema ?? schema;
          // Numero di colonne
          var n = Schema.Count;
          // Crea la lista di righe
          _rows = new List<DataViewValuesRow>();
-         if (dataView != null) {
+         if (data != null) {
             // Creatore dei getter di valori riga
             var getter = new Func<DataViewRowCursor, int, object>[n];
             for (var i = 0; i < n; i++) {
@@ -96,7 +96,7 @@ namespace MachineLearning.Data
                getter[i] = new Func<DataViewRowCursor, int, object>((cursor, col) => getterGenericMethodInfo.Invoke(null, new object[] { cursor, col }));
             }
             // Ottiene il cursore per la data view di input e itera su tutte le righe
-            var cursor = dataView.GetRowCursor(Schema);
+            var cursor = data.GetRowCursor(Schema);
             while (cursor.MoveNext()) {
                // Valori
                var objects = new object[n];
@@ -122,13 +122,13 @@ namespace MachineLearning.Data
       /// <param name="values">Valori</param>
       public void Add(params object[] values)
       {
-         _context.ML.NET.AssertNonEmpty(values);
-         _context.ML.NET.Assert(values.Length == Schema.Count, $"The length of {nameof(values)} must be equal to the length of schema");
+         ML.NET.AssertNonEmpty(values);
+         ML.NET.Assert(values.Length == Schema.Count, $"The length of {nameof(values)} must be equal to the length of schema");
          for (var i = 0; i < values.Length; i++) {
-            _context.ML.NET.Assert(DataViewValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
+            ML.NET.Assert(DataViewValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
             values[i] = DataViewValue.Convert(values[i], Schema[i].Type.RawType);
          }
-         _rows.Add(DataViewValuesRow.Create(_context, Schema, _rows.Count, default, values, Enumerable.Range(0, values.Length).Select(i => true).ToArray()));
+         _rows.Add(DataViewValuesRow.Create(this, Schema, _rows.Count, default, values, Enumerable.Range(0, values.Length).Select(i => true).ToArray()));
       }
       /// <summary>
       /// Aggiunge una riga alla griglia di dati
@@ -141,12 +141,12 @@ namespace MachineLearning.Data
       /// <param name="values">Valori</param>
       public void Add(params (string Name, object Value)[] values)
       {
-         _context.ML.NET.CheckNonEmpty(values, nameof(values));
+         ML.NET.CheckNonEmpty(values, nameof(values));
          var orderedValues = new object[Schema.Count];
          for (var i = 0; i < orderedValues.Length; i++) {
-            _context.ML.NET.CheckNonEmpty(values[i].Name, $"{nameof(values)}[{i}]", "The name cannot be null");
+            ML.NET.CheckNonEmpty(values[i].Name, $"{nameof(values)}[{i}]", "The name cannot be null");
             var col = Schema.FirstOrDefault(c => c.Name == values[i].Name);
-            _context.ML.NET.CheckNonEmpty(col.Name, $"{nameof(values)}[{i}]", $"The schema doesn't contain the column {values[i].Name}");
+            ML.NET.CheckNonEmpty(col.Name, $"{nameof(values)}[{i}]", $"The schema doesn't contain the column {values[i].Name}");
             orderedValues[i] = values[i].Value;
          }
          Add(orderedValues);
@@ -154,14 +154,13 @@ namespace MachineLearning.Data
       /// <summary>
       /// Crea una griglia di dati a partire da una vista di dati
       /// </summary>
-      /// <param name="context">Contesto</param>
-      /// <param name="dataView">Vista di dati</param>
+      /// <param name="data">Vista di dati</param>
       /// <returns>La griglia di dati</returns>
-      public static DataViewGrid Create(IMachineLearningContextProvider context, IDataView dataView)
+      public static DataViewGrid Create(IDataAccess data)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
-         context.ML.NET.CheckValue(dataView, nameof(dataView));
-         return new DataViewGrid(context, null, dataView);
+         MachineLearningContext.CheckMLNET(data, nameof(data));
+         data.ML.NET.CheckValue(data, nameof(data));
+         return new DataViewGrid(data, null, data);
       }
       /// <summary>
       /// Crea una griglia di dati a partire da uno schema
@@ -171,7 +170,7 @@ namespace MachineLearning.Data
       /// <returns>La griglia di dati</returns>
       public static DataViewGrid Create(IMachineLearningContextProvider context, DataViewSchema schema)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(schema, nameof(schema));
          return new DataViewGrid(context, schema, null);
       }
@@ -206,14 +205,14 @@ namespace MachineLearning.Data
       /// <param name="columnsNeeded">Colonne richieste</param>
       /// <param name="rand">Randomizzatore</param>
       /// <returns>Il cursore di linea</returns>
-      DataViewRowCursor IDataView.GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand) => new Cursor(this);
+      public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand) => new Cursor(this);
       /// <summary>
       /// Restituisce un set di cursori
       /// </summary>
       /// <param name="columnsNeeded">Colonne richieste</param>
       /// <param name="rand">Randomizzatore</param>
       /// <returns>Il cursore di linea</returns>
-      DataViewRowCursor[] IDataView.GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand) => new[] { (this as IDataView).GetRowCursor(columnsNeeded, rand) };
+      public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand) => new[] { (this as IDataAccess).GetRowCursor(columnsNeeded, rand) };
       /// <summary>
       /// Enumeratore di righe
       /// </summary>
@@ -267,7 +266,7 @@ namespace MachineLearning.Data
          public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
          {
             if (!typeof(TValue).IsAssignableFrom(column.Type.RawType))
-               throw _owner._context.ML.NET.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
+               throw _owner.ML.NET.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
             return (ref TValue value) => value = (TValue)_owner.Rows[(int)Position].Values[column.Index].Value;
          }
          /// <summary>

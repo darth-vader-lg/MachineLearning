@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Runtime;
 using System;
 using System.IO;
 
@@ -48,9 +49,9 @@ namespace MachineLearning.Data
       /// <param name="data">L'accesso ai dati</param>
       public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          using var stream = File.Create(FilePath);
-         if (stream == null)
-            throw new IOException($"Cannot write to file {FilePath}");
+         context.ML.NET.CheckIO(stream != null, $"Cannot write to file {FilePath}");
          SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
       }
       #endregion

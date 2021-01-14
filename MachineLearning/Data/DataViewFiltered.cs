@@ -9,67 +9,64 @@ namespace MachineLearning.Data
    /// <summary>
    /// Vista di dati filtrata
    /// </summary>
-   public sealed partial class DataViewFiltered : IDataView, IDataViewRowFilter
+   public sealed partial class DataViewFiltered : IDataAccess, IDataViewRowFilter
    {
       #region Fields
       /// <summary>
       /// Data view sorgente
       /// </summary>
-      private readonly IDataView _dataView;
+      private readonly IDataAccess _data;
       /// <summary>
       /// Filtro di righe
       /// </summary>
       private readonly DataViewRowFilter _filter;
-      /// <summary>
-      /// Host
-      /// </summary>
-      private readonly IHost _host;
       #endregion
       #region Properties
       /// <summary>
       /// Indica se la dataview ha la capacita' di shuffling
       /// </summary>
-      public bool CanShuffle => _dataView.CanShuffle;
+      public bool CanShuffle => _data.CanShuffle;
+      /// <summary>
+      /// Contesto di machine learning
+      /// </summary>
+      public MachineLearningContext ML => _data.ML;
       /// <summary>
       /// Lo schema della dataview
       /// </summary>
-      public DataViewSchema Schema => _dataView.Schema;
+      public DataViewSchema Schema => _data.Schema;
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="context">Contesto di machine earning</param>
-      /// <param name="dataView">La sorgente di dati</param>
+      /// <param name="data">La sorgente di dati</param>
       /// <param name="filter">Eventuale filtro di riga esterno</param>
-      private DataViewFiltered(IMachineLearningContextProvider context, IDataView dataView, DataViewRowFilter filter = null)
+      private DataViewFiltered(IDataAccess data, DataViewRowFilter filter = null)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
-         _host = (context.ML.NET as IHostEnvironment).Register(nameof(DataViewFiltered));
-         _host.AssertValue(dataView, nameof(dataView));
-         _host.AssertValueOrNull(filter);
-         _dataView = dataView;
+         MachineLearningContext.AssertMLNET(data, nameof(data));
+         data.ML.NET.AssertValue(data, nameof(data));
+         data.ML.NET.AssertValueOrNull(filter);
+         _data = data;
          _filter = filter ?? (column => true);
       }
       /// <summary>
       /// Crea una vista di dati filtrata
       /// </summary>
-      /// <param name="context"></param>
-      /// <param name="dataView"></param>
+      /// <param name="data"></param>
       /// <param name="filter"></param>
       /// <returns>La vista di dati filtrata</returns>
-      public static DataViewFiltered Create(IMachineLearningContextProvider context, IDataView dataView, DataViewRowFilter filter = null)
+      public static DataViewFiltered Create(IDataAccess data, DataViewRowFilter filter = null)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
-         context.ML.NET.CheckValue(dataView, nameof(dataView));
-         context.ML.NET.CheckValueOrNull(filter);
-         return new DataViewFiltered(context, dataView, filter);
+         MachineLearningContext.CheckMLNET(data, nameof(data));
+         data.ML.NET.CheckValue(data, nameof(data));
+         data.ML.NET.CheckValueOrNull(filter);
+         return new DataViewFiltered(data, filter);
       }
       /// <summary>
       /// Numero di righe
       /// </summary>
       /// <returns>Il numero di righe</returns>
-      public long? GetRowCount() => _dataView.GetRowCount();
+      public long? GetRowCount() => _data.GetRowCount();
       /// <summary>
       /// Restituisce un cursore
       /// </summary>
@@ -135,7 +132,7 @@ namespace MachineLearning.Data
          public RowCursor(DataViewFiltered owner, IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand = null)
          {
             _owner = owner;
-            _cursor = _owner._dataView.GetRowCursor(columnsNeeded, rand);
+            _cursor = _owner._data.GetRowCursor(columnsNeeded, rand);
          }
          /// <summary>
          /// Restituzione del Getter

@@ -281,7 +281,7 @@ namespace MachineLearning.Model
          var tmpFileName = Path.GetTempFileName();
          try {
             // Dati di storage e di training concatenati
-            var mergedData = dataStorage.LoadData(this).Merge(this, trainingData.LoadData(this));
+            var mergedData = dataStorage.LoadData(this).Merge(trainingData.LoadData(this));
             // Salva in un file temporaneo il merge
             var tmpStorage = new DataStorageBinaryFile(tmpFileName) { KeepHidden = true };
             tmpStorage.SaveData(this, mergedData);
@@ -312,7 +312,7 @@ namespace MachineLearning.Model
       /// <param name="seed">Seme per le operazioni random</param>
       /// <returns>Il modello migliore</returns>
       protected abstract ITransformer CrossValidate(
-         IDataView data,
+         IDataAccess data,
          IEstimator<ITransformer> pipe,
          out object metrics,
          int numberOfFolds = 5,
@@ -388,7 +388,7 @@ namespace MachineLearning.Model
       /// <param name="data">Dati attuali caricati</param>
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected virtual object GetModelEvaluation(ITransformer model, IDataView data) => null;
+      protected virtual object GetModelEvaluation(ITransformer model, IDataAccess data) => null;
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -406,20 +406,20 @@ namespace MachineLearning.Model
       /// <param name="data">Elenco di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public IDataView GetPredictionData(params string[] data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      public IDataAccess GetPredictionData(params string[] data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Elenco di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public IDataView GetPredictionData(IEnumerable<string> data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      public IDataAccess GetPredictionData(IEnumerable<string> data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Dati per la previsione</param>
       /// <returns>La previsione</returns>
-      public IDataView GetPredictionData(string data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      public IDataAccess GetPredictionData(string data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
@@ -427,7 +427,7 @@ namespace MachineLearning.Model
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<IDataView> GetPredictionDataAsync(IEnumerable<string> data, CancellationToken cancellation = default) => GetPredictionDataAsync(FormatDataRow(data.ToArray()), cancellation);
+      public Task<IDataAccess> GetPredictionDataAsync(IEnumerable<string> data, CancellationToken cancellation = default) => GetPredictionDataAsync(FormatDataRow(data.ToArray()), cancellation);
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
@@ -435,37 +435,37 @@ namespace MachineLearning.Model
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task di predizione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<IDataView> GetPredictionDataAsync(CancellationToken cancellation = default, params string[] data) => GetPredictionDataAsync(FormatDataRow(data), cancellation);
+      public Task<IDataAccess> GetPredictionDataAsync(CancellationToken cancellation = default, params string[] data) => GetPredictionDataAsync(FormatDataRow(data), cancellation);
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
       /// <param name="data">Dati per la previsione</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      public async Task<IDataView> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
+      public async Task<IDataAccess> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
       {
          // Avvia il task di training se necessario
          if (((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp || ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp)
             _ = StartTrainingAsync(cancellation);
          // Crea una dataview con i dati di input
-         var dataView = new DataStorageTextMemory() { TextData = data }.LoadData(this);
+         var inputData = new DataStorageTextMemory() { TextData = data }.LoadData(this);
          cancellation.ThrowIfCancellationRequested();
          // Attande il modello od un eventuale errore di training
          var evaluator = await GetEvaluatorAsync(cancellation);
          cancellation.ThrowIfCancellationRequested();
          // Effettua la predizione
-         var prediction = evaluator.Model.Transform(dataView);
+         var prediction = new DataAccess(ML, evaluator.Model.Transform(inputData));
          cancellation.ThrowIfCancellationRequested();
          return prediction;
       }
       /// <summary>
       /// Restituisce il modello effettuando il training
       /// </summary>
-      /// <param name="dataView">Datidi training</param>
+      /// <param name="data">Datidi training</param>
       /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      protected ITransformer GetTrainedModel(IDataView dataView, out object evaluationMetrics, CancellationToken cancellation)
+      protected ITransformer GetTrainedModel(IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
       {
          // Verifica se e' un modello che prevede in retraining continuo
          evaluationMetrics = null;
@@ -477,19 +477,19 @@ namespace MachineLearning.Model
                return null;
             // Training con selezione del tipo di validazione
             if (ValidationLevel < 1) {
-               var result = pipe.Fit(dataView);
-               cancellation.ThrowIfCancellationRequested();
-               return result;
-            }
-            else if (ValidationLevel == 1 || this is not ICrossValidatable crossValidatable) {
-               var data = ML.NET.Data.ShuffleRows(dataView, _trainSeed++);
-               cancellation.ThrowIfCancellationRequested();
                var result = pipe.Fit(data);
                cancellation.ThrowIfCancellationRequested();
                return result;
             }
+            else if (ValidationLevel == 1 || this is not ICrossValidatable crossValidatable) {
+               var shuffle = ML.NET.Data.ShuffleRows(data, _trainSeed++);
+               cancellation.ThrowIfCancellationRequested();
+               var result = pipe.Fit(shuffle);
+               cancellation.ThrowIfCancellationRequested();
+               return result;
+            }
             else {
-               var result = CrossValidate(dataView, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
+               var result = CrossValidate(data, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
                cancellation.ThrowIfCancellationRequested();
                return result;
             }
@@ -504,9 +504,9 @@ namespace MachineLearning.Model
             // Riempe la pipe
             ITransformer result;
             if (ValidationLevel > 1 && this is ICrossValidatable crossValidatable)
-               result = CrossValidate(dataView, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
+               result = CrossValidate(data, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
             else
-               result = pipe.Fit(dataView);
+               result = pipe.Fit(data);
             cancellation.ThrowIfCancellationRequested();
             return result;
          }
@@ -641,11 +641,11 @@ namespace MachineLearning.Model
       protected async Task TrainingAsync(CancellationToken cancel)
       {
          // Funzione di caricamento dati di storage e training mergiati
-         IDataView LoadData()
+         IDataAccess LoadData()
          {
             if (DataStorage != null) {
                if (TrainingData != null)
-                  return DataStorage.LoadData(this).Merge(this, TrainingData.LoadData(this));
+                  return DataStorage.LoadData(this).Merge(TrainingData.LoadData(this));
                else
                   return DataStorage.LoadData(this);
             }
@@ -662,7 +662,7 @@ namespace MachineLearning.Model
             cancel.ThrowIfCancellationRequested();
             OnTrainingStarted(EventArgs.Empty);
             // Definizioni
-            var data = default(IDataView);
+            var data = default(IDataAccess);
             var eval1 = default(object);
             var eval2 = default(object);
             var firstRun = true;
@@ -826,7 +826,7 @@ namespace MachineLearning.Model
          /// <summary>
          /// Dati del modello
          /// </summary>
-         public IDataView Data { get; set; }
+         public IDataAccess Data { get; set; }
          /// <summary>
          /// Schema di input
          /// </summary>

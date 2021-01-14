@@ -114,14 +114,14 @@ namespace MachineLearning
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <returns>Il tipo di immagine</returns>
-      public Prediction GetPrediction(string imagePath) => new Prediction(this, GetPredictionData(null, imagePath));
+      public Prediction GetPrediction(string imagePath) => new Prediction(GetPredictionData(null, imagePath));
       /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, imagePath));
+      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) => new Prediction(await GetPredictionDataAsync(cancel, null, imagePath));
       /// <summary>
       /// Ottiene un elenco di dati di training data dalla directory radice delle immagini.
       /// </summary>
@@ -223,8 +223,8 @@ namespace MachineLearning
             if (invalidStorageImages.Count > 0 || invalidTrainingImages.Count == 0) {
                // Crea la vista dati mergiata e filtrata
                var mergedDataView =
-                  DataStorage.LoadData(this).ToDataViewFiltered(this, cursor => !invalidStorageImages.Contains(cursor.Position)).
-                  Merge(this, trainingData.ToDataViewFiltered(this, cursor => !invalidTrainingImages.Contains(cursor.Position)));
+                  DataStorage.LoadData(this).ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).
+                  Merge(trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position)));
                cancellation.ThrowIfCancellationRequested();
                // File temporaneo per il merge
                var tmpFileName = default(string);
@@ -279,11 +279,10 @@ namespace MachineLearning
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="predictor">Previsore</param>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(ImageRecognizer predictor, IDataView data)
+         internal Prediction(IDataAccess data)
          {
-            var grid = data.ToDataViewGrid(predictor);
+            var grid = data.ToDataViewGrid();
             Kind = grid[0]["PredictedLabel"];
             var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();

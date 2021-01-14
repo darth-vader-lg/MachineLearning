@@ -89,7 +89,7 @@ namespace MachineLearning
                data.Add(null);
             data.Add(values[i].ToString(nfi));
          }
-         return new Prediction(this, GetPredictionData(data));
+         return new Prediction(GetPredictionData(data));
       }
       /// <summary>
       /// Restituisce la previsione
@@ -105,7 +105,7 @@ namespace MachineLearning
                data.Add(null);
             data.Add(values[i].ToString(nfi));
          }
-         return new Prediction(this, await GetPredictionDataAsync(data, cancel));
+         return new Prediction(await GetPredictionDataAsync(data, cancel));
       }
       /// <summary>
       /// Restituisce la pipe di training del modello
@@ -187,11 +187,10 @@ namespace MachineLearning
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="predictor">Previsore</param>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(SizeRecognizer predictor, IDataView data)
+         internal Prediction(IDataAccess data)
          {
-            var grid = data.ToDataViewGrid(predictor);
+            var grid = data.ToDataViewGrid();
             Size = grid[0]["Score"];
          }
          #endregion

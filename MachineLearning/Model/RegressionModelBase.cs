@@ -1,4 +1,5 @@
-﻿using MachineLearning.Trainers;
+﻿using MachineLearning.Data;
+using MachineLearning.Trainers;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
@@ -45,7 +46,7 @@ namespace MachineLearning.Model
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
       /// <param name="seed">Seme per le operazioni random</param>
       protected override ITransformer CrossValidate(
-         IDataView data,
+         IDataAccess data,
          IEstimator<ITransformer> pipe,
          out object metrics,
          int numberOfFolds = 5,
@@ -78,7 +79,7 @@ namespace MachineLearning.Model
       /// <param name="data">Dati attuali caricati</param>
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected override object GetModelEvaluation(ITransformer model, IDataView data) => ML.NET.Regression.Evaluate(model.Transform(data));
+      protected override object GetModelEvaluation(ITransformer model, IDataAccess data) => ML.NET.Regression.Evaluate(model.Transform(data));
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>

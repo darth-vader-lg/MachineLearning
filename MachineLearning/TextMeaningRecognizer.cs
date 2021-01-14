@@ -99,13 +99,13 @@ namespace MachineLearning
       /// </summary>
       /// <param name="sentence">Significato da prevedere</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(string sentence) => new Prediction(this, GetPredictionData(null, sentence));
+      public Prediction GetPrediction(string sentence) => new Prediction( GetPredictionData(null, sentence));
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="sentence">Significato da prevedere</param>
       /// <returns>Il task della previsione</returns>
-      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(this, await GetPredictionDataAsync(cancel, null, sentence));
+      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(await GetPredictionDataAsync(cancel, null, sentence));
       /// <summary>
       /// Funzione di inizializzazione
       /// </summary>
@@ -162,11 +162,10 @@ namespace MachineLearning
          /// <summary>
          /// Costruttore
          /// </summary>
-         /// <param name="predictor">Previsore</param>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(TextMeaningRecognizer predictor, IDataView data)
+         internal Prediction(IDataAccess data)
          {
-            var grid = data.ToDataViewGrid(predictor);
+            var grid = data.ToDataViewGrid();
             Meaning = grid[0]["PredictedLabel"];
             var scores = (float[])grid[0]["Score"];
             var slotNames = grid.Schema["Score"].GetSlotNames();

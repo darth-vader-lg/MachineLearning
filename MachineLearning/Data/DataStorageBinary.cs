@@ -21,13 +21,13 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      public virtual IDataView LoadData(IMachineLearningContextProvider context) => LoadBinaryData(context);
+      public virtual IDataAccess LoadData(IMachineLearningContextProvider context) => LoadBinaryData(context);
       /// <summary>
       /// Salva i dati
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public virtual void SaveData(IMachineLearningContextProvider context, IDataView data) { }
+      public abstract void SaveData(IMachineLearningContextProvider context, IDataView data);
       #endregion
    }
 }

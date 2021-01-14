@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System;
 using System.IO;
 using System.Linq;
@@ -52,18 +53,22 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      protected IDataView LoadBinaryData(IMachineLearningContextProvider context) =>
-         (context?.ML?.NET ?? new MLContext()).Data.LoadFromBinary(this);
+      protected IDataAccess LoadBinaryData(IMachineLearningContextProvider context)
+      {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
+         return new DataAccess(context.ML, context.ML.NET.Data.LoadFromBinary(this));
+      }
       /// <summary>
       /// Carica i dati in formato testo
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      protected IDataView LoadTextData(IMachineLearningContextProvider context)
+      protected IDataAccess LoadTextData(IMachineLearningContextProvider context)
       {
-         var ml = context?.ML?.NET ?? new MLContext();
+         MachineLearningContext.CheckMLNET(context, nameof(context));
+         context.ML.NET.CheckParam(context is ITextLoaderOptionsProvider, nameof(context), $"The context is not a {typeof(ITextLoaderOptionsProvider).Name}");
          var opt = (context as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options();
-         return ml.Data.CreateTextLoader(opt).Load(this);
+         return new DataAccess(context.ML, context.ML.NET.Data.CreateTextLoader(opt).Load(this));
       }
       /// <summary>
       /// Salva i dati in formato binario
@@ -104,6 +109,7 @@ namespace MachineLearning.Data
       /// <param name="closeStream">Determina se chiudere lo stream al termine della scrittura</param>
       protected void SaveTextData(IMachineLearningContextProvider context, IDataView data, Stream stream, bool schema = false, bool keepHidden = false, bool forceDense = false, bool closeStream = true)
       {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          lock (this) {
             try {
                // Verifica del writer

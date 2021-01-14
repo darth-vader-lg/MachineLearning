@@ -65,14 +65,13 @@ namespace MachineLearning.Data
          return value;
       }
       /// <summary>
-      /// Crea una IDataView che e' il merge dell'oggetto principale con una serie di altre IDataView
+      /// Crea una IDataAccess che e' il merge dell'oggetto principale con una serie di altre IDataView
       /// </summary>
-      /// <param name="dataView">Dati</param>
-      /// <param name="context">Contesto</param>
+      /// <param name="data">Dati</param>
       /// <param name="others">Altre viste di dati da concatenare</param>
       /// <returns>La vista di dati concatenata</returns>
-      public static IDataView Merge(this IDataView dataView, IMachineLearningContextProvider context, params IDataView[] others) =>
-         DataViewMerged.Create(context, dataView.Schema, new[] { dataView }.Concat(others).ToArray());
+      public static IDataAccess Merge(this IDataAccess data, params IDataAccess[] others) =>
+         DataViewMerged.Create(data.ML, data.Schema, new[] { data }.Concat(others).ToArray());
       /// <summary>
       /// Equivalent to calling Equals(ColumnType) for non-vector types. For vector type,
       /// returns true if current and other vector types have the same size and item type.
@@ -91,20 +90,18 @@ namespace MachineLearning.Data
          return vectorType.Size == otherVectorType.Size;
       }
       /// <summary>
-      /// Trasforma la IDataView in una data view filtrata
+      /// Trasforma la IDataAccess in una data view filtrata
       /// </summary>
-      /// <param name="dataView">Dati</param>
-      /// <param name="context">Contesto</param>
+      /// <param name="data">Dati</param>
       /// <param name="filter">Filtro</param>
       /// <returns>La vista di dati filtrata</returns>
-      public static DataViewFiltered ToDataViewFiltered(this IDataView dataView, IMachineLearningContextProvider context, DataViewRowFilter filter) => DataViewFiltered.Create(context, dataView, filter);
+      public static DataViewFiltered ToDataViewFiltered(this IDataAccess data, DataViewRowFilter filter) => DataViewFiltered.Create(data, filter);
       /// <summary>
-      /// Trasforma la IDataView in una griglia di dati
+      /// Trasforma la IDataAccess in una griglia di dati
       /// </summary>
-      /// <param name="dataView">Dati</param>
-      /// <param name="context">Contesto</param>
+      /// <param name="data">Dati</param>
       /// <returns>La vista di dati filtrata</returns>
-      public static DataViewGrid ToDataViewGrid(this IDataView dataView, IMachineLearningContextProvider context) => DataViewGrid.Create(context, dataView);
+      public static DataViewGrid ToDataViewGrid(this IDataAccess data) => DataViewGrid.Create(data);
       /// <summary>
       /// Trasforma un cursore di vista dati in una riga con valori
       /// </summary>

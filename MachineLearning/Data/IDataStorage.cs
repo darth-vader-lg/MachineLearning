@@ -13,7 +13,7 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      IDataView LoadData(IMachineLearningContextProvider context);
+      IDataAccess LoadData(IMachineLearningContextProvider context);
       /// <summary>
       /// Salva i dati
       /// </summary>

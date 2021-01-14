@@ -39,6 +39,7 @@ namespace MachineLearning.Data
       /// <param name="data">L'accesso ai dati</param>
       public override void SaveData(IMachineLearningContextProvider context, IDataView data)
       {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          var timestamp = DateTime.UtcNow;
          lock (this) {
             var stream = new MemoryStream();

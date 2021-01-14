@@ -14,17 +14,13 @@ namespace MachineLearning.Data
    /// <summary>
    /// Riga di vista di dati
    /// </summary>
-   public class DataViewValuesRow : DataViewRow, IEnumerable<DataViewValue>
+   public class DataViewValuesRow : DataViewRow, IEnumerable<DataViewValue>, IMachineLearningContextProvider
    {
       #region Fields
       /// <summary>
       /// Method info per l'ottenimento del getter
       /// </summary>
       private static readonly MethodInfo _getterMethodInfo = typeof(DataViewGrid).GetMethod(nameof(GetValue), BindingFlags.NonPublic | BindingFlags.Static);
-      /// <summary>
-      /// Host
-      /// </summary>
-      private readonly IHost _host;
       /// <summary>
       /// Identificatore della riga
       /// </summary>
@@ -47,6 +43,10 @@ namespace MachineLearning.Data
       /// Identificatore della riga
       /// </summary>
       public DataViewRowId Id { get; private set; }
+      /// <summary>
+      /// Contesto di machine learning
+      /// </summary>
+      public MachineLearningContext ML { get; private set; }
       /// <summary>
       /// La posizione della riga
       /// </summary>
@@ -87,10 +87,10 @@ namespace MachineLearning.Data
       private DataViewValuesRow(IMachineLearningContextProvider context, DataViewRowCursor cursor)
       {
          // Checks e inizializzazioni
-         Contracts.AssertValue(context?.ML?.NET, nameof(context));
-         _host = ((context?.ML?.NET ?? new MLContext()) as IHostEnvironment).Register(GetType().Name);
-         _host.AssertValue(cursor, nameof(cursor));
-         _host.Assert(cursor.Position >= 0, "The cursor has an invalid position");
+         MachineLearningContext.AssertMLNET(context, nameof(context));
+         ML = context.ML;
+         ML.NET.AssertValue(cursor, nameof(cursor));
+         ML.NET.Assert(cursor.Position >= 0, "The cursor has an invalid position");
          _schema = cursor.Schema;
          _position = cursor.Position;
          var id = default(DataViewRowId);
@@ -116,14 +116,14 @@ namespace MachineLearning.Data
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
       private DataViewValuesRow(IMachineLearningContextProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
-         Contracts.AssertValue(context?.ML?.NET, nameof(context));
-         _host = ((context?.ML?.NET ?? new MLContext()) as IHostEnvironment).Register(GetType().Name);
-         _host.AssertValue(schema, nameof(schema));
-         _host.AssertValue(values, nameof(values));
-         _host.AssertNonEmpty(values, nameof(values));
-         _host.AssertValue(isColumnActive, nameof(isColumnActive));
-         _host.AssertNonEmpty(isColumnActive, nameof(isColumnActive));
-         _host.Assert(values.Length == isColumnActive.Length, $"The length of {nameof(values)} must be equal to the length of {nameof(isColumnActive)}");
+         MachineLearningContext.AssertMLNET(context, nameof(context));
+         ML = context.ML;
+         ML.NET.AssertValue(schema, nameof(schema));
+         ML.NET.AssertValue(values, nameof(values));
+         ML.NET.AssertNonEmpty(values, nameof(values));
+         ML.NET.AssertValue(isColumnActive, nameof(isColumnActive));
+         ML.NET.AssertNonEmpty(isColumnActive, nameof(isColumnActive));
+         ML.NET.Assert(values.Length == isColumnActive.Length, $"The length of {nameof(values)} must be equal to the length of {nameof(isColumnActive)}");
          _schema = schema;
          _position = position;
          Id = id;
@@ -138,7 +138,7 @@ namespace MachineLearning.Data
       /// <returns>La griglia di dati</returns>
       internal static DataViewValuesRow Create(IMachineLearningContextProvider context, DataViewRowCursor cursor)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(cursor, nameof(cursor));
          return new DataViewValuesRow(context, cursor);
       }
@@ -152,7 +152,7 @@ namespace MachineLearning.Data
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
       internal static DataViewValuesRow Create(IMachineLearningContextProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
-         Contracts.CheckValue(context?.ML?.NET, nameof(context));
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(schema, nameof(schema));
          context.ML.NET.CheckValue(values, nameof(values));
          context.ML.NET.CheckNonEmpty(values, nameof(values));
@@ -173,7 +173,7 @@ namespace MachineLearning.Data
       public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
       {
          if (!typeof(TValue).IsAssignableFrom(Values[column.Index].Value.GetType()))
-            throw _host.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
+            throw ML.NET.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
          return (ref TValue value) => value = (TValue)Values[column.Index].Value;
       }
       /// <summary>
