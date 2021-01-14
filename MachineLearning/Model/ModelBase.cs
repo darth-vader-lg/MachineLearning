@@ -55,11 +55,6 @@ namespace MachineLearning.Model
       /// </summary>
       [NonSerialized]
       private int _trainsCount;
-      /// <summary>
-      /// Seme per le operazioni random di training
-      /// </summary>
-      [NonSerialized]
-      private int _trainSeed;
       #endregion
       #region Properties
       /// <summary>
@@ -83,6 +78,10 @@ namespace MachineLearning.Model
       /// </summary>
       public EventWaitHandle EvaluationAvailable => _evaluationAvailable ??= new EventWaitHandle(false, EventResetMode.ManualReset);
       /// <summary>
+      /// Nome colonna label
+      /// </summary>
+      public string LabelColumnName { get; protected set; } = "Label";
+      /// <summary>
       /// Contesto di machine learning
       /// </summary>
       public MachineLearningContext ML { get; }
@@ -90,6 +89,10 @@ namespace MachineLearning.Model
       /// Gestore storage modello
       /// </summary>
       private IModelStorage ModelStorage => (this as IModelStorageProvider)?.ModelStorage ?? this as IModelStorage;
+      /// <summary>
+      /// Gestore trainer modello
+      /// </summary>
+      private IModelTrainer ModelTrainer => (this as IModelTrainerProvider)?.ModelTrainer ?? this as IModelTrainer;
       /// <summary>
       /// Nome dell'oggetto
       /// </summary>
@@ -110,10 +113,6 @@ namespace MachineLearning.Model
       /// Dati aggiuntivi di training
       /// </summary>
       private IDataStorage TrainingData => (this as ITrainingDataProvider)?.TrainingData;
-      /// <summary>
-      /// Livello di validazione. 0 semplice fit; 1 fit con shuffle delle righe se modello retrainable; > 1 validazione incrociata se disponibile
-      /// </summary>
-      public int ValidationLevel { get; set; }
       #endregion
       #region Events
       /// <summary>
@@ -307,16 +306,14 @@ namespace MachineLearning.Model
       /// <param name="pipe">La pipe</param>
       /// <param name="metrics">La metrica del modello migliore</param>
       /// <param name="numberOfFolds">Numero di validazioni</param>
-      /// <param name="labelColumnName">Nome colonna contenente la label</param>
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
       /// <param name="seed">Seme per le operazioni random</param>
       /// <returns>Il modello migliore</returns>
-      protected abstract ITransformer CrossValidate(
+      public abstract ITransformer CrossValidate(
          IDataAccess data,
          IEstimator<ITransformer> pipe,
          out object metrics,
          int numberOfFolds = 5,
-         string labelColumnName = "Label",
          string samplingKeyColumnName = null,
          int? seed = null);
       /// <summary>
@@ -457,59 +454,6 @@ namespace MachineLearning.Model
          var prediction = new DataAccess(ML, evaluator.Model.Transform(inputData));
          cancellation.ThrowIfCancellationRequested();
          return prediction;
-      }
-      /// <summary>
-      /// Restituisce il modello effettuando il training
-      /// </summary>
-      /// <param name="data">Datidi training</param>
-      /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
-      /// <param name="cancellation">Token di annullamento</param>
-      /// <returns>Il modello appreso</returns>
-      protected ITransformer GetTrainedModel(IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
-      {
-         // Verifica se e' un modello che prevede in retraining continuo
-         evaluationMetrics = null;
-         if (this is IModelRetrainable) {
-            // Ottiene la pipe di training
-            var pipe = GetPipe();
-            cancellation.ThrowIfCancellationRequested();
-            if (pipe == null)
-               return null;
-            // Training con selezione del tipo di validazione
-            if (ValidationLevel < 1) {
-               var result = pipe.Fit(data);
-               cancellation.ThrowIfCancellationRequested();
-               return result;
-            }
-            else if (ValidationLevel == 1 || this is not ICrossValidatable crossValidatable) {
-               var shuffle = ML.NET.Data.ShuffleRows(data, _trainSeed++);
-               cancellation.ThrowIfCancellationRequested();
-               var result = pipe.Fit(shuffle);
-               cancellation.ThrowIfCancellationRequested();
-               return result;
-            }
-            else {
-               var result = CrossValidate(data, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
-               cancellation.ThrowIfCancellationRequested();
-               return result;
-            }
-         }
-         // Modello con training semplice
-         else {
-            // Ottiene la pipe
-            var pipe = GetPipe();
-            cancellation.ThrowIfCancellationRequested();
-            if (pipe == null)
-               return null;
-            // Riempe la pipe
-            ITransformer result;
-            if (ValidationLevel > 1 && this is ICrossValidatable crossValidatable)
-               result = CrossValidate(data, pipe, out evaluationMetrics, ValidationLevel, crossValidatable.LabelColumnName, null, _trainSeed++);
-            else
-               result = pipe.Fit(data);
-            cancellation.ThrowIfCancellationRequested();
-            return result;
-         }
       }
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
@@ -735,19 +679,19 @@ namespace MachineLearning.Model
                   timestamp = DateTime.UtcNow;
                   cancel.ThrowIfCancellationRequested();
                   // Verifica se non e' necessario un altro training
-                  if (this is IModelRetrainable retrainable) {
+                  if (ModelTrainer is IModelTrainerCycling cyclingTrainer) {
                      if (EvaluationAvailable.WaitOne(0)) {
-                        if (_trainsCount >= retrainable.MaxTrains || ValidationLevel < 1)
+                        if (_trainsCount >= cyclingTrainer.MaxTrainingCycles)
                            return;
                      }
                   }
-                  else if (ValidationLevel < 1 && EvaluationAvailable.WaitOne(0))
+                  else if (EvaluationAvailable.WaitOne(0))
                      return;
                   // Effettua la valutazione del modello corrente
                   var currentModel = model;
                   var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
                   // Effettua il training
-                  var taskTrain = Task.Run(() => GetTrainedModel(data, out eval2, cancel));
+                  var taskTrain = Task.Run(() => ModelTrainer?.GetTrainedModel(this, data, GetPipe(), out eval2, cancel));
                   // Messaggio di training ritardato
                   cancel.ThrowIfCancellationRequested();
                   var taskTrainingMessage = Task.Run(async () =>
@@ -763,7 +707,10 @@ namespace MachineLearning.Model
                   if ((model = await taskTrain) == default)
                      return;
                   // Incrementa contatore di traning
-                  _trainsCount++;
+                  if (ModelTrainer is IModelTrainerFolded foldedTrainer)
+                     _trainsCount += foldedTrainer.NumFolds;
+                  else
+                     _trainsCount++;
                   // Attende output log
                   await taskTrainingMessage;
                   eval2 ??= await Task.Run(() => GetModelEvaluation(model, data));

@@ -17,18 +17,13 @@ namespace MachineLearning
    [Serializable]
    public sealed partial class TextMeaningRecognizer :
       MulticlassModelBase,
-      ICrossValidatable,
       IDataStorageProvider,
-      IModelRetrainable,
       IModelStorageProvider,
+      IModelTrainerProvider,
       ITextLoaderOptionsProvider,
       ITrainingDataProvider
    {
       #region Fields
-      /// <summary>
-      /// Nome colonna label
-      /// </summary>
-      private string _labelColumnName;
       /// <summary>
       /// Pipe di training
       /// </summary>
@@ -41,17 +36,17 @@ namespace MachineLearning
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
-      /// Nome colonna label
-      /// </summary>
-      string ICrossValidatable.LabelColumnName => _labelColumnName;
-      /// <summary>
       /// Numero massimo di tentativi di training del modello
       /// </summary>
-      public int MaxTrains { get; set; }
+      public int MaxTrainingCycles { get; set; }
       /// <summary>
       /// Storage del modello
       /// </summary>
       public IModelStorage ModelStorage { get; set; }
+      /// <summary>
+      /// Trainer del modello
+      /// </summary>
+      public IModelTrainer ModelTrainer { get; set; }
       /// <summary>
       /// Opzioni di caricamento dati testuali
       /// </summary>
@@ -84,9 +79,9 @@ namespace MachineLearning
       {
          // Pipe di training
          return _pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", _labelColumnName).
+            ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
             Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
-                                                                                                                  where c.Name != _labelColumnName
+                                                                                                                  where c.Name != LabelColumnName
                                                                                                                   select c.Name).ToArray())).
             Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
             Append(ML.NET.Transforms.NormalizeMinMax("Features")).
@@ -117,7 +112,7 @@ namespace MachineLearning
       /// <param name="options">Opzioni</param>
       public void SetInputSchema(string labelColumnName = "Label", TextLoader.Options options = default)
       {
-         _labelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
+         LabelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
          options ??= new TextLoader.Options();
          if (options.Columns == null) {
             options.Columns = new TextLoader.Options
@@ -129,7 +124,7 @@ namespace MachineLearning
                }
             }.Columns;
          }
-         else if (!options.Columns.Any(c => c.Name == _labelColumnName))
+         else if (!options.Columns.Any(c => c.Name == LabelColumnName))
             throw new ArgumentException("Label column not defined in the input schema");
          TextLoaderOptions = options;
       }

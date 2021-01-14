@@ -42,19 +42,17 @@ namespace MachineLearning.Model
       /// <param name="pipe">La pipe</param>
       /// <param name="metrics">La metrica del modello migliore</param>
       /// <param name="numberOfFolds">Numero di validazioni</param>
-      /// <param name="labelColumnName">Nome colonna contenente la label</param>
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
       /// <param name="seed">Seme per le operazioni random</param>
-      protected override ITransformer CrossValidate(
+      public override ITransformer CrossValidate(
          IDataAccess data,
          IEstimator<ITransformer> pipe,
          out object metrics,
          int numberOfFolds = 5,
-         string labelColumnName = "Label",
          string samplingKeyColumnName = null,
          int? seed = null)
       {
-         var best = ML.NET.MulticlassClassification.CrossValidate(data, pipe, numberOfFolds, labelColumnName, samplingKeyColumnName, seed).Best();
+         var best = ML.NET.MulticlassClassification.CrossValidate(data, pipe, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed).Best();
          metrics = best.Metrics;
          return best.Model;
       }
