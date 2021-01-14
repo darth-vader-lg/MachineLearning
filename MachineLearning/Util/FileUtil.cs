@@ -48,7 +48,6 @@ namespace MachineLearning.Util
             // Lancia un nuovo tentativo dopo il tempo specificato
             if (++retry < retryCount)
                Task.Delay(retryDelayMs).ContinueWith(t => Retry());
-            throw;
          }
       }
    }
