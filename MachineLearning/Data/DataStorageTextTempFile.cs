@@ -37,12 +37,14 @@ namespace MachineLearning.Data
       /// <summary>
       /// Finalizzatore
       /// </summary>
-      ~DataStorageTextTempFile() => DeleteFile();
+      ~DataStorageTextTempFile() => Dispose(false);
       /// <summary>
-      /// Funzione di cancellazione del file
+      /// Funzione di dispose
       /// </summary>
-      private void DeleteFile()
+      /// <param name="disposing">Indicatore di dispose da programma</param>
+      protected override void Dispose(bool disposing)
       {
+         base.Dispose(disposing);
          if (_filePath != null) {
             try {
                FileUtil.Delete(_filePath);
@@ -50,14 +52,6 @@ namespace MachineLearning.Data
             }
             catch { }
          }
-      }
-      /// <summary>
-      /// Dispose da codice
-      /// </summary>
-      public void Dispose()
-      {
-         DeleteFile();
-         GC.SuppressFinalize(this);
       }
       /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream. Puo' essere null.

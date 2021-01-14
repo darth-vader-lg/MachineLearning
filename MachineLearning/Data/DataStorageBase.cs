@@ -11,15 +11,32 @@ namespace MachineLearning.Data
    /// Classe base per lo storage di dati
    /// </summary>
    [Serializable]
-   public abstract class DataStorageBase : IMultiStreamSource
+   public abstract class DataStorageBase : IDisposable, IMultiStreamSource
    {
       #region Properties
       /// <summary>
       /// Il numero di items
       /// </summary>
       int IMultiStreamSource.Count => 1;
+      /// <summary>
+      /// Indicatore di oggetto disposed
+      /// </summary>
+      public bool IsDisposed { get; private set; }
       #endregion
       #region Methods
+      /// <summary>
+      /// Dispose da programma
+      /// </summary>
+      public void Dispose()
+      {
+         Dispose(disposing: true);
+         GC.SuppressFinalize(this);
+      }
+      /// <summary>
+      /// Funzione di dispose
+      /// </summary>
+      /// <param name="disposing">Indicatore di dispose da programma</param>
+      protected virtual void Dispose(bool disposing) => IsDisposed = true;
       /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream. Puo' essere null.
       /// </summary>

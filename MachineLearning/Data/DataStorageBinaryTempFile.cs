@@ -10,7 +10,7 @@ namespace MachineLearning.Data
    /// Classe per lo storage di dati di tipo binario su file temporaneo
    /// </summary>
    [Serializable]
-   public sealed class DataStorageBinaryTempFile : DataStorageBinary, IDataTimestamp, IDisposable
+   public sealed class DataStorageBinaryTempFile : DataStorageBinary, IDataTimestamp
    {
       #region Fields
       /// <summary>
@@ -37,12 +37,14 @@ namespace MachineLearning.Data
       /// <summary>
       /// Finalizzatore
       /// </summary>
-      ~DataStorageBinaryTempFile() => DeleteFile();
+      ~DataStorageBinaryTempFile() => Dispose(false);
       /// <summary>
-      /// Funzione di cancellazione del file
+      /// Funzione di dispose
       /// </summary>
-      private void DeleteFile()
+      /// <param name="disposing">Indicatore di dispose da programma</param>
+      protected override void Dispose(bool disposing)
       {
+         base.Dispose(disposing);
          if (_filePath != null) {
             try {
                FileUtil.Delete(_filePath);
@@ -50,14 +52,6 @@ namespace MachineLearning.Data
             }
             catch { }
          }
-      }
-      /// <summary>
-      /// Dispose da codice
-      /// </summary>
-      public void Dispose()
-      {
-         DeleteFile();
-         GC.SuppressFinalize(this);
       }
       /// <summary>
       /// Restituisce una stringa rappresentante il "path" dello stream. Puo' essere null.
