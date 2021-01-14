@@ -227,25 +227,12 @@ namespace MachineLearning
                   Merge(trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position)));
                cancellation.ThrowIfCancellationRequested();
                // File temporaneo per il merge
-               var tmpFileName = default(string);
-               try {
-                  // Crea il file temporaneo
-                  tmpFileName = Path.GetTempFileName();
-                  var mergedStorage = new DataStorageBinaryFile(tmpFileName);
-                  // Salva il mix di dati nel file temporaneo
-                  mergedStorage.SaveData(this, mergedDataView);
-                  // Salva il file temporaneo nello storage
-                  mergedDataView = mergedStorage.LoadData(this);
-                  DataStorage.SaveData(this, mergedStorage.LoadData(this));
-               }
-               finally {
-                  try {
-                     // Cancella il file temporaneo
-                     if (tmpFileName != null)
-                        FileUtil.Delete(tmpFileName);
-                  }
-                  catch {  }
-               }
+               using var mergedStorage = new DataStorageBinaryTempFile();
+               // Salva il mix di dati nel file temporaneo
+               mergedStorage.SaveData(this, mergedDataView);
+               // Salva il file temporaneo nello storage
+               mergedDataView = mergedStorage.LoadData(this);
+               DataStorage.SaveData(this, mergedStorage.LoadData(this));
             }
          }, cancellation);
          cancellation.ThrowIfCancellationRequested();
