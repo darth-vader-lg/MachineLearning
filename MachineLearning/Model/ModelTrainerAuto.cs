@@ -19,7 +19,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Numero di folds di training
       /// </summary>
-      public int NumFolds { get; set; } = 5;
+      public int NumFolds { get; set; } = 1;
       #endregion
       #region Methods
       /// <summary>

@@ -244,7 +244,7 @@ namespace MachineLearning.Model
          IDataAccess data,
          int maxTimeInSeconds,
          out object metrics,
-         int numberOfFolds = 5,
+         int numberOfFolds = 1,
          CancellationToken cancellation = default);
       /// <summary>
       /// Stoppa il training ed annulla la validita' dei dati

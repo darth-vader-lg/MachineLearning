@@ -40,74 +40,86 @@ namespace Microsoft.ML
       /// Restituisce un progress per l'autotraining di rilevamento anomalie
       /// </summary>
       /// <param name="ml">Contesto ml</param>
+      /// <param name="contextName">Nome del contesto</param>
       /// <param name="reportRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <returns>La classe di progress</returns>
       public static AutoMLProgress<AnomalyDetectionMetrics> AnomalyDetectionProgress(
          this MLContext ml,
+         string contextName = null,
          AutoMLProgress<AnomalyDetectionMetrics>.ReportRunDetails reportRunDetails = null,
          AutoMLProgress<AnomalyDetectionMetrics>.ReportCrossValidationRunDetails reportCrossValidationRunDetails = null) =>
-         new AutoMLProgress<AnomalyDetectionMetrics>(ml, reportRunDetails, reportCrossValidationRunDetails);
+         new AutoMLProgress<AnomalyDetectionMetrics>(ml, contextName, reportRunDetails, reportCrossValidationRunDetails);
       /// <summary>
       /// Restituisce un progress per l'autotraining di classificazione binaria
       /// </summary>
       /// <param name="ml">Contesto ml</param>
+      /// <param name="contextName">Nome del contesto</param>
       /// <param name="reportRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <returns>La classe di progress</returns>
       public static AutoMLProgress<BinaryClassificationMetrics> BinaryClassificationProgress(
          this MLContext ml,
+         string contextName = null,
          AutoMLProgress<BinaryClassificationMetrics>.ReportRunDetails reportRunDetails = null,
          AutoMLProgress<BinaryClassificationMetrics>.ReportCrossValidationRunDetails reportCrossValidationRunDetails = null) =>
-         new AutoMLProgress<BinaryClassificationMetrics>(ml, reportRunDetails, reportCrossValidationRunDetails);
+         new AutoMLProgress<BinaryClassificationMetrics>(ml, contextName, reportRunDetails, reportCrossValidationRunDetails);
       /// <summary>
       /// Restituisce un progress per l'autotraining di clustering
       /// </summary>
       /// <param name="ml">Contesto ml</param>
+      /// <param name="contextName">Nome del contesto</param>
       /// <param name="reportRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <returns>La classe di progress</returns>
       public static AutoMLProgress<ClusteringMetrics> ClusteringProgress(
          this MLContext ml,
+         string contextName = null,
          AutoMLProgress<ClusteringMetrics>.ReportRunDetails reportRunDetails = null,
          AutoMLProgress<ClusteringMetrics>.ReportCrossValidationRunDetails reportCrossValidationRunDetails = null) =>
-         new AutoMLProgress<ClusteringMetrics>(ml, reportRunDetails, reportCrossValidationRunDetails);
+         new AutoMLProgress<ClusteringMetrics>(ml, contextName, reportRunDetails, reportCrossValidationRunDetails);
       /// <summary>
       /// Restituisce un progress per l'autotraining di classificazione multi classe
       /// </summary>
       /// <param name="ml">Contesto ml</param>
+      /// <param name="contextName">Nome del contesto</param>
       /// <param name="reportRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <returns>La classe di progress</returns>
       public static AutoMLProgress<MulticlassClassificationMetrics> MulticlassClassificationProgress(
          this MLContext ml,
+         string contextName = null,
          AutoMLProgress<MulticlassClassificationMetrics>.ReportRunDetails reportRunDetails = null,
          AutoMLProgress<MulticlassClassificationMetrics>.ReportCrossValidationRunDetails reportCrossValidationRunDetails = null) =>
-         new AutoMLProgress<MulticlassClassificationMetrics>(ml, reportRunDetails, reportCrossValidationRunDetails);
+         new AutoMLProgress<MulticlassClassificationMetrics>(ml, contextName, reportRunDetails, reportCrossValidationRunDetails);
       /// <summary>
       /// Restituisce un progress per l'autotraining di ranking
       /// </summary>
       /// <param name="ml">Contesto ml</param>
+      /// <param name="contextName">Nome del contesto</param>
       /// <param name="report">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <returns>La classe di progress</returns>
       public static AutoMLProgress<RankingMetrics> RankingProgress(
          this MLContext ml,
+         string contextName = null,
          AutoMLProgress<RankingMetrics>.ReportRunDetails report = null,
          AutoMLProgress<RankingMetrics>.ReportCrossValidationRunDetails reportCrossValidationRunDetails = null) =>
-         new AutoMLProgress<RankingMetrics>(ml, report, reportCrossValidationRunDetails);
+         new AutoMLProgress<RankingMetrics>(ml, contextName, report, reportCrossValidationRunDetails);
       /// <summary>
       /// Restituisce un progress per l'autotraining di regressione
       /// </summary>
       /// <param name="ml">Contesto ml</param>
+      /// <param name="contextName">Nome del contesto</param>
       /// <param name="report">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <returns>La classe di progress</returns>
       public static AutoMLProgress<RegressionMetrics> RegressionProgress(
          this MLContext ml,
+         string contextName = null,
          AutoMLProgress<RegressionMetrics>.ReportRunDetails report = null,
          AutoMLProgress<RegressionMetrics>.ReportCrossValidationRunDetails reportCrossValidationRunDetails = null) =>
-         new AutoMLProgress<RegressionMetrics>(ml, report, reportCrossValidationRunDetails);
+         new AutoMLProgress<RegressionMetrics>(ml, contextName, report, reportCrossValidationRunDetails);
       /// <summary>
       /// Emette un log
       /// </summary>

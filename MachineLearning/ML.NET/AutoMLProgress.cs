@@ -13,6 +13,10 @@ namespace Microsoft.ML.AutoML
    {
       #region Fields
       /// <summary>
+      /// Nome del contesto
+      /// </summary>
+      private readonly string contextName;
+      /// <summary>
       /// Contesto ML
       /// </summary>
       private readonly MLContext ml;
@@ -44,11 +48,13 @@ namespace Microsoft.ML.AutoML
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto ML</param>
+      /// <param name="contextName">Nome del contesto</param>
       /// <param name="reportRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
-      public AutoMLProgress(MLContext ml, ReportRunDetails reportRunDetails = null, ReportCrossValidationRunDetails reportCrossValidationRunDetails = null)
+      public AutoMLProgress(MLContext ml, string contextName, ReportRunDetails reportRunDetails = null, ReportCrossValidationRunDetails reportCrossValidationRunDetails = null)
       {
          this.ml = ml;
+         this.contextName = contextName ?? "AutoML";
          this.reportRunDetails = reportRunDetails;
          this.reportCrossValidationRunDetails = reportCrossValidationRunDetails;
       }
@@ -81,10 +87,12 @@ namespace Microsoft.ML.AutoML
       public void WriteLog(RunDetail<TMetrics> runDetail)
       {
          try {
-            if (runDetail.Exception == null)
-               ml.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs", "AutoML", MessageSensitivity.Unknown);
+            if (runDetail.Exception == null) {
+               ml.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs", contextName, MessageSensitivity.Unknown);
+               WriteValidationMetrics(runDetail.ValidationMetrics);
+            }
             else
-               ml.WriteLog($"Exception: {runDetail.Exception.Message}", "AutoML", MessageSensitivity.Unknown);
+               ml.WriteLog($"Exception: {runDetail.Exception.Message}", contextName, MessageSensitivity.Unknown);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -97,25 +105,37 @@ namespace Microsoft.ML.AutoML
       public void WriteLog(CrossValidationRunDetail<TMetrics> runDetail)
       {
          try {
-            ml.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs", "AutoML", MessageSensitivity.Unknown);
+            ml.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs", contextName, MessageSensitivity.Unknown);
             foreach (var result in runDetail.Results) {
-               if (result.Exception == null) {
-                  if (result.ValidationMetrics is AnomalyDetectionMetrics anomaly)
-                     ml.WriteLog(anomaly.ToText());
-                  else if (result.ValidationMetrics is BinaryClassificationMetrics binary)
-                     ml.WriteLog(binary.ToText());
-                  else if (result.ValidationMetrics is ClusteringMetrics clustering)
-                     ml.WriteLog(clustering.ToText());
-                  else if (result.ValidationMetrics is MulticlassClassificationMetrics multiclass)
-                     ml.WriteLog(multiclass.ToText());
-                  else if (result.ValidationMetrics is RankingMetrics ranking)
-                     ml.WriteLog(ranking.ToText());
-                  else if (result.ValidationMetrics is RegressionMetrics regression)
-                     ml.WriteLog(regression.ToText());
-               }
+               if (result.Exception == null)
+                  WriteValidationMetrics(result.ValidationMetrics);
                else
-                  ml.WriteLog($"Exception: {result.Exception.Message}", "AutoML", MessageSensitivity.Unknown);
+                  ml.WriteLog($"Exception: {result.Exception.Message}", contextName, MessageSensitivity.Unknown);
             }
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Riporta un messaggio di metrica nel log
+      /// </summary>
+      /// <param name="metrics">Metriche</param>
+      protected void WriteValidationMetrics(TMetrics metrics)
+      {
+         try {
+            if (metrics is AnomalyDetectionMetrics anomaly)
+               ml.WriteLog(anomaly.ToText(), contextName, MessageSensitivity.Unknown);
+            else if (metrics is BinaryClassificationMetrics binary)
+               ml.WriteLog(binary.ToText(), contextName, MessageSensitivity.Unknown);
+            else if (metrics is ClusteringMetrics clustering)
+               ml.WriteLog(clustering.ToText(), contextName, MessageSensitivity.Unknown);
+            else if (metrics is MulticlassClassificationMetrics multiclass)
+               ml.WriteLog(multiclass.ToText(), contextName, MessageSensitivity.Unknown);
+            else if (metrics is RankingMetrics ranking)
+               ml.WriteLog(ranking.ToText(), contextName, MessageSensitivity.Unknown);
+            else if (metrics is RegressionMetrics regression)
+               ml.WriteLog(regression.ToText(), contextName, MessageSensitivity.Unknown);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);

@@ -20,7 +20,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Metrica di scelta del miglior modello
       /// </summary>
-      public MulticlassClassificationMetric BestModelSelectionMetric { get; set; } = MulticlassClassificationMetric.LogLoss;//@@@ Rendere serializzabile
+      public MulticlassClassificationMetric BestModelSelectionMetric { get; set; }//@@@ Rendere serializzabile
       /// <summary>
       /// Catalogo di trainers
       /// </summary>
@@ -55,7 +55,7 @@ namespace MachineLearning.Model
          IDataAccess data,
          int maxTimeInSeconds,
          out object metrics,
-         int numberOfFolds = 5,
+         int numberOfFolds = 1,
          CancellationToken cancellation = default)
       {
          var settings = new MulticlassExperimentSettings
@@ -65,12 +65,22 @@ namespace MachineLearning.Model
             MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds)
          };
          var experiment = ML.NET.Auto().CreateMulticlassClassificationExperiment(settings);
-         var progress = ML.NET.MulticlassClassificationProgress();
-         var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, null, progress);
-         cancellation.ThrowIfCancellationRequested();
-         var best = (from r in experimentResult.BestRun.Results select (r.Model, r.ValidationMetrics)).Best();
-         metrics = best.Metrics;
-         return best.Model;
+         var progress = ML.NET.MulticlassClassificationProgress(Name);
+         if (numberOfFolds > 1) {
+            var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, null, progress);
+            cancellation.ThrowIfCancellationRequested();
+            var best = (from r in experimentResult.BestRun.Results select (r.Model, r.ValidationMetrics)).Best();
+            ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
+            metrics = best.Metrics;
+            return best.Model;
+         }
+         else {
+            var experimentResult = experiment.Execute(data, LabelColumnName, null, null, progress);
+            var best = experimentResult.BestRun;
+            ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
+            metrics = best.ValidationMetrics;
+            return best.Model;
+         }
       }
       /// <summary>
       /// Effettua il training con validazione incrociata del modello
