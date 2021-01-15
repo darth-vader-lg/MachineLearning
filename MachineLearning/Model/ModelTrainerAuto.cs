@@ -6,19 +6,16 @@ using System.Threading;
 namespace MachineLearning.Model
 {
    /// <summary>
-   /// Trainer con validazione incrociata
+   /// Trainer con ricerca automatica del miglior modello
    /// </summary>
    [Serializable]
-   public class ModelTrainerCrossValidation : IModelTrainer, IModelTrainerFolded
+   public class ModelTrainerAuto : IModelTrainer, IModelTrainerFolded
    {
-      #region Fields
-      /// <summary>
-      /// Seme per le operazioni random
-      /// </summary>
-      [NonSerialized]
-      private int _trainingSeed;
-      #endregion
       #region Properties
+      /// <summary>
+      /// Numero massimo di secondi di training
+      /// </summary>
+      public int MaxTimeInSeconds { get; set; } = 120;
       /// <summary>
       /// Numero di folds di training
       /// </summary>
@@ -36,7 +33,7 @@ namespace MachineLearning.Model
       /// <returns>Il modello appreso</returns>
       ITransformer IModelTrainer.GetTrainedModel(ModelBase model, IDataAccess data, IEstimator<ITransformer> pipe, out object evaluationMetrics, CancellationToken cancellation)
       {
-         var result = model.CrossValidateTraining(data, pipe, out evaluationMetrics, NumFolds, null, _trainingSeed++);
+         var result = model.AutoTraining(data, MaxTimeInSeconds, out evaluationMetrics, NumFolds, cancellation);
          cancellation.ThrowIfCancellationRequested();
          return result;
       }

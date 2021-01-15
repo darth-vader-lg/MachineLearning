@@ -12,21 +12,21 @@ namespace Microsoft.ML.Data
    public static class RegressionExtensions
    {
       /// <summary>
-      /// Estrae il migliore da un elenco di risultati di validazione incrociata
+      /// Estrae il migliore da un elenco di modelli e metriche
       /// </summary>
-      /// <param name="results">Elenco di risultati</param>
+      /// <param name="models">Elenco di modelli e metriche</param>
       /// <returns>Il risultato migliore</returns>
-      public static TrainCatalogBase.CrossValidationResult<RegressionMetrics> Best(this IEnumerable<TrainCatalogBase.CrossValidationResult<RegressionMetrics>> results)
+      public static (ITransformer Model, RegressionMetrics Metrics) Best(this IEnumerable<(ITransformer Model, RegressionMetrics Metrics)> models)
       {
          try {
-            var result = (from item in results
+            var result = (from item in models
                           orderby item.Metrics.LossFunction
                           select item).First();
             return result;
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            return null;
+            return default;
          }
       }
       /// <summary>

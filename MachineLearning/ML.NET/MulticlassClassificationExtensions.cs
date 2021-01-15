@@ -12,14 +12,14 @@ namespace Microsoft.ML.Data
    public static class MulticlassClassificationExtensions
    {
       /// <summary>
-      /// Estrae il migliore da un elenco di risultati di validazione incrociata
+      /// Estrae il migliore da un elenco di modelli e metriche
       /// </summary>
-      /// <param name="results">Elenco di risultati</param>
+      /// <param name="models">Elenco di modelli e metriche</param>
       /// <returns>Il risultato migliore</returns>
-      public static TrainCatalogBase.CrossValidationResult<MulticlassClassificationMetrics> Best(this IEnumerable<TrainCatalogBase.CrossValidationResult<MulticlassClassificationMetrics>> results)
+      public static (ITransformer Model, MulticlassClassificationMetrics Metrics) Best(this IEnumerable<(ITransformer Model, MulticlassClassificationMetrics Metrics)> models)
       {
          try {
-            var result = (from item in (from item in results
+            var result = (from item in (from item in models
                                         group item by item.Metrics.MicroAccuracy into grps
                                         orderby grps.Key descending
                                         select grps).First()
@@ -29,7 +29,7 @@ namespace Microsoft.ML.Data
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            return null;
+            return default;
          }
       }
       /// <summary>

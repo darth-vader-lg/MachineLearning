@@ -1,9 +1,12 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Trainers;
 using Microsoft.ML;
+using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using System;
+using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace MachineLearning.Model
 {
@@ -14,6 +17,10 @@ namespace MachineLearning.Model
    public abstract class RegressionModelBase : ModelBase
    {
       #region Properties
+      /// <summary>
+      /// Metrica di scelta del miglior modello
+      /// </summary>
+      public RegressionMetric BestModelSelectionMetric { get; set; } = RegressionMetric.RSquared; //@@@ Rendere serializzabile
       /// <summary>
       /// Catalogo di trainers
       /// </summary>
@@ -36,7 +43,37 @@ namespace MachineLearning.Model
       /// <param name="ml">Contesto di machine learning</param>
       public RegressionModelBase(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
-      /// Effettua la validazione incrociata del modello
+      /// Effettua il training con la ricerca automatica del miglior trainer
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="maxTimeInSeconds">Numero massimo di secondi di training</param>
+      /// <param name="metrics">La metrica del modello migliore</param>
+      /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il modello migliore</returns>
+      public override ITransformer AutoTraining(
+         IDataAccess data,
+         int maxTimeInSeconds,
+         out object metrics,
+         int numberOfFolds = 5,
+         CancellationToken cancellation = default)
+      {
+         var settings = new RegressionExperimentSettings
+         {
+            CancellationToken = cancellation,
+            OptimizingMetric = BestModelSelectionMetric,
+            MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds)
+         };
+         var experiment = ML.NET.Auto().CreateRegressionExperiment(settings);
+         var progress = ML.NET.RegressionProgress();
+         var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, null, progress);
+         cancellation.ThrowIfCancellationRequested();
+         var best = (from r in experimentResult.BestRun.Results select (r.Model, r.ValidationMetrics)).Best();
+         metrics = best.Metrics;
+         return best.Model;
+      }
+      /// <summary>
+      /// Effettua il training con validazione incrociata del modello
       /// </summary>
       /// <param name="data">Dati</param>
       /// <param name="pipe">La pipe</param>
@@ -44,7 +81,8 @@ namespace MachineLearning.Model
       /// <param name="numberOfFolds">Numero di validazioni</param>
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
       /// <param name="seed">Seme per le operazioni random</param>
-      public override ITransformer CrossValidate(
+      /// <returns>Il modello migliore</returns>
+      public override ITransformer CrossValidateTraining(
          IDataAccess data,
          IEstimator<ITransformer> pipe,
          out object metrics,
@@ -52,7 +90,8 @@ namespace MachineLearning.Model
          string samplingKeyColumnName = null,
          int? seed = null)
       {
-         var best = ML.NET.Regression.CrossValidate(data, pipe, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed).Best();
+         var results = ML.NET.Regression.CrossValidate(data, pipe, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
+         var best = (from r in results select (r.Model, r.Metrics)).Best();
          metrics = best.Metrics;
          return best.Model;
       }

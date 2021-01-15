@@ -232,6 +232,20 @@ namespace MachineLearning.Model
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="data">Valori della linea da aggiungere</param>
       public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingData(FormatDataRow(data), checkForDuplicates);
+      /// Effettua il training con la ricerca automatica del miglior trainer
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="maxTimeInSeconds">Numero massimo di secondi di training</param>
+      /// <param name="metrics">La metrica del modello migliore</param>
+      /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il modello migliore</returns>
+      public abstract ITransformer AutoTraining(
+         IDataAccess data,
+         int maxTimeInSeconds,
+         out object metrics,
+         int numberOfFolds = 5,
+         CancellationToken cancellation = default);
       /// <summary>
       /// Stoppa il training ed annulla la validita' dei dati
       /// </summary>
@@ -300,7 +314,7 @@ namespace MachineLearning.Model
          }
       }
       /// <summary>
-      /// Effettua la validazione incrociata del modello
+      /// Effettua il training con validazione incrociata del modello
       /// </summary>
       /// <param name="data">Dati</param>
       /// <param name="pipe">La pipe</param>
@@ -309,7 +323,7 @@ namespace MachineLearning.Model
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
       /// <param name="seed">Seme per le operazioni random</param>
       /// <returns>Il modello migliore</returns>
-      public abstract ITransformer CrossValidate(
+      public abstract ITransformer CrossValidateTraining(
          IDataAccess data,
          IEstimator<ITransformer> pipe,
          out object metrics,
