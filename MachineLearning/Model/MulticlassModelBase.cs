@@ -86,13 +86,6 @@ namespace MachineLearning.Model
          if (pipes.Output != null) {
             var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
             var outputTransformer = pipes.Output.Fit(dataFirstRow);
-            //var tc = new TransformerChain<ITransformer>(model, outputTransformer); @@@
-            //ML.NET.Model.Save(tc, data.Schema, "D:\\Estimator.zip");
-
-            //var modelTest = ML.NET.Model.Load("D:\\Estimator.zip", out _);
-            //var dataGrid = DataViewGrid.Create(this, data.Schema);
-            //dataGrid.Add("", "Apri la finestra");
-            //var prediction = new DataAccess(this, modelTest.Transform(dataGrid)).ToDataViewGrid();
             var result = new TransformerChain<ITransformer>(model, outputTransformer);
             return result;
          }
