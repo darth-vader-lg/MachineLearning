@@ -9,7 +9,7 @@ namespace MachineLearning.Model
    /// Trainer con validazione incrociata
    /// </summary>
    [Serializable]
-   public class ModelTrainerCrossValidation : IModelTrainer, IModelTrainerFolded
+   public class ModelTrainerCrossValidation : IModelTrainer
    {
       #region Fields
       /// <summary>

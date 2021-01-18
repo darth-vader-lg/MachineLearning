@@ -455,8 +455,15 @@ namespace MachineLearning.Model
       public async Task<IDataAccess> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
       {
          // Avvia il task di training se necessario
-         if (((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp || ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp)
+         var startTrain = false;
+         if (ModelTrainer is IModelTrainerCycling cycling && _trainsCount < cycling.MaxTrainingCycles)
+            startTrain = true;
+         else if (((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp || ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp)
+            startTrain = true;
+         if (startTrain) {
+            await StopTrainingAsync(cancellation);
             _ = StartTrainingAsync(cancellation);
+         }
          // Crea una dataview con i dati di input
          var inputData = new DataStorageTextMemory() { TextData = data }.LoadData(this);
          cancellation.ThrowIfCancellationRequested();
@@ -577,7 +584,13 @@ namespace MachineLearning.Model
       {
          if (TaskTraining.Task.IsCompleted) {
             EvaluationAvailable.Reset();
-            await TaskTraining.StartNew(c => Task.Factory.StartNew(async () => await TrainingAsync(c).ConfigureAwait(false), c, TaskCreationOptions.None, TaskScheduler.Default), cancellation);
+            await TaskTraining.StartNew(
+               c => Task.Factory.StartNew(
+                  async () => await TrainingAsync(CancellationTokenSource.CreateLinkedTokenSource(c)).ConfigureAwait(false),
+                  c,
+                  TaskCreationOptions.LongRunning,
+                  TaskScheduler.Default),
+               cancellation);
          }
          else
             await TaskTraining;
@@ -589,14 +602,20 @@ namespace MachineLearning.Model
       public virtual async Task StopTrainingAsync(CancellationToken cancellation = default)
       {
          TaskTraining.Cancel();
-         await TaskTraining.Task.ConfigureAwait(false);
+         try {
+            await TaskTraining.Task.ConfigureAwait(false);
+         }
+         catch (OperationCanceledException) {
+         }
       }
       /// <summary>
       /// Routine di training continuo
       /// </summary>
       /// <param name="cancel">Token di cancellazione</param>
-      protected async Task TrainingAsync(CancellationToken cancel)
+      protected async Task TrainingAsync(CancellationTokenSource cancelSource)
       {
+         // Token di cancellazione
+         var cancel = cancelSource.Token;
          // Funzione di caricamento dati di storage e training mergiati
          IDataAccess LoadData()
          {
@@ -618,14 +637,18 @@ namespace MachineLearning.Model
             // Segnala lo start del training
             cancel.ThrowIfCancellationRequested();
             OnTrainingStarted(EventArgs.Empty);
+            // Validita' modello attuale
+            var validModel =
+               (Evaluation?.Timestamp ?? default) >= ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
+               (Evaluation?.Timestamp ?? default) >= ((TrainingData as IDataTimestamp)?.DataTimestamp ?? default);
             // Definizioni
             var data = default(IDataAccess);
             var eval1 = default(object);
             var eval2 = default(object);
             var firstRun = true;
-            var inputSchema = default(DataViewSchema);
-            var model = default(ITransformer);
-            var timestamp = default(DateTime);
+            var inputSchema = Evaluation?.InputSchema;
+            var model = validModel ? Evaluation?.Model : null;
+            var timestamp = validModel ? (Evaluation?.Timestamp ?? default) : default;
             // Loop di training continuo
             while (!cancel.IsCancellationRequested) {
                try {
@@ -635,7 +658,8 @@ namespace MachineLearning.Model
                      // Carica il modello
                      var loadExistingModel =
                         ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
-                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((TrainingData as IDataTimestamp)?.DataTimestamp ?? default);
+                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) &&
+                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= (Evaluation?.Timestamp ?? default);
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;
@@ -648,7 +672,7 @@ namespace MachineLearning.Model
                         }
                      }
                      cancel.ThrowIfCancellationRequested();
-                     ML.NET.WriteLog(!loadExistingModel ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
+                     ML.NET.WriteLog(!loadExistingModel && model == null ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
                      // Carica i dati
                      data = LoadData();
                      cancel.ThrowIfCancellationRequested();
@@ -662,6 +686,15 @@ namespace MachineLearning.Model
                      if (data != null && DataStorage != null && TrainingData != null && AutoCommitData && TrainingData.LoadData(this).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
                         ML.NET.WriteLog("Committing the new data", Name);
                         await Task.Run(() => CommitTrainingData(), cancel);
+                     }
+                     // Log della valutazione del modello
+                     cancel.ThrowIfCancellationRequested();
+                     if (loadExistingModel && model != null) {
+                        eval1 = GetModelEvaluation(model, data);
+                        cancel.ThrowIfCancellationRequested();
+                        var evalInfo = GetModelEvaluationInfo(eval1);
+                        if (!string.IsNullOrEmpty(evalInfo))
+                           ML.NET.WriteLog(evalInfo, Name);
                      }
                      // Azzera il contatore di retraining
                      cancel.ThrowIfCancellationRequested();
@@ -720,10 +753,7 @@ namespace MachineLearning.Model
                   if ((model = await taskTrain) == default)
                      return;
                   // Incrementa contatore di traning
-                  if (ModelTrainer is IModelTrainerFolded foldedTrainer)
-                     _trainsCount += foldedTrainer.NumFolds;
-                  else
-                     _trainsCount++;
+                  _trainsCount++;
                   // Attende output log
                   await taskTrainingMessage;
                   eval2 ??= await Task.Run(() => GetModelEvaluation(model, data));
@@ -751,6 +781,8 @@ namespace MachineLearning.Model
                      // Azzera coontatore retraining
                      _trainsCount = 0;
                   }
+                  else
+                     ML.NET.WriteLog("The model is worst than the current one; discarded.", Name);
                }
                catch (OperationCanceledException) { throw; }
                catch (Exception exc) {
@@ -765,6 +797,8 @@ namespace MachineLearning.Model
             throw;
          }
          finally {
+            // Forza cancellazione per terminare altri task pendenti
+            cancelSource.Cancel();
             // Attende il termine dei task
             try { await taskSaveModel; } catch { }
             // Segnala la fine del training

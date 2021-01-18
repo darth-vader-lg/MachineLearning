@@ -9,17 +9,17 @@ namespace MachineLearning.Model
    /// Trainer con ricerca automatica del miglior modello
    /// </summary>
    [Serializable]
-   public class ModelTrainerAuto : IModelTrainer, IModelTrainerFolded
+   public class ModelTrainerAuto : IModelTrainer, IModelTrainerCycling
    {
       #region Properties
-      /// <summary>
-      /// Numero massimo di secondi di training
-      /// </summary>
-      public int MaxTimeInSeconds { get; set; } = 120;
       /// <summary>
       /// Numero di folds di training
       /// </summary>
       public int NumFolds { get; set; } = 1;
+      /// <summary>
+      /// Numero massimo di tentativi di training del modello
+      /// </summary>
+      public int MaxTrainingCycles { get; set; } = int.MaxValue;
       #endregion
       #region Methods
       /// <summary>
@@ -32,7 +32,7 @@ namespace MachineLearning.Model
       /// <returns>Il modello appreso</returns>
       ITransformer IModelTrainer.GetTrainedModel(ModelBase model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
       {
-         var result = model.AutoTraining(data, MaxTimeInSeconds, out evaluationMetrics, NumFolds, cancellation);
+         var result = model.AutoTraining(data, int.MaxValue, out evaluationMetrics, NumFolds, cancellation);
          cancellation.ThrowIfCancellationRequested();
          return result;
       }

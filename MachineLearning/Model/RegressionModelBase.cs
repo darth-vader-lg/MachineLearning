@@ -1,12 +1,15 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Trainers;
+using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MachineLearning.Model
 {
@@ -16,6 +19,23 @@ namespace MachineLearning.Model
    [Serializable]
    public abstract class RegressionModelBase : ModelBase
    {
+      #region Fields
+      /// <summary>
+      /// Evento di modello di autotraining disponibile
+      /// </summary>
+      [NonSerialized]
+      private ManualResetEvent _autoTrainingModelAvailable;
+      /// <summary>
+      /// Coda di modelli di autotraining
+      /// </summary>
+      [NonSerialized]
+      private Queue<(ITransformer Model, RegressionMetrics Metrics)> _autoTrainingModels = new Queue<(ITransformer Model, RegressionMetrics Metrics)>();
+      /// <summary>
+      /// Task di autotraining
+      /// </summary>
+      [NonSerialized]
+      private readonly CancellableTask _autoTrainingTask = new CancellableTask(cancellation => Task.CompletedTask);
+      #endregion
       #region Properties
       /// <summary>
       /// Metrica di scelta del miglior modello
@@ -58,39 +78,84 @@ namespace MachineLearning.Model
          int numberOfFolds = 1,
          CancellationToken cancellation = default)
       {
-         var settings = new RegressionExperimentSettings
-         {
-            CancellationToken = cancellation,
-            OptimizingMetric = BestModelSelectionMetric,
-            MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds)
-         };
-         var experiment = ML.NET.Auto().CreateRegressionExperiment(settings);
-         var progress = ML.NET.RegressionProgress(Name);
-         var pipes = GetPipes();
-         var model = default(ITransformer);
-         if (numberOfFolds > 1) {
-            var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
-            cancellation.ThrowIfCancellationRequested();
-            var best = (from r in experimentResult.BestRun.Results select (r.Model, r.ValidationMetrics)).Best();
-            ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
-            metrics = best.Metrics;
-            model = best.Model;
+         // Avvia il task di autotraining se necessario
+         if (_autoTrainingTask.Task.IsCompleted || _autoTrainingTask.CancellationToken.IsCancellationRequested) {
+            // Ottiene le pipe
+            var pipes = GetPipes();
+            // Coda dei modelli di training calcolati
+            var queue = _autoTrainingModels = new Queue<(ITransformer Model, RegressionMetrics Metrics)>();
+            // Evento di modello disponibile
+            var availableEvent = _autoTrainingModelAvailable = new ManualResetEvent(false);
+            // Funzione di accodamento modelli
+            void Enqueue(string trainerName, double runtimeInSeconds, ITransformer model, RegressionMetrics metrics)
+            {
+               if (pipes.Output != null) {
+                  var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
+                  var outputTransformer = pipes.Output.Fit(dataFirstRow);
+                  model = new TransformerChain<ITransformer>(model, outputTransformer);
+                  metrics = (RegressionMetrics)GetModelEvaluation(model, data);
+               }
+               lock (queue) {
+                  ML.NET.WriteLog($"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs", Name);
+                  queue.Enqueue((model, metrics));
+                  availableEvent.Set();
+               }
+            }
+            // Progress dell'autotraining
+            var progress = new AutoMLProgress<RegressionMetrics>(ML.NET, Name,
+               (sender, e) =>
+               {
+                  cancellation.ThrowIfCancellationRequested();
+                  if (e.Exception != null)
+                     sender.WriteLog(e);
+                  else
+                     Enqueue(e.TrainerName, e.RuntimeInSeconds, e.Model, e.ValidationMetrics);
+               },
+               (sender, e) =>
+               {
+                  cancellation.ThrowIfCancellationRequested();
+                  var best = (from r in e.Results where r.Exception == null select (r.Model, r.ValidationMetrics)).Best();
+                  if (best != default)
+                     Enqueue(e.TrainerName, e.RuntimeInSeconds, best.Model, best.Metrics);
+               });
+            // Avvia il task di esperimenti di autotraining
+            _autoTrainingTask.StartNew(cancellation => Task.Run(() =>
+            {
+               // Impostazioni dell'esperimento
+               var settings = new RegressionExperimentSettings
+               {
+                  CancellationToken = cancellation,
+                  OptimizingMetric = BestModelSelectionMetric,
+                  MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds)
+               };
+               // Crea l'esperimento
+               var experiment = ML.NET.Auto().CreateRegressionExperiment(settings);
+               // Avvia
+               if (numberOfFolds > 1)
+                  experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
+               else
+                  experiment.Execute(data, LabelColumnName, null, pipes.Input, progress);
+            }, cancellation), cancellation);
          }
-         else {
-            var experimentResult = experiment.Execute(data, LabelColumnName, null, pipes.Input, progress);
-            var best = experimentResult.BestRun;
-            ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
-            metrics = best.ValidationMetrics;
-            model = best.Model;
+         // Attende un risultato dal training automatico o la cancellazione
+         WaitHandle.WaitAny(new[] { _autoTrainingModelAvailable, cancellation.WaitHandle });
+         cancellation.ThrowIfCancellationRequested();
+         // Preleva dalla coda
+         lock (_autoTrainingModels) {
+            // Verifica presenza elementi
+            if (_autoTrainingModels.Count < 1) {
+               metrics = null;
+               return null;
+            }
+            // Preleva elemento
+            var item = _autoTrainingModels.Dequeue();
+            // Resetta l'evento se la coda e' vuota
+            if (_autoTrainingModels.Count == 0)
+               _autoTrainingModelAvailable.Reset();
+            // Restituisce il risultato
+            metrics = item.Metrics;
+            return item.Model;
          }
-         if (pipes.Output != null) {
-            var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
-            var outputTransformer = pipes.Output.Fit(dataFirstRow);
-            var result = new TransformerChain<ITransformer>(model, outputTransformer);
-            return result;
-         }
-         else
-            return model;
       }
       /// <summary>
       /// Effettua il training con validazione incrociata del modello
