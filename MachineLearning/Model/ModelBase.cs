@@ -640,7 +640,7 @@ namespace MachineLearning.Model
                         try {
                            timestamp = DateTime.UtcNow;
                            ML.NET.WriteLog("Loading the model", Name);
-                           model = await Task.Run(() => ModelStorage?.LoadModel(ML, out inputSchema), cancel);
+                           model = await Task.Run(() => ModelStorage?.LoadModel(this, out inputSchema), cancel);
                         }
                         catch (Exception exc) {
                            ML.NET.WriteLog($"Error loading the model: {exc.Message}", Name);
@@ -742,7 +742,7 @@ namespace MachineLearning.Model
                         ML.NET.WriteLog("Saving the new model", Name);
                         await taskSaveModel;
                         cancel.ThrowIfCancellationRequested();
-                        taskSaveModel = Task.Run(() => ModelStorage?.SaveModel(ML, model, Evaluation.InputSchema), CancellationToken.None);
+                        taskSaveModel = Task.Run(() => ModelStorage?.SaveModel(this, model, Evaluation.InputSchema), CancellationToken.None);
                      }
                      eval1 = eval2;
                      // Aggiorna la valutazione
@@ -780,7 +780,7 @@ namespace MachineLearning.Model
    public partial class ModelBase // Evaluator
    {
       [Serializable]
-      protected class Evaluator // @@@ Rendere protetto
+      protected class Evaluator
       {
          #region Properties
          /// <summary>
