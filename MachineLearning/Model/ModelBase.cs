@@ -464,7 +464,7 @@ namespace MachineLearning.Model
          var evaluator = await GetEvaluatorAsync(cancellation);
          cancellation.ThrowIfCancellationRequested();
          // Effettua la predizione
-         var prediction = new DataAccess(ML, evaluator.Model.Transform(inputData));
+         var prediction = new DataAccess(this, evaluator.Model.Transform(inputData));
          cancellation.ThrowIfCancellationRequested();
          return prediction;
       }
