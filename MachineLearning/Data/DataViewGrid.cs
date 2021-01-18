@@ -205,14 +205,16 @@ namespace MachineLearning.Data
       /// <param name="columnsNeeded">Colonne richieste</param>
       /// <param name="rand">Randomizzatore</param>
       /// <returns>Il cursore di linea</returns>
-      public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand) => new Cursor(this);
+      public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand) =>
+         new Cursor(this, columnsNeeded);
       /// <summary>
       /// Restituisce un set di cursori
       /// </summary>
       /// <param name="columnsNeeded">Colonne richieste</param>
       /// <param name="rand">Randomizzatore</param>
       /// <returns>Il cursore di linea</returns>
-      public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand) => new[] { (this as IDataAccess).GetRowCursor(columnsNeeded, rand) };
+      public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand) =>
+         Enumerable.Range(0, n).Select(i => new Cursor(this, columnsNeeded)).ToArray();
       /// <summary>
       /// Enumeratore di righe
       /// </summary>
@@ -228,6 +230,10 @@ namespace MachineLearning.Data
       private class Cursor : DataViewRowCursor
       {
          #region Fields
+         /// <summary>
+         /// Indicatore di colonna attiva
+         /// </summary>
+         private readonly bool[] _isColumnActive;
          /// <summary>
          /// Posizione
          /// </summary>
@@ -256,7 +262,16 @@ namespace MachineLearning.Data
          /// Costruttore
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
-         internal Cursor(DataViewGrid owner) => _owner = owner;
+         /// <param name="columnsNeeded">Colonne richieste</param>
+         internal Cursor(DataViewGrid owner, IEnumerable<DataViewSchema.Column> columnsNeeded)
+         {
+            _isColumnActive = new bool[owner.Schema.Count];
+            if (columnsNeeded != null) {
+               foreach (var c in columnsNeeded)
+                  _isColumnActive[c.Index] = true;
+            }
+            _owner = owner;
+         }
          /// <summary>
          /// Funzione di restituzione del getter di valori
          /// </summary>
@@ -279,7 +294,7 @@ namespace MachineLearning.Data
          /// </summary>
          /// <param name="column">Colonna richiesta</param>
          /// <returns>Stato di attivita'</returns>
-         public override bool IsColumnActive(DataViewSchema.Column column) => _owner._rows[(int)Position].IsColumnActive(column);
+         public override bool IsColumnActive(DataViewSchema.Column column) =>  _isColumnActive[column.Index];
          /// <summary>
          /// Muove il cursore alla posizione successiva
          /// </summary>
