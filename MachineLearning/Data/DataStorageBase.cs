@@ -73,7 +73,7 @@ namespace MachineLearning.Data
       protected IDataAccess LoadBinaryData(IMachineLearningContextProvider context)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
-         return new DataAccess(context.ML, context.ML.NET.Data.LoadFromBinary(this));
+         return new DataAccess(context, context.ML.NET.Data.LoadFromBinary(this));
       }
       /// <summary>
       /// Carica i dati in formato testo
@@ -85,7 +85,7 @@ namespace MachineLearning.Data
          MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckParam(context is ITextLoaderOptionsProvider, nameof(context), $"The context is not a {typeof(ITextLoaderOptionsProvider).Name}");
          var opt = (context as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options();
-         return new DataAccess(context.ML, context.ML.NET.Data.CreateTextLoader(opt).Load(this));
+         return new DataAccess(context, context.ML.NET.Data.CreateTextLoader(opt).Load(this));
       }
       /// <summary>
       /// Salva i dati in formato binario

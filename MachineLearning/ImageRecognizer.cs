@@ -1,6 +1,5 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
-using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
@@ -32,7 +31,7 @@ namespace MachineLearning
       /// Pipe di training
       /// </summary>
       [NonSerialized]
-      private IEstimator<ITransformer> _pipe;
+      private ModelPipes _pipes;
       /// <summary>
       /// Formato dati di training
       /// </summary>
@@ -92,17 +91,22 @@ namespace MachineLearning
       /// <param name="ml">Contesto di machine learning</param>
       public ImageRecognizer(MachineLearningContext ml) : base(ml) { }
       /// <summary>
-      /// Restituisce la pipe di training del modello
+      /// Restituisce le pipe di training del modello
       /// </summary>
-      /// <returns></returns>
-      protected override IEstimator<ITransformer> GetPipe()
+      /// <returns>Le pipe</returns>
+      public override ModelPipes GetPipes()
       {
          // Pipe di training
-         return _pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
-            Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, _imagePathColumnName)).
-            Append(Trainers.ImageClassification()).
-            Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
+         return _pipes ??= new ModelPipes
+         {
+            Input =
+               ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName)
+               .Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, _imagePathColumnName)),
+            Trainer =
+               Trainers.ImageClassification(),
+            Output =
+               ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel")
+         };
       }
       /// <summary>
       /// Restituisce il tipo di immagine

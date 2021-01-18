@@ -66,27 +66,43 @@ namespace MachineLearning.Model
          };
          var experiment = ML.NET.Auto().CreateMulticlassClassificationExperiment(settings);
          var progress = ML.NET.MulticlassClassificationProgress(Name);
+         var pipes = GetPipes();
+         var model = default(ITransformer);
          if (numberOfFolds > 1) {
-            var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, null, progress);
+            var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
             cancellation.ThrowIfCancellationRequested();
             var best = (from r in experimentResult.BestRun.Results select (r.Model, r.ValidationMetrics)).Best();
             ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
             metrics = best.Metrics;
-            return best.Model;
+            model = best.Model;
          }
          else {
-            var experimentResult = experiment.Execute(data, LabelColumnName, null, null, progress);
+            var experimentResult = experiment.Execute(data, LabelColumnName, null, pipes.Input, progress);
             var best = experimentResult.BestRun;
             ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
             metrics = best.ValidationMetrics;
-            return best.Model;
+            model = best.Model;
          }
+         if (pipes.Output != null) {
+            var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
+            var outputTransformer = pipes.Output.Fit(dataFirstRow);
+            //var tc = new TransformerChain<ITransformer>(model, outputTransformer); @@@
+            //ML.NET.Model.Save(tc, data.Schema, "D:\\Estimator.zip");
+
+            //var modelTest = ML.NET.Model.Load("D:\\Estimator.zip", out _);
+            //var dataGrid = DataViewGrid.Create(this, data.Schema);
+            //dataGrid.Add("", "Apri la finestra");
+            //var prediction = new DataAccess(this, modelTest.Transform(dataGrid)).ToDataViewGrid();
+            var result = new TransformerChain<ITransformer>(model, outputTransformer);
+            return result;
+         }
+         else
+            return model;
       }
       /// <summary>
       /// Effettua il training con validazione incrociata del modello
       /// </summary>
       /// <param name="data">Dati</param>
-      /// <param name="pipe">La pipe</param>
       /// <param name="metrics">La metrica del modello migliore</param>
       /// <param name="numberOfFolds">Numero di validazioni</param>
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
@@ -94,13 +110,12 @@ namespace MachineLearning.Model
       /// <returns>Il modello migliore</returns>
       public override ITransformer CrossValidateTraining(
          IDataAccess data,
-         IEstimator<ITransformer> pipe,
          out object metrics,
          int numberOfFolds = 5,
          string samplingKeyColumnName = null,
          int? seed = null)
       {
-         var results = ML.NET.MulticlassClassification.CrossValidate(data, pipe, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
+         var results = ML.NET.MulticlassClassification.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
          var best = (from r in results select(r.Model, r.Metrics)).Best();
          metrics = best.Metrics;
          return best.Model;

@@ -72,7 +72,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Valutazione
       /// </summary>
-      public Evaluator Evaluation { get => _evaluation ??= new Evaluator(); private set => _evaluation = value; }
+      protected Evaluator Evaluation { get => _evaluation ??= new Evaluator(); private set => _evaluation = value; }
       /// <summary>
       /// Valutazione disponibile
       /// </summary>
@@ -232,6 +232,7 @@ namespace MachineLearning.Model
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="data">Valori della linea da aggiungere</param>
       public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingData(FormatDataRow(data), checkForDuplicates);
+      /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>
       /// <param name="data">Dati</param>
@@ -317,7 +318,6 @@ namespace MachineLearning.Model
       /// Effettua il training con validazione incrociata del modello
       /// </summary>
       /// <param name="data">Dati</param>
-      /// <param name="pipe">La pipe</param>
       /// <param name="metrics">La metrica del modello migliore</param>
       /// <param name="numberOfFolds">Numero di validazioni</param>
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
@@ -325,7 +325,6 @@ namespace MachineLearning.Model
       /// <returns>Il modello migliore</returns>
       public abstract ITransformer CrossValidateTraining(
          IDataAccess data,
-         IEstimator<ITransformer> pipe,
          out object metrics,
          int numberOfFolds = 5,
          string samplingKeyColumnName = null,
@@ -366,13 +365,13 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La valutazione</returns>
-      public Evaluator GetEvaluator(CancellationToken cancellation = default) => GetEvaluatorAsync(cancellation).ConfigureAwait(false).GetAwaiter().GetResult();
+      protected Evaluator GetEvaluator(CancellationToken cancellation = default) => GetEvaluatorAsync(cancellation).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce l'evaluator
       /// </summary>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La valutazione</returns>
-      public async Task<Evaluator> GetEvaluatorAsync(CancellationToken cancellation = default)
+      protected async Task<Evaluator> GetEvaluatorAsync(CancellationToken cancellation = default)
       {
          // Attende la valutazione o la cancellazione del training
          var waitResult = await Task.Run(() => WaitHandle.WaitAny(new[] { EvaluationAvailable, cancellation.WaitHandle, TaskTraining.CancellationToken.WaitHandle }));
@@ -407,10 +406,10 @@ namespace MachineLearning.Model
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
       /// <summary>
-      /// Restituisce la pipe di training del modello
+      /// Restituisce le pipe di training del modello
       /// </summary>
-      /// <returns></returns>
-      protected abstract IEstimator<ITransformer> GetPipe();
+      /// <returns>Le pipe</returns>
+      public abstract ModelPipes GetPipes();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
@@ -465,7 +464,7 @@ namespace MachineLearning.Model
          var evaluator = await GetEvaluatorAsync(cancellation);
          cancellation.ThrowIfCancellationRequested();
          // Effettua la predizione
-         var prediction = new DataAccess(ML, evaluator.Model.Transform(inputData));
+         var prediction = new DataAccess(this, evaluator.Model.Transform(inputData));
          cancellation.ThrowIfCancellationRequested();
          return prediction;
       }
@@ -487,7 +486,7 @@ namespace MachineLearning.Model
       protected virtual void OnModelChanged(EventArgs e)
       {
          try {
-            if (Evaluation.Model != default)
+            if (Evaluation.Model != null)
                ML.NET.WriteLog("Model setted", Name);
             ModelChanged?.Invoke(this, e);
          }
@@ -564,7 +563,7 @@ namespace MachineLearning.Model
          else {
             // Imposta la nuova valutazione
             Evaluation = evaluation;
-            if (evaluation.Model != default)
+            if (evaluation.Model != null)
                EvaluationAvailable.Set();
             // Segnala la vartiazione del modello
             OnModelChanged(EventArgs.Empty);
@@ -705,7 +704,7 @@ namespace MachineLearning.Model
                   var currentModel = model;
                   var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
                   // Effettua il training
-                  var taskTrain = Task.Run(() => ModelTrainer?.GetTrainedModel(this, data, GetPipe(), out eval2, cancel));
+                  var taskTrain = Task.Run(() => ModelTrainer?.GetTrainedModel(this, data, out eval2, cancel));
                   // Messaggio di training ritardato
                   cancel.ThrowIfCancellationRequested();
                   var taskTrainingMessage = Task.Run(async () =>
@@ -731,7 +730,7 @@ namespace MachineLearning.Model
                   // Attende la valutazione del primo modello
                   eval1 = await taskEvaluate1;
                   // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
-                  if (GetBestModelEvaluation(eval1, eval2) == eval2 || Evaluation?.Model == default) {
+                  if (GetBestModelEvaluation(eval1, eval2) == eval2 || Evaluation?.Model == null) {
                      // Emette il log
                      ML.NET.WriteLog("Found suitable model", Name);
                      var evalInfo = GetModelEvaluationInfo(eval2);
@@ -781,7 +780,7 @@ namespace MachineLearning.Model
    public partial class ModelBase // Evaluator
    {
       [Serializable]
-      public class Evaluator
+      protected class Evaluator // @@@ Rendere protetto
       {
          #region Properties
          /// <summary>

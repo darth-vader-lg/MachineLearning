@@ -15,11 +15,10 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="model">Modello con cui effettuare il training</param>
       /// <param name="data">Dati di training</param>
-      /// <param name="pipe">Pipe del modello</param>
       /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      ITransformer GetTrainedModel(ModelBase model, IDataAccess data, IEstimator<ITransformer> pipe, out object evaluationMetrics, CancellationToken cancellation);
+      ITransformer GetTrainedModel(ModelBase model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation);
       #endregion
    }
 }

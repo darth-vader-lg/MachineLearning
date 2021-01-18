@@ -36,11 +36,11 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">Vista di dati</param>
-      public DataAccess(MachineLearningContext context, IDataView data)
+      public DataAccess(IMachineLearningContextProvider context, IDataView data)
       {
-         Contracts.CheckValue(context, nameof(context));
-         Contracts.CheckValue(data, nameof(data));
-         ML = context;
+         MachineLearningContext.CheckMLNET(context, nameof(context));
+         context.ML.NET.CheckValue(data, nameof(data));
+         ML = context.ML;
          _data = data;
       }
       /// <summary>

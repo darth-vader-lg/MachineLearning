@@ -28,7 +28,7 @@ namespace MachineLearning
       /// Pipe di training
       /// </summary>
       [NonSerialized]
-      private IEstimator<ITransformer> _pipe;
+      private ModelPipes _pipes;
       #endregion
       #region Properties
       /// <summary>
@@ -72,22 +72,27 @@ namespace MachineLearning
       /// <param name="ml">Contesto di machine learning</param>
       public TextMeaningRecognizer(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
-      /// Restituisce la pipe di training del modello
+      /// Restituisce le pipe di training del modello
       /// </summary>
-      /// <returns></returns>
-      protected override IEstimator<ITransformer> GetPipe()
+      /// <returns>Le pipe</returns>
+      public override ModelPipes GetPipes()
       {
          // Pipe di training
-         return _pipe ??=
-            ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName).
-            Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
-                                                                                                                  where c.Name != LabelColumnName
-                                                                                                                  select c.Name).ToArray())).
-            Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText")).
-            Append(ML.NET.Transforms.NormalizeMinMax("Features")).
-            AppendCacheCheckpoint(ML.NET).
-            Append(Trainers.SdcaNonCalibrated()).
-            Append(ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
+         return _pipes ??= new ModelPipes
+         {
+            Input =
+               ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName)
+               .Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
+                                                                                                                     where c.Name != LabelColumnName
+                                                                                                                     select c.Name).ToArray()))
+               .Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText"))
+               .Append(ML.NET.Transforms.NormalizeMinMax("Features"))
+               .AppendCacheCheckpoint(ML.NET),
+            Trainer =
+               Trainers.SdcaNonCalibrated(),
+            Output =
+               ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel")
+         };
       }
       /// <summary>
       /// Restituisce la previsione
