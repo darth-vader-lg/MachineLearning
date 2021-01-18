@@ -20,7 +20,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Metrica di scelta del miglior modello
       /// </summary>
-      public MulticlassClassificationMetric BestModelSelectionMetric { get; set; }//@@@ Rendere serializzabile
+      public MulticlassClassificationMetric BestModelSelectionMetric { get; set; }
       /// <summary>
       /// Catalogo di trainers
       /// </summary>

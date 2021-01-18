@@ -20,7 +20,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Metrica di scelta del miglior modello
       /// </summary>
-      public RegressionMetric BestModelSelectionMetric { get; set; } = RegressionMetric.RSquared; //@@@ Rendere serializzabile
+      public RegressionMetric BestModelSelectionMetric { get; set; }
       /// <summary>
       /// Catalogo di trainers
       /// </summary>
