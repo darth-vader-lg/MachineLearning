@@ -1,6 +1,6 @@
 ﻿using MachineLearning.Data;
-using Microsoft.ML;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace MachineLearning.Model
@@ -13,43 +13,71 @@ namespace MachineLearning.Model
    {
       #region Properties
       /// <summary>
-      /// Path del file
+      /// Path della directory contenente il modello
       /// </summary>
-      public string FilePath { get; private set; }
+      public string ModelDir { get; private set; }
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime DataTimestamp => File.GetLastWriteTimeUtc(FilePath);
+      public DateTime DataTimestamp => Directory.GetLastWriteTimeUtc(ModelDir);
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="filePath">Path del file del modello</param>
-      public ModelStorageFile(string filePath)
+      /// <param name="modelDir">Path della directory del modello</param>
+      public ModelStorageFile(string modelDir)
       {
-         if (string.IsNullOrEmpty(filePath))
-            throw new ArgumentException($"{nameof(filePath)} cannot be null");
-         FilePath = filePath;
+         if (string.IsNullOrEmpty(modelDir))
+            throw new ArgumentException($"{nameof(modelDir)} cannot be null");
+         ModelDir = modelDir;
       }
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
-      /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema) =>
-         (context?.ML?.NET ?? new MLContext()).Model.Load(FilePath, out inputSchema);
+      public CompositeModel LoadModel(IMachineLearningContextProvider context)
+      {
+         var streams = new List<Stream>();
+         try {
+            var model = new CompositeModel(context, (index, write) =>
+            {
+               var file = Path.Combine(ModelDir, index.ToString("000"));
+               if (File.Exists(file)) {
+                  streams.Add(File.OpenRead(file));
+                  return streams[streams.Count - 1];
+               }
+               return null;
+            });
+            return model.Load();
+         }
+         finally {
+            streams.ForEach(s => s.Close());
+         }
+      }
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
-      /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema) =>
-         (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, FilePath);
+      public void SaveModel(IMachineLearningContextProvider context, CompositeModel model)
+      {
+         if (!Directory.Exists(ModelDir))
+            Directory.CreateDirectory(ModelDir);
+         var streams = new List<Stream>();
+         try {
+            model.Save((index, write) =>
+            {
+               var file = Path.Combine(ModelDir, index.ToString("000"));
+               streams.Add(File.Create(file));
+               return streams[streams.Count - 1];
+            });
+         }
+         finally {
+            streams.ForEach(s => s.Close());
+         }
+      }
       #endregion
    }
 }

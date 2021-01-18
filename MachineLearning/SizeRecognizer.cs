@@ -27,7 +27,7 @@ namespace MachineLearning
       /// Pipe di training
       /// </summary>
       [NonSerialized]
-      private IEstimator<ITransformer> _pipe;
+      private ModelPipes _pipes;
       #endregion
       #region Properties
       /// <summary>
@@ -106,17 +106,21 @@ namespace MachineLearning
       /// Restituisce la pipe di training del modello
       /// </summary>
       /// <returns></returns>
-      protected override IEstimator<ITransformer> GetPipe()
+      public override ModelPipes GetPipes()
       {
          // Pipe di training
-         return _pipe ??=
-            ML.NET.Transforms.Concatenate("Features", (from c in Evaluation.InputSchema
-                                                       where c.Name != LabelColumnName
-                                                       select c.Name).ToArray()).
-            Append(Trainers.LightGbm(new Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options
-            {
-               LabelColumnName = LabelColumnName,
-            }));
+         return _pipes ??= new ModelPipes
+         {
+            Input =
+               ML.NET.Transforms.Concatenate("Features", (from c in Evaluation.Data.Schema
+                                                          where c.Name != LabelColumnName
+                                                          select c.Name).ToArray()),
+            Trainer =
+               Trainers.LightGbm(new Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options
+               {
+                  LabelColumnName = LabelColumnName,
+               }),
+         };
       }
       /// <summary>
       /// Funzione di inizializzazione

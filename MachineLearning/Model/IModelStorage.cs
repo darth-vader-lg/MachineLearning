@@ -1,6 +1,4 @@
-﻿using Microsoft.ML;
-
-namespace MachineLearning.Model
+﻿namespace MachineLearning.Model
 {
    /// <summary>
    /// Interfaccia per i gestori di storage dei modelli
@@ -12,16 +10,14 @@ namespace MachineLearning.Model
       /// Funzione di caricamento modello
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema);
+      CompositeModel LoadModel(IMachineLearningContextProvider context);
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
-      void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema);
+      void SaveModel(IMachineLearningContextProvider context, CompositeModel model);
       #endregion
    }
 }

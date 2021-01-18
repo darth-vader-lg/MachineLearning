@@ -1,6 +1,6 @@
 ﻿using MachineLearning.Data;
-using Microsoft.ML;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace MachineLearning.Model
@@ -16,31 +16,35 @@ namespace MachineLearning.Model
       /// Funzione di ottenimento dello stream di lettura
       /// </summary>
       [field: NonSerialized]
-      public Func<Stream> ReadStream { get; set; }
+      public CompositeModel.StreamGetter StreamGetter { get; set; }
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
       public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
-      /// <summary>
-      /// Funzione di ottenimento dello stream di scrittura
-      /// </summary>
-      [field: NonSerialized]
-      public Func<Stream> WriteStream { get; set; }
       #endregion
       #region Methods
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
-      /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema)
+      public CompositeModel LoadModel(IMachineLearningContextProvider context)
       {
-         var stream = ReadStream?.Invoke();
-         if (stream == null)
-            throw new InvalidOperationException("Cannot read from the stream");
-         return (context?.ML?.NET ?? new MLContext()).Model.Load(stream, out inputSchema);
+         var streams = new List<Stream>();
+         try {
+            var model = new CompositeModel(context, (index, write) =>
+            {
+               var stream = StreamGetter?.Invoke(index, write);
+               if (stream == null)
+                  return null;
+               streams.Add(stream);
+               return streams[streams.Count - 1];
+            });
+            return model;
+         }
+         finally {
+            streams.ForEach(s => s.Close());
+         }
       }
       /// <summary>
       /// Funzione di salvataggio modello
@@ -48,13 +52,22 @@ namespace MachineLearning.Model
       /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(IMachineLearningContextProvider context, CompositeModel model)
       {
-         var stream = WriteStream?.Invoke();
-         if (stream == null)
-            throw new InvalidOperationException("Cannot write to the stream");
-         (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, stream);
+         var streams = new List<Stream>();
+         try {
+            model.Save((index, write) =>
+            {
+               var stream = StreamGetter?.Invoke(index, write);
+               if (stream == null)
+                  throw new InvalidOperationException("Cannot write to the stream");
+               streams.Add(stream);
+               return streams[streams.Count - 1];
+            });
+         }
+         finally {
+            streams.ForEach(s => s.Close());
+         }
       }
       #endregion
    }

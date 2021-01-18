@@ -51,7 +51,7 @@ namespace MachineLearning.Model
       /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il modello migliore</returns>
-      public override ITransformer AutoTraining(
+      public override CompositeModel AutoTraining(
          IDataAccess data,
          int maxTimeInSeconds,
          out object metrics,
@@ -66,44 +66,58 @@ namespace MachineLearning.Model
          };
          var experiment = ML.NET.Auto().CreateRegressionExperiment(settings);
          var progress = ML.NET.RegressionProgress(Name);
+         var pipes = GetPipes();
+         var model = default(ITransformer);
          if (numberOfFolds > 1) {
-            var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, null, progress);
+            var experimentResult = experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
             cancellation.ThrowIfCancellationRequested();
             var best = (from r in experimentResult.BestRun.Results select (r.Model, r.ValidationMetrics)).Best();
             ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
             metrics = best.Metrics;
-            return best.Model;
+            model = best.Model;
          }
          else {
-            var experimentResult = experiment.Execute(data, LabelColumnName, null, null, progress);
+            var experimentResult = experiment.Execute(data, LabelColumnName, null, pipes.Input, progress);
             var best = experimentResult.BestRun;
             ML.NET.WriteLog(experimentResult.BestRun.TrainerName, Name);
             metrics = best.ValidationMetrics;
-            return best.Model;
+            model = best.Model;
+         }
+         if (pipes.Output != null) {
+            var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
+            var outputTransformer = pipes.Output.Fit(dataFirstRow);
+            var result = new CompositeModel(this) { model, outputTransformer };
+            result.Schema = data.Schema;
+            return result;
+         }
+         else {
+            var result = new CompositeModel(this) { model };
+            result.Schema = data.Schema;
+            return result;
          }
       }
       /// <summary>
       /// Effettua il training con validazione incrociata del modello
       /// </summary>
       /// <param name="data">Dati</param>
-      /// <param name="pipe">La pipe</param>
       /// <param name="metrics">La metrica del modello migliore</param>
       /// <param name="numberOfFolds">Numero di validazioni</param>
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
       /// <param name="seed">Seme per le operazioni random</param>
       /// <returns>Il modello migliore</returns>
-      public override ITransformer CrossValidateTraining(
+      public override CompositeModel CrossValidateTraining(
          IDataAccess data,
-         IEstimator<ITransformer> pipe,
          out object metrics,
          int numberOfFolds = 5,
          string samplingKeyColumnName = null,
          int? seed = null)
       {
-         var results = ML.NET.Regression.CrossValidate(data, pipe, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
+         var results = ML.NET.Regression.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
          var best = (from r in results select (r.Model, r.Metrics)).Best();
          metrics = best.Metrics;
-         return best.Model;
+         var result = new CompositeModel(this) { best.Model };
+         result.Schema = data.Schema;
+         return result;
       }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello

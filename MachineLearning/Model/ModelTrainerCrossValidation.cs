@@ -1,5 +1,4 @@
 ﻿using MachineLearning.Data;
-using Microsoft.ML;
 using System;
 using System.Threading;
 
@@ -30,13 +29,12 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="model">Modello con cui effettuare il training</param>
       /// <param name="data">Dati di training</param>
-      /// <param name="pipe">Pipe del modello</param>
       /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      ITransformer IModelTrainer.GetTrainedModel(ModelBase model, IDataAccess data, IEstimator<ITransformer> pipe, out object evaluationMetrics, CancellationToken cancellation)
+      CompositeModel IModelTrainer.GetTrainedModel(ModelBase model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
       {
-         var result = model.CrossValidateTraining(data, pipe, out evaluationMetrics, NumFolds, null, _trainingSeed++);
+         var result = model.CrossValidateTraining(data, out evaluationMetrics, NumFolds, null, _trainingSeed++);
          cancellation.ThrowIfCancellationRequested();
          return result;
       }

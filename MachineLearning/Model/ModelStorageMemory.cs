@@ -1,7 +1,8 @@
 ﻿using MachineLearning.Data;
-using Microsoft.ML;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace MachineLearning.Model
 {
@@ -15,7 +16,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Bytes del modello
       /// </summary>
-      public byte[] Bytes { get; private set; }
+      public IEnumerable<byte[]> Bytes { get; private set; }
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
@@ -30,37 +31,37 @@ namespace MachineLearning.Model
       /// Costruttore
       /// </summary>
       /// <param name="memory">Contenuto iniziale</param>
-      public ModelStorageMemory(byte[] bytes) => Bytes = bytes;
+      public ModelStorageMemory(IEnumerable<byte[]> bytes) => Bytes = bytes;
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
-      /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema)
+      public CompositeModel LoadModel(IMachineLearningContextProvider context)
       {
-         if (Bytes == default) {
-            inputSchema = default;
+         if (Bytes == default)
             return default;
-         }
-         using var memoryStream = new MemoryStream(Bytes);
-         return (context?.ML?.NET ?? new MLContext()).Model.Load(memoryStream, out inputSchema);
+         var enumerator = Bytes.GetEnumerator();
+         var model = new CompositeModel(context, (index, write) =>
+         {
+            if (!enumerator.MoveNext())
+               return null;
+            return new MemoryStream(enumerator.Current);
+         });
+         return model;
       }
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
-      /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
-      /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(IMachineLearningContextProvider context, CompositeModel model)
       {
          lock (this) {
             var timestamp = DateTime.UtcNow;
-            using var memoryStream = new MemoryStream();
-            (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, memoryStream);
-            Bytes = memoryStream.ToArray();
+            var bytes = new MemoryStream[model.Count];
+            model.Save((index, write) => bytes[index] = new MemoryStream());
+            Bytes = from b in bytes select b.ToArray();
             DataTimestamp = timestamp;
          }
       }
