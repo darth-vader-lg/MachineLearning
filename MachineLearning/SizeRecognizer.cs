@@ -45,7 +45,7 @@ namespace MachineLearning
       /// <summary>
       /// Trainer del modello
       /// </summary>
-      public IModelTrainer ModelTrainer { get; set; }
+      public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
       /// <summary>
       /// Opzioni di caricamento dati testuali
       /// </summary>
