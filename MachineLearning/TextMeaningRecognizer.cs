@@ -99,7 +99,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="sentence">Significato da prevedere</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(string sentence) => new Prediction( GetPredictionData(null, sentence));
+      public Prediction GetPrediction(string sentence) => new Prediction(GetPredictionData(null, sentence));
       /// <summary>
       /// Restituisce la previsione
       /// </summary>

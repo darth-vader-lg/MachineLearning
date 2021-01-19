@@ -586,7 +586,18 @@ namespace MachineLearning.Model
             EvaluationAvailable.Reset();
             await TaskTraining.StartNew(
                c => Task.Factory.StartNew(
-                  async () => await TrainingAsync(CancellationTokenSource.CreateLinkedTokenSource(c)).ConfigureAwait(false),
+                  async () =>
+                  {
+                     var task = default(Task);
+                     var cts = CancellationTokenSource.CreateLinkedTokenSource(c);
+                     try {
+                        await ML.AddWorkingTask(task = TrainingAsync(cts), cts).ConfigureAwait(false);
+                     }
+                     finally {
+                        if (task != null)
+                           ML.RemoveWorkingTask(task);
+                     }
+                  },
                   c,
                   TaskCreationOptions.LongRunning,
                   TaskScheduler.Default),
