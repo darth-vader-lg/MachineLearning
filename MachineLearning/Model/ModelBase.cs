@@ -18,7 +18,7 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase : IDeserializationCallback, IMachineLearningContextProvider
+   public abstract partial class ModelBase : IDeserializationCallback, IMachineLearningContextProvider, ITransformer
    {
       #region Fields
       /// <summary>
@@ -113,6 +113,10 @@ namespace MachineLearning.Model
       /// Dati aggiuntivi di training
       /// </summary>
       private IDataStorage TrainingData => (this as ITrainingDataProvider)?.TrainingData;
+      /// <summary>
+      /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
+      /// </summary>
+      public bool IsRowToRowMapper => GetEvaluator().Model?.IsRowToRowMapper ?? false;
       #endregion
       #region Events
       /// <summary>
@@ -373,6 +377,8 @@ namespace MachineLearning.Model
       /// <returns>La valutazione</returns>
       protected async Task<Evaluator> GetEvaluatorAsync(CancellationToken cancellation = default)
       {
+         // Avvia il ntraining se necessario
+         await StartTrainingIfNeededAsync(cancellation);
          // Attende la valutazione o la cancellazione del training
          var waitResult = await Task.Run(() => WaitHandle.WaitAny(new[] { EvaluationAvailable, cancellation.WaitHandle, TaskTraining.CancellationToken.WaitHandle }));
          // Se il task non era quello di valutazione valida propaga l'eventuale eccezione del task di training
@@ -405,6 +411,12 @@ namespace MachineLearning.Model
       /// <param name="modelEvaluation">Il risultato della valutazione di un modello</param>
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
+      /// <summary>
+      /// Restituisce lo schema di output dato lo schema di input
+      /// </summary>
+      /// <param name="inputSchema">Scema di input</param>
+      /// <returns>Lo schema di output</returns>
+      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => GetEvaluator().Model?.GetOutputSchema(inputSchema);
       /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
@@ -454,16 +466,6 @@ namespace MachineLearning.Model
       /// <returns>La previsione</returns>
       public async Task<IDataAccess> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
       {
-         // Avvia il task di training se necessario
-         var startTrain = false;
-         if (ModelTrainer is IModelTrainerCycling cycling && _trainsCount < cycling.MaxTrainingCycles)
-            startTrain = true;
-         else if (((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp || ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp)
-            startTrain = true;
-         if (startTrain) {
-            await StopTrainingAsync(cancellation);
-            _ = StartTrainingAsync(cancellation);
-         }
          // Crea una dataview con i dati di input
          var inputData = new DataStorageTextMemory() { TextData = data }.LoadData(this);
          cancellation.ThrowIfCancellationRequested();
@@ -475,6 +477,12 @@ namespace MachineLearning.Model
          cancellation.ThrowIfCancellationRequested();
          return prediction;
       }
+      /// <summary>
+      /// Restituisce il mapper riga a riga
+      /// </summary>
+      /// <param name="inputSchema">Schema di input</param>
+      /// <returns>Il mappatore</returns>
+      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => GetEvaluator().Model?.GetRowToRowMapper(inputSchema);
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
       /// </summary>
@@ -555,6 +563,16 @@ namespace MachineLearning.Model
             Action();
       }
       /// <summary>
+      /// Effettua il salvataggio del modello
+      /// </summary>
+      /// <param name="ctx">Contesto di salvataggio</param>
+      public void Save(ModelSaveContext ctx)
+      {
+         var evaluator = GetEvaluator();
+         if (evaluator.Model != null && ModelStorage != null)
+            ModelStorage.SaveModel(this, evaluator.Model, evaluator.InputSchema);
+      }
+      /// <summary>
       /// Imposta i dati di valutazione
       /// </summary>
       /// <param name="evaluation">Dati di valutazione</param>
@@ -605,6 +623,26 @@ namespace MachineLearning.Model
          }
          else
             await TaskTraining;
+      }
+      /// <summary>
+      /// Avvia il training se necessario
+      /// </summary>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il task</returns>
+      private async Task StartTrainingIfNeededAsync(CancellationToken cancellation = default)
+      {
+         // Avvia il task di training se necessario
+         var startTrain = false;
+         if (ModelTrainer is IModelTrainerCycling cycling && _trainsCount < cycling.MaxTrainingCycles)
+            startTrain = true;
+         else if (((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp || ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp)
+            startTrain = true;
+         if (startTrain) {
+            await StopTrainingAsync(cancellation);
+            cancellation.ThrowIfCancellationRequested();
+            _ = StartTrainingAsync(cancellation);
+         }
+         cancellation.ThrowIfCancellationRequested();
       }
       /// <summary>
       /// Stoppa il training del modello
@@ -816,6 +854,12 @@ namespace MachineLearning.Model
             OnTrainingEnded(EventArgs.Empty);
          }
       }
+      /// <summary>
+      /// Trasforma i dati di input per il modello
+      /// </summary>
+      /// <param name="input">Vista di dati di input</param>
+      /// <returns>I dati trasformati</returns>
+      public IDataView Transform(IDataView input) => GetEvaluator().Model?.Transform(input);
       #endregion
    }
 
