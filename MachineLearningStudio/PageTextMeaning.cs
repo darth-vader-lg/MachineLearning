@@ -123,12 +123,12 @@ namespace MachineLearningStudio
             {
                AutoCommitData = true,
                AutoSaveModel = true,
-               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
+               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text), TextMeaningRecognizer.GetDefaultTextLoaderOptions()),
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
+               ModelTrainer = new ModelTrainerAuto(),
                Name = "Predictor",
-               TrainingData = new DataStorageTextMemory(),
+               TrainingData = new DataStorageBinaryMemory(),
             };
-            predictor.TextLoaderOptions.Separators = new[] { '|' };
             // Aggancia il log
             predictor.ML.NET.Log += Log;
             // Indicatore di inizializzazione ok
@@ -160,7 +160,7 @@ namespace MachineLearningStudio
                _ = predictor.StartTrainingAsync(cancel);
             }
             cancel.ThrowIfCancellationRequested();
-            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await predictor.GetPredictionAsync(sentence, cancel)).Meaning;
+            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await predictor.GetPredictionAsync(cancel, sentence)).Meaning;
             textBoxIntent.BackColor = textBoxBackColor;
          }
          catch (OperationCanceledException) { }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using System;
 using System.IO;
@@ -26,10 +27,10 @@ namespace MachineLearning.Data
       /// Costruttore
       /// </summary>
       /// <param name="filePath">Path del file</param>
-      public DataStorageTextFile(string filePath)
+      /// <param name="options">Opzioni di caricamento dei testi</param>
+      public DataStorageTextFile(string filePath, TextLoader.Options options) : base(options)
       {
-         if (string.IsNullOrEmpty(filePath))
-            throw new ArgumentNullException(nameof(filePath), $"{nameof(filePath)} cannot be null");
+         Contracts.CheckNonEmpty(filePath, nameof(filePath));
          FilePath = filePath;
       }
       /// <summary>
@@ -52,7 +53,7 @@ namespace MachineLearning.Data
          MachineLearningContext.CheckMLNET(context, nameof(context));
          using var stream = File.Create(FilePath);
          context.ML.NET.CheckIO(stream != null, $"Cannot write to file {FilePath}");
-         SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
+         SaveTextData(context, data, stream, true);
       }
       #endregion
    }

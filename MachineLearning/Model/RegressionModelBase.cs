@@ -42,6 +42,10 @@ namespace MachineLearning.Model
       /// </summary>
       public RegressionMetric BestModelSelectionMetric { get; set; }
       /// <summary>
+      /// Nome colonna label
+      /// </summary>
+      public string LabelColumnName { get; set; } = "Label";
+      /// <summary>
       /// Catalogo di trainers
       /// </summary>
       [field: NonSerialized]
@@ -199,7 +203,8 @@ namespace MachineLearning.Model
       /// <param name="data">Dati attuali caricati</param>
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected override object GetModelEvaluation(ITransformer model, IDataAccess data) => ML.NET.Regression.Evaluate(model.Transform(data));
+      protected override object GetModelEvaluation(ITransformer model, IDataAccess data) =>
+         ML.NET.Regression.Evaluate(model.Transform(data), LabelColumnName ?? "Label");
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>

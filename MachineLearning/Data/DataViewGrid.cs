@@ -124,11 +124,14 @@ namespace MachineLearning.Data
       {
          ML.NET.AssertNonEmpty(values);
          ML.NET.Assert(values.Length == Schema.Count, $"The length of {nameof(values)} must be equal to the length of schema");
+         var dataViewValues = new object[values.Length];
          for (var i = 0; i < values.Length; i++) {
+            if (values[i] == null)
+               values[i] = Activator.CreateInstance(Schema[i].Type.RawType);
             ML.NET.Assert(DataViewValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
-            values[i] = DataViewValue.Convert(values[i], Schema[i].Type.RawType);
+            dataViewValues[i] = DataViewValue.Convert(values[i], Schema[i].Type.RawType);
          }
-         _rows.Add(DataViewValuesRow.Create(this, Schema, _rows.Count, default, values, Enumerable.Range(0, values.Length).Select(i => true).ToArray()));
+         _rows.Add(DataViewValuesRow.Create(this, Schema, _rows.Count, default, dataViewValues, Enumerable.Range(0, dataViewValues.Length).Select(i => true).ToArray()));
       }
       /// <summary>
       /// Aggiunge una riga alla griglia di dati

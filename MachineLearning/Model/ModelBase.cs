@@ -8,7 +8,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -47,10 +46,6 @@ namespace MachineLearning.Model
       [NonSerialized]
       private CancellableTask _taskTraining;
       /// <summary>
-      /// Opzioni di caricamento testi di default
-      /// </summary>
-      private TextLoader.Options _textLoaderOptionsDefault;
-      /// <summary>
       /// Contatore di training
       /// </summary>
       [NonSerialized]
@@ -78,9 +73,9 @@ namespace MachineLearning.Model
       /// </summary>
       public EventWaitHandle EvaluationAvailable => _evaluationAvailable ??= new EventWaitHandle(false, EventResetMode.ManualReset);
       /// <summary>
-      /// Nome colonna label
+      /// Schema di input
       /// </summary>
-      public string LabelColumnName { get; protected set; } = "Label";
+      public virtual DataViewSchema InputSchema => FindInputSchema();
       /// <summary>
       /// Contesto di machine learning
       /// </summary>
@@ -105,10 +100,6 @@ namespace MachineLearning.Model
       /// Task di training
       /// </summary>
       private CancellableTask TaskTraining => _taskTraining ??= new CancellableTask();
-      /// <summary>
-      /// Gestore storage dati principale
-      /// </summary>
-      private TextLoader.Options TextLoaderOptions => (this as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? (_textLoaderOptionsDefault ??= new TextLoader.Options());
       /// <summary>
       /// Dati aggiuntivi di training
       /// </summary>
@@ -162,10 +153,24 @@ namespace MachineLearning.Model
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
-      /// <param name="data">Linee di dati da aggiungere</param>
+      /// <param name="data">Dati</param>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      public void AddTrainingData(string data, bool checkForDuplicates = false)
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il task</returns>
+      protected Task AddTrainingDataAsync(IDataView data, bool checkForDuplicates, CancellationToken cancellation)
       {
+         return Task.Run(() =>
+         {
+            var trainingData = TrainingData;
+            if (trainingData == null)
+               throw new InvalidOperationException("The object doesn't have training data characteristics");
+            var merged = trainingData.LoadData(this).Merge(new DataAccess(this, data));
+            var temp = new DataStorageBinaryTempFile();
+            temp.SaveData(this, merged);
+            trainingData.SaveData(this, temp.LoadData(this));
+         }, cancellation);
+         /*@@@
+         // Ottiene le opzioni di testo
          // Verifica esistenza dati di training
          if (TrainingData is not IMultiStreamSource trainingDataSource || TrainingData is not IDataStorage trainingData)
             throw new InvalidOperationException("The object doesn't have training data characteristics");
@@ -229,13 +234,14 @@ namespace MachineLearning.Model
             trainingData.SaveData(this, formatter.LoadData(this));
             OnTrainingDataChanged(EventArgs.Empty);
          }
+         */
       }
       /// <summary>
       /// Aggiunge un dato di training definito a colonne
       /// </summary>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="data">Valori della linea da aggiungere</param>
-      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingData(FormatDataRow(data), checkForDuplicates);
+      //@@@public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingData(FormatDataRow(data), checkForDuplicates);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>
@@ -282,9 +288,9 @@ namespace MachineLearning.Model
          // Annulla il training
          await ClearTrainingAsync(cancellation);
          // Cancella i dati di training
-         var emptyData = new DataStorageTextMemory();
          cancellation.ThrowIfCancellationRequested();
-         trainingData.SaveData(this, emptyData.LoadData(this));
+         trainingData.SaveData(this, DataViewGrid.Create(this, trainingData.LoadData(this).Schema));
+         cancellation.ThrowIfCancellationRequested();
          OnTrainingDataChanged(EventArgs.Empty);
       }
       /// <summary>
@@ -306,13 +312,13 @@ namespace MachineLearning.Model
             // Aggiorna lo storage
             dataStorage.SaveData(this, tmpStorage.LoadData(this));
             // Cancella i dati di training
-            trainingData.SaveData(this, new DataStorageTextMemory().LoadData(this));
+            trainingData.SaveData(this, DataViewGrid.Create(this, mergedData.Schema));
             OnTrainingDataChanged(EventArgs.Empty);
          }
          finally {
             try {
                // Cancella il file temporaneo
-               File.Delete(tmpFileName);
+               FileUtil.Delete(tmpFileName);
             }
             catch (Exception) {
             }
@@ -334,27 +340,21 @@ namespace MachineLearning.Model
          string samplingKeyColumnName = null,
          int? seed = null);
       /// <summary>
-      /// Formatta una riga di dati di input da un elenco di dati di input
+      /// Cerca lo schema di input engli oggetti disponibili
       /// </summary>
-      /// <param name="data"></param>
-      /// <returns></returns>
-      public string FormatDataRow(params string[] data)
+      protected DataViewSchema FindInputSchema()
       {
-         // Linea da passare al modello
-         var inputLine = new StringBuilder();
-         // Quotatura stringhe
-         var quote = TextLoaderOptions.AllowQuoting ? "\"" : "";
-         // Separatore di colonne
-         var separatorChar = TextLoaderOptions.Separators?.FirstOrDefault() ?? ',';
-         // Loop di costruzione della linea di dati
-         var separator = "";
-         foreach (var item in data) {
-            var text = item ?? "";
-            var quoting = quote.Length > 0 && text.TrimStart().StartsWith(quote) && text.TrimEnd().EndsWith(quote) ? "" : quote;
-            inputLine.Append($"{separator}{quoting}{text}{quoting}");
-            separator = new string(separatorChar, 1);
-         }
-         return inputLine.ToString();
+         if (EvaluationAvailable.WaitOne(0) && Evaluation?.InputSchema != null)
+            return Evaluation.InputSchema;
+         else if (DataStorage is ITextLoaderOptionsProvider textDataStorage)
+            return ML.NET.Data.CreateTextLoader(textDataStorage.TextLoaderOptions).GetOutputSchema();
+         else if (TrainingData is ITextLoaderOptionsProvider textTrainingData)
+            return ML.NET.Data.CreateTextLoader(textTrainingData.TextLoaderOptions).GetOutputSchema();
+         else if (DataStorage != null)
+            return DataStorage.LoadData(this).Schema;
+         else if (TrainingData != null)
+            return TrainingData.LoadData(this).Schema;
+         return null;
       }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
@@ -428,55 +428,27 @@ namespace MachineLearning.Model
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="data">Elenco di dati da usare per la previsione</param>
+      /// <param name="data">Riga di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public IDataAccess GetPredictionData(params string[] data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
-      /// <summary>
-      /// Restituisce la previsione
-      /// </summary>
-      /// <param name="data">Elenco di dati da usare per la previsione</param>
-      /// <returns>La previsione</returns>
-      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public IDataAccess GetPredictionData(IEnumerable<string> data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
-      /// <summary>
-      /// Restituisce la previsione
-      /// </summary>
-      /// <param name="data">Dati per la previsione</param>
-      /// <returns>La previsione</returns>
-      public IDataAccess GetPredictionData(string data) => GetPredictionDataAsync(data).ConfigureAwait(false).GetAwaiter().GetResult();
+      protected IDataAccess GetPredictionData(IEnumerable<object> data) => GetPredictionDataAsync(default, data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
-      /// <param name="data">Linea di dati da usare per la previsione</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il task di predizione</returns>
-      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<IDataAccess> GetPredictionDataAsync(IEnumerable<string> data, CancellationToken cancellation = default) => GetPredictionDataAsync(FormatDataRow(data.ToArray()), cancellation);
-      /// <summary>
-      /// Restituisce il task di previsione
-      /// </summary>
-      /// <param name="data">Linea di dati da usare per la previsione</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il task di predizione</returns>
-      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public Task<IDataAccess> GetPredictionDataAsync(CancellationToken cancellation = default, params string[] data) => GetPredictionDataAsync(FormatDataRow(data), cancellation);
-      /// <summary>
-      /// Restituisce il task di previsione
-      /// </summary>
-      /// <param name="data">Dati per la previsione</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
+      /// <param name="data">Riga di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
-      public async Task<IDataAccess> GetPredictionDataAsync(string data, CancellationToken cancellation = default)
+      protected async Task<IDataAccess> GetPredictionDataAsync(CancellationToken cancellation, IEnumerable<object> data)
       {
-         // Crea una dataview con i dati di input
-         var inputData = new DataStorageTextMemory() { TextData = data }.LoadData(this);
-         cancellation.ThrowIfCancellationRequested();
          // Attande il modello od un eventuale errore di training
          var evaluator = await GetEvaluatorAsync(ModelTrainer, cancellation);
          cancellation.ThrowIfCancellationRequested();
+         // Crea la vista di dati per la previsione
+         var dataViewGrid = DataViewGrid.Create(this, evaluator.InputSchema);
+         dataViewGrid.Add(data.ToArray());
+         cancellation.ThrowIfCancellationRequested();
          // Effettua la predizione
-         var prediction = new DataAccess(this, evaluator.Model.Transform(inputData));
+         var prediction = new DataAccess(this, evaluator.Model.Transform(dataViewGrid));
          cancellation.ThrowIfCancellationRequested();
          return prediction;
       }
@@ -680,15 +652,11 @@ namespace MachineLearning.Model
          // Funzione di caricamento dati di storage e training mergiati
          IDataAccess LoadData()
          {
-            if (DataStorage != null) {
-               if (TrainingData != null)
-                  return DataStorage.LoadData(this).Merge(TrainingData.LoadData(this));
-               else
-                  return DataStorage.LoadData(this);
-            }
-            else if (TrainingData != null)
-               return TrainingData.LoadData(this);
-            return null;
+            var storageData = DataStorage?.LoadData(this);
+            var trainingData = TrainingData?.LoadData(this);
+            if (storageData != null)
+               return trainingData != null ? storageData.Merge(trainingData) : storageData;
+            return trainingData;
          }
          // Task di salvataggio modello
          var taskSaveModel = Task.CompletedTask;
@@ -744,7 +712,7 @@ namespace MachineLearning.Model
                         return;
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
-                     if (data != null && DataStorage != null && TrainingData != null && AutoCommitData && TrainingData.LoadData(this).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
+                     if (AutoCommitData && data != null && DataStorage != null && (TrainingData?.LoadData(this)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
                         ML.NET.WriteLog("Committing the new data", Name);
                         await Task.Run(() => CommitTrainingData(), cancel);
                      }
@@ -764,7 +732,7 @@ namespace MachineLearning.Model
                   // Ricarica i dati
                   else {
                      // Effettua eventuale commit automatico
-                     if (DataStorage != null && TrainingData != null && AutoCommitData && TrainingData.LoadData(this).GetRowCursor(Evaluation.InputSchema).MoveNext()) {
+                     if (AutoCommitData && data != null && DataStorage != null && (TrainingData?.LoadData(this)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
                            await Task.Run(() => CommitTrainingData(), cancel);
@@ -779,7 +747,7 @@ namespace MachineLearning.Model
                      }
                      data = LoadData();
                      // Verifica l'esistenza di dati
-                     if (data == default)
+                     if (data == null)
                         return;
                   }
                   // Timestamp attuale

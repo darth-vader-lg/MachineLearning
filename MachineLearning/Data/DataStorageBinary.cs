@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using System;
+using System.IO;
 
 namespace MachineLearning.Data
 {
@@ -17,11 +18,53 @@ namespace MachineLearning.Data
       #endregion
       #region Methods
       /// <summary>
+      /// Carica i dati in formato binario
+      /// </summary>
+      /// <param name="context">Contesto</param>
+      /// <returns>L'accesso ai dati</returns>
+      protected IDataAccess LoadBinaryData(IMachineLearningContextProvider context)
+      {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
+         using (var checkHeader = GetReadStream()) {
+            if (checkHeader == null)
+               return null;
+            checkHeader.Close();
+         }
+         return new DataAccess(context, context.ML.NET.Data.LoadFromBinary(this));
+      }
+      /// <summary>
       /// Carica i dati
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
       public virtual IDataAccess LoadData(IMachineLearningContextProvider context) => LoadBinaryData(context);
+      /// <summary>
+      /// Salva i dati in formato binario
+      /// </summary>
+      /// <param name="context">Contesto</param>
+      /// <param name="data">L'accesso ai dati</param>
+      /// <param name="stream">Stream per la scrittura. Lo stream viene chiuso automaticamente al termine della scrittura</param>
+      protected void SaveBinaryData(IMachineLearningContextProvider context, IDataView data, Stream stream)
+      {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
+         lock (this) {
+            try {
+               if (stream == null)
+                  throw new ArgumentException($"{nameof(stream)} cannot be null");
+               if (!stream.CanWrite)
+                  throw new ArgumentException($"{nameof(stream)} must be writable");
+               // Salva
+               context.ML.NET.Data.SaveAsBinary(data, stream, KeepHidden);
+            }
+            finally {
+               try {
+                  if (stream != null)
+                     stream.Close();
+               }
+               catch (Exception) { }
+            }
+         }
+      }
       /// <summary>
       /// Salva i dati
       /// </summary>

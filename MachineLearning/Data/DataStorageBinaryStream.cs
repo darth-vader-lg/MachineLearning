@@ -32,13 +32,7 @@ namespace MachineLearning.Data
       /// Restituisce uno stream leggibile.
       /// </summary>
       /// <returns>Lo stream di lettura</returns>
-      protected override Stream GetReadStream()
-      {
-         var stream = ReadStream?.Invoke();
-         if (stream == null)
-            throw new InvalidOperationException("Cannot read from the stream");
-         return stream;
-      }
+      protected override Stream GetReadStream() => ReadStream?.Invoke();
       /// <summary>
       /// Salva i dati
       /// </summary>
@@ -51,7 +45,7 @@ namespace MachineLearning.Data
          var stream = WriteStream?.Invoke();
          context.ML.NET.CheckIO(stream != null, "Cannot write to the stream");
          lock (this) {
-            SaveBinaryData(context, data, stream, KeepHidden);
+            SaveBinaryData(context, data, stream);
             DataTimestamp = timestamp;
          }
       }

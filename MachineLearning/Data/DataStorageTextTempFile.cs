@@ -1,5 +1,6 @@
 ﻿using MachineLearning.Util;
 using Microsoft.ML;
+using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using System;
 using System.IO;
@@ -33,7 +34,8 @@ namespace MachineLearning.Data
       /// <summary>
       /// Costruttore
       /// </summary>
-      public DataStorageTextTempFile() { }
+      /// <param name="options">Opzioni di caricamento dei testi</param>
+      public DataStorageTextTempFile(TextLoader.Options options) : base(options) { }
       /// <summary>
       /// Finalizzatore
       /// </summary>
@@ -73,7 +75,7 @@ namespace MachineLearning.Data
          MachineLearningContext.CheckMLNET(context, nameof(context));
          using var stream = File.Create(FilePath);
          context.ML.NET.CheckIO(stream != null, $"Cannot write to file {FilePath}");
-         SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
+         SaveTextData(context, data, stream, true);
       }
       #endregion
    }

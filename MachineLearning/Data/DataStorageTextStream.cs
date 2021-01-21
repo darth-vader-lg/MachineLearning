@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
 using System;
 using System.IO;
@@ -29,6 +30,11 @@ namespace MachineLearning.Data
       #endregion
       #region Methods
       /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="options">Opzioni di caricamento testi</param>
+      public DataStorageTextStream(TextLoader.Options options) : base(options) { }
+      /// <summary>
       /// Restituisce uno stream leggibile.
       /// </summary>
       /// <returns>Lo stream di lettura</returns>
@@ -51,7 +57,7 @@ namespace MachineLearning.Data
          var stream = WriteStream?.Invoke();
          context.ML.NET.CheckIO(stream != null, "Cannot write to the stream");
          lock (this) {
-            SaveTextData(context, data, stream, SaveSchema, KeepHidden, ForceDense);
+            SaveTextData(context, data, stream, true);
             DataTimestamp = timestamp;
          }
       }

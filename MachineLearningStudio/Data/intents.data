@@ -1,47 +1,47 @@
-CloseDoor|Porta chiusa
-CloseDoor|Chiudere le porte
-CloseDoor|Chiudere la porta
-CloseDoor|Chiudi le porte
-CloseDoor|Chiudi la porta
-CloseWindow|Chiudi le finestre
-CloseWindow|Chiudi la finestra
-CloseWindow|la finestra non deve stare aperta
-CloseWindow|Chiudere la finestra
-CloseWindow|Finestra chiusa
-CloseWindow|Chiudere le finestre
-HigherTemperature|Alzare termostato
-HigherTemperature|Alza il termostato
-HigherTemperature|fa abbastanza freddo
-HigherTemperature|Alza temperatura
-HigherTemperature|Alzare temperatura
-LowerTemperature|Abbassare termostato
-LowerTemperature|Abbassa il termostato
-LowerTemperature|Abbassa temperatura
-LowerTemperature|Abbassare temperatura
-OpenDoor|Porta aperta
-OpenDoor|Apri la porta
-OpenDoor|Aprire la porta
-OpenDoor|Mi fai il favore di aprire la porta?
-OpenDoor|Apri le porte
-OpenDoor|Apri la porta, grazie.
-OpenDoor|mi potresti aprire la porta, grazie del favore
-OpenDoor|La porta, grazie.
-OpenDoor|Aprire le porte
-OpenWindow|Mi potresti aprire la finestra?
-OpenWindow|Finestra aperta
-OpenWindow|Apri la finestra
-OpenWindow|la finestra non deve stare chiusa
-OpenWindow|Apri le finestre
-OpenWindow|Aprire le finestre
-OpenWindow|apri la persiana
-OpenWindow|Aprire la finestra
-SwitchOffLight|Luce spenta
-SwitchOffLight|Spegnere la luce
-SwitchOffLight|Spegnimento della luce
-SwitchOffLight|Spegni la luce
-SwitchOffLight|Spegnimento luce
-SwitchOnLight|non ci vedo
-SwitchOnLight|Accendere della luce
-SwitchOnLight|Accendi la luce
-SwitchOnLight|Accensione luce
-SwitchOnLight|Accensione della luce
+CloseDoor,"Porta chiusa"
+CloseDoor,"Chiudere le porte"
+CloseDoor,"Chiudere la porta"
+CloseDoor,"Chiudi le porte"
+CloseDoor,"Chiudi la porta"
+CloseWindow,"Chiudi le finestre"
+CloseWindow,"Chiudi la finestra"
+CloseWindow,"la finestra non deve stare aperta"
+CloseWindow,"Chiudere la finestra"
+CloseWindow,"Finestra chiusa"
+CloseWindow,"Chiudere le finestre"
+HigherTemperature,"Alzare termostato"
+HigherTemperature,"Alza il termostato"
+HigherTemperature,"fa abbastanza freddo"
+HigherTemperature,"Alza temperatura"
+HigherTemperature,"Alzare temperatura"
+LowerTemperature,"Abbassare termostato"
+LowerTemperature,"Abbassa il termostato"
+LowerTemperature,"Abbassa temperatura"
+LowerTemperature,"Abbassare temperatura"
+OpenDoor,"Porta aperta"
+OpenDoor,"Apri la porta"
+OpenDoor,"Aprire la porta"
+OpenDoor,"Mi fai il favore di aprire la porta?"
+OpenDoor,"Apri le porte"
+OpenDoor,"Apri la porta, grazie."
+OpenDoor,"mi potresti aprire la porta, grazie del favore"
+OpenDoor,"La porta, grazie."
+OpenDoor,"Aprire le porte"
+OpenWindow,"Mi potresti aprire la finestra?"
+OpenWindow,"Finestra aperta"
+OpenWindow,"Apri la finestra"
+OpenWindow,"la finestra non deve stare chiusa"
+OpenWindow,"Apri le finestre"
+OpenWindow,"Aprire le finestre"
+OpenWindow,"apri la persiana"
+OpenWindow,"Aprire la finestra"
+SwitchOffLight,"Luce spenta"
+SwitchOffLight,"Spegnere la luce"
+SwitchOffLight,"Spegnimento della luce"
+SwitchOffLight,"Spegni la luce"
+SwitchOffLight,"Spegnimento luce"
+SwitchOnLight,"non ci vedo"
+SwitchOnLight,"Accendere della luce"
+SwitchOnLight,"Accendi la luce"
+SwitchOnLight,"Accensione luce"
+SwitchOnLight,"Accensione della luce"

@@ -41,7 +41,7 @@ namespace MachineLearning.Data
       /// Restituisce uno stream leggibile.
       /// </summary>
       /// <returns>Lo stream di lettura</returns>
-      protected override Stream GetReadStream() => File.Exists(FilePath) ? File.OpenRead(FilePath) : new MemoryStream();
+      protected override Stream GetReadStream() => File.Exists(FilePath) ? File.OpenRead(FilePath) : null;
       /// <summary>
       /// Salva i dati
       /// </summary>
@@ -52,7 +52,7 @@ namespace MachineLearning.Data
          MachineLearningContext.CheckMLNET(context, nameof(context));
          using var stream = File.Create(FilePath);
          context.ML.NET.CheckIO(stream != null, $"Cannot write to file {FilePath}");
-         SaveBinaryData(context, data, stream, KeepHidden);
+         SaveBinaryData(context, data, stream);
       }
       #endregion
    }

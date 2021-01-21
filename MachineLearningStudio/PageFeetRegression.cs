@@ -132,21 +132,23 @@ namespace MachineLearningStudio
             {
                AutoCommitData = true,
                AutoSaveModel = true,
-               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
+               DataStorage = new DataStorageTextFile(
+                  Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text),
+                  new TextLoader.Options
+                  {
+                     Columns = new[]
+                     {
+                        new TextLoader.Column("Number", DataKind.Single, 0),
+                        new TextLoader.Column("Length", DataKind.Single, 1),
+                        new TextLoader.Column("Instep", DataKind.Single, 2),
+                     },
+                     Separators = new[] { ',' },
+                  }),
+               LabelColumnName = "Number",
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
                Name = "Predictor",
-               TrainingData = new DataStorageTextMemory(),
+               TrainingData = new DataStorageBinaryMemory(),
             };
-            predictor.SetInputSchema("Label", new TextLoader.Options
-            {
-               Columns = new[]
-               {
-                  new TextLoader.Column("Label", DataKind.Single, 0),
-                  new TextLoader.Column("Length", DataKind.Single, 1),
-                  new TextLoader.Column("Instep", DataKind.Single, 2),
-               },
-               Separators = new[] { ',' }
-            });
             // Aggancia il log
             predictor.ML.NET.Log += Log;
             // Indicatore di inizializzazione ok

@@ -19,33 +19,32 @@ namespace MachineLearning
       MulticlassModelBase,
       IDataStorageProvider,
       IModelStorageProvider,
-      IModelTrainerProvider,
-      ITextLoaderOptionsProvider
+      IModelTrainerProvider
    {
       #region Fields
-      /// <summary>
-      /// Nome colonna path immagine
-      /// </summary>
-      private const string _imagePathColumnName = "ImagePath";
       /// <summary>
       /// Pipe di training
       /// </summary>
       [NonSerialized]
       private ModelPipes _pipes;
-      /// <summary>
-      /// Formato dati di training
-      /// </summary>
-      private TextLoader.Options _textLoaderOptions;
-      /// <summary>
-      /// Nome colonna data e ora immagine
-      /// </summary>
-      private const string _timestampColumnName = "Timestamp";
       #endregion
       #region Properties
       /// <summary>
       /// Storage dei dati
       /// </summary>
       public IDataStorage DataStorage { get; set; }
+      /// <summary>
+      /// Nome colonna path immagine
+      /// </summary>
+      public string ImagePathColumnName { get; set; } = "ImagePath";
+      /// <summary>
+      /// Nome colonna data e ora immagine
+      /// </summary>
+      public string ImageTimestampColumnName { get; set; } = "ImageTimestamp";
+      /// <summary>
+      /// Schema di input dei dati
+      /// </summary>
+      public override DataViewSchema InputSchema => base.InputSchema ?? GetDefaultInputSchema();
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -54,26 +53,6 @@ namespace MachineLearning
       /// Trainer del modello
       /// </summary>
       public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
-      /// <summary>
-      /// Formato dati di training
-      /// </summary>
-      public TextLoader.Options TextLoaderOptions
-      {
-         get
-         {
-            return _textLoaderOptions ??= new TextLoader.Options
-            {
-               AllowQuoting = true,
-               Separators = new[] { ',' },
-               Columns = new[]
-               {
-                  new TextLoader.Column(LabelColumnName, DataKind.String, 0),
-                  new TextLoader.Column(_imagePathColumnName, DataKind.String, 1),
-                  new TextLoader.Column(_timestampColumnName, DataKind.DateTime, 2),
-               }
-            };
-         }
-      }
       #endregion
       #region Methods
       /// <summary>
@@ -91,6 +70,43 @@ namespace MachineLearning
       /// <param name="ml">Contesto di machine learning</param>
       public ImageRecognizer(MachineLearningContext ml) : base(ml) { }
       /// <summary>
+      /// Restituisce lo schema di input di default
+      /// </summary>
+      /// <param name="labelColumnName">Nome colonna label</param>
+      /// <param name="imagePathColumnName">Nome colonna path immagine</param>
+      /// <param name="imageTimestampColumnName">Nome colonna data e ora immagine</param>
+      /// <returns>Lo schema di default</returns>
+      public static DataViewSchema GetDefaultInputSchema(string labelColumnName = "Label", string imagePathColumnName = "ImagePath", string imageTimestampColumnName = "ImageTimestamp")
+      {
+         var builder = new DataViewSchema.Builder();
+         builder.AddColumn(labelColumnName, TextDataViewType.Instance);
+         builder.AddColumn(imagePathColumnName, TextDataViewType.Instance);
+         if (!string.IsNullOrWhiteSpace(imageTimestampColumnName))
+            builder.AddColumn(imageTimestampColumnName, DateTimeDataViewType.Instance);
+         return builder.ToSchema();
+      }
+      /// <summary>
+      /// Restituisce le opzioni di caricamento in formato testo di default
+      /// </summary>
+      /// <param name="labelColumnName">Nome colonna label</param>
+      /// <param name="imagePathColumnName">Nome colonna path immagine</param>
+      /// <param name="imageTimestampColumnName">Nome colonna data e ora immagine</param>
+      /// <returns>Le opzioni di caricamento testi di default</returns>
+      public static TextLoader.Options GetDefaultTextLoaderOptions(string labelColumnName = "Label", string imagePathColumnName = "ImagePath", string imageTimestampColumnName = "ImageTimestamp")
+      {
+         return new TextLoader.Options
+         {
+            AllowQuoting = true,
+            Separators = new[] { ',' },
+            Columns = new[]
+            {
+               new TextLoader.Column(labelColumnName, DataKind.String, 0),
+               new TextLoader.Column(imagePathColumnName, DataKind.String, 1),
+               new TextLoader.Column(imageTimestampColumnName, DataKind.DateTime, 2),
+            }
+         };
+      }
+      /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
       /// <returns>Le pipe</returns>
@@ -101,7 +117,7 @@ namespace MachineLearning
          {
             Input =
                ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName)
-               .Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, _imagePathColumnName)),
+               .Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, ImagePathColumnName)),
             Trainer =
                Trainers.ImageClassification(),
             Output =
@@ -113,14 +129,18 @@ namespace MachineLearning
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <returns>Il tipo di immagine</returns>
-      public Prediction GetPrediction(string imagePath) => new Prediction(GetPredictionData(null, imagePath));
+      public Prediction GetPrediction(string imagePath) => GetPredictionAsync(imagePath, default).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) => new Prediction(await GetPredictionDataAsync(cancel, null, imagePath));
+      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default)
+      {
+         var schema = InputSchema;
+         return new Prediction(await GetPredictionDataAsync(cancel, schema.Select(c => c.Name == ImagePathColumnName ? imagePath : null).ToArray()));
+      }
       /// <summary>
       /// Ottiene un elenco di dati di training data dalla directory radice delle immagini.
       /// </summary>
@@ -142,9 +162,18 @@ namespace MachineLearning
                        let line = new { Label = Path.GetFileName(dir), ImagePath = file, Timestamp = File.GetLastWriteTimeUtc(file) }
                        orderby line.ImagePath
                        select line;
-            var dataGrid = DataViewGrid.Create(this, ML.NET.Data.CreateTextLoader(TextLoaderOptions).GetOutputSchema());
+            var inputSchema = InputSchema;
+            var dataGrid = DataViewGrid.Create(this, inputSchema);
+            var timestampColumnName = inputSchema.FirstOrDefault(c => c.Name == ImageTimestampColumnName);
             foreach (var line in data) {
-               dataGrid.Add((LabelColumnName, line.Label), (_imagePathColumnName, line.ImagePath), (_timestampColumnName, line.Timestamp));
+               var values = new List<(string Name, object Path)>
+               {
+                  (LabelColumnName, line.Label),
+                  (ImagePathColumnName, line.ImagePath)
+               };
+               if (!string.IsNullOrWhiteSpace(ImageTimestampColumnName))
+                  values.Add((ImageTimestampColumnName, line.Timestamp));
+               dataGrid.Add(values.ToArray());
                cancellation.ThrowIfCancellationRequested();
             }
             return dataGrid;
@@ -185,7 +214,7 @@ namespace MachineLearning
                tasks[taskIx] = Task.Run(() =>
                {
                   // Verifica esistenza del file
-                  if (!File.Exists(storageRow[_imagePathColumnName])) {
+                  if (!File.Exists(storageRow[ImagePathColumnName])) {
                      lock (invalidStorageImages)
                         invalidStorageImages.Add(position);
                   }
@@ -194,7 +223,7 @@ namespace MachineLearning
                      foreach (var dataRow in trainingData) {
                         cancellation.ThrowIfCancellationRequested();
                         // Verifica se nel training esiste un immagine con lo stesso path del file nello storage
-                        if (storageRow[_imagePathColumnName] == dataRow[_imagePathColumnName]) {
+                        if (storageRow[ImagePathColumnName] == dataRow[ImagePathColumnName]) {
                            // Verifica se i dati relativi all'immagine sono variati
                            if (storageRow.ToString() != dataRow.ToString()) {
                               lock (invalidStorageImages)
@@ -236,7 +265,7 @@ namespace MachineLearning
          }, cancellation);
          cancellation.ThrowIfCancellationRequested();
       }
-      #endregion
+#endregion
    }
 
    /// <summary>
@@ -247,7 +276,7 @@ namespace MachineLearning
       [Serializable]
       public class Prediction
       {
-         #region Properties
+#region Properties
          /// <summary>
          /// Significato
          /// </summary>
@@ -260,8 +289,8 @@ namespace MachineLearning
          /// Punteggi per label
          /// </summary>
          public KeyValuePair<string, float>[] Scores { get; }
-         #endregion
-         #region Methods
+#endregion
+#region Methods
          /// <summary>
          /// Costruttore
          /// </summary>
@@ -275,7 +304,7 @@ namespace MachineLearning
             Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
             Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
          }
-         #endregion
+#endregion
       }
    }
 }

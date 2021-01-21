@@ -3,8 +3,6 @@ using MachineLearning.Model;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +17,6 @@ namespace MachineLearning
       IDataStorageProvider,
       IModelStorageProvider,
       IModelTrainerProvider,
-      ITextLoaderOptionsProvider,
       ITrainingDataProvider
    {
       #region Fields
@@ -35,9 +32,9 @@ namespace MachineLearning
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
-      /// Numero massimo di tentativi di training del modello
+      /// Schema di input dei dati
       /// </summary>
-      public int MaxTrainingCycles { get; set; }
+      public override DataViewSchema InputSchema => base.InputSchema ?? GetDefaultInputSchema();
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -47,10 +44,6 @@ namespace MachineLearning
       /// </summary>
       public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
       /// <summary>
-      /// Opzioni di caricamento dati testuali
-      /// </summary>
-      public TextLoader.Options TextLoaderOptions { get; private set; }
-      /// <summary>
       /// Dati di training
       /// </summary>
       public IDataStorage TrainingData { get; set; }
@@ -59,48 +52,82 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public SizeRecognizer() => Init();
+      public SizeRecognizer() : base() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public SizeRecognizer(int? seed) : base(seed) => Init();
+      public SizeRecognizer(int? seed) : base(seed) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public SizeRecognizer(MachineLearningContext ml) : base(ml) => Init();
+      public SizeRecognizer(MachineLearningContext ml) : base(ml) { }
+      /// <summary>
+      /// Aggiunge un elenco di dati di training
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
+      public void AddTrainingData(bool checkForDuplicates, params float[] data) => AddTrainingDataAsync(checkForDuplicates, default, data);
+      /// <summary>
+      /// Aggiunge un elenco di dati di training
+      /// </summary>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <param name="data">Dati</param>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
+      public Task AddTrainingDataAsync(bool checkForDuplicates, CancellationToken cancellation, params float[] data)
+      {
+         var dataGrid = DataViewGrid.Create(this, InputSchema);
+         dataGrid.Add(data);
+         return AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
+      }
+      /// <summary>
+      /// Schema di input dei dati
+      /// </summary>
+      /// <param name="labelColumnName">Nome colonna label</param>
+      /// <param name="dataColumnName">Nome colonna dei dati</param>
+      /// <returns>Lo schema di default</returns>
+      public static DataViewSchema GetDefaultInputSchema(string labelColumnName = "Label", string dataColumnName = "Data")
+      {
+         var builder = new DataViewSchema.Builder();
+         builder.AddColumn(labelColumnName, NumberDataViewType.Single);
+         builder.AddColumn(dataColumnName, NumberDataViewType.Single);
+         return builder.ToSchema();
+      }
+      /// <summary>
+      /// Restituisce le opzioni di caricamento in formato testo di default
+      /// </summary>
+      /// <param name="labelColumnName">Nome colonna label</param>
+      /// <param name="dataColumnName">Nome colonna dei dati</param>
+      /// <returns>Le opzioni di caricamento testi di default</returns>
+      public static TextLoader.Options GetDefaultTextLoaderOptions(string labelColumnName = "Label", string dataColumnName = "Data")
+      {
+         return new TextLoader.Options
+         {
+            Separators = new[] { ',' },
+            Columns = new[]
+            {
+               new TextLoader.Column(labelColumnName, DataKind.Single, 0),
+               new TextLoader.Column(dataColumnName, DataKind.Single, 1),
+            }
+         };
+      }
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="values">Valori di input</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(params float[] values)
-      {
-         var nfi = new NumberFormatInfo { NumberDecimalSeparator = char.ToString(TextLoaderOptions.DecimalMarker), NumberGroupSeparator = "" };
-         var data = new List<string>();
-         for (var i = 0; i < values.Length; i++) {
-            if (TextLoaderOptions.Columns[i].Name == LabelColumnName)
-               data.Add(null);
-            data.Add(values[i].ToString(nfi));
-         }
-         return new Prediction(GetPredictionData(data));
-      }
+      public Prediction GetPrediction(params float[] values) => GetPredictionAsync(default, values).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="sentence">Significato da prevedere</param>
+      /// <param name="values">Valori di input</param>
       /// <returns>Il task della previsione</returns>
       public async Task<Prediction> GetPredictionAsync(CancellationToken cancel = default, params float[] values)
       {
-         var nfi = new NumberFormatInfo { NumberDecimalSeparator = char.ToString(TextLoaderOptions.DecimalMarker), NumberGroupSeparator = "" };
-         var data = new List<string>();
-         for (var i = 0; i < values.Length; i++) {
-            if (TextLoaderOptions.Columns[i].Name == LabelColumnName)
-               data.Add(null);
-            data.Add(values[i].ToString(nfi));
-         }
-         return new Prediction(await GetPredictionDataAsync(data, cancel));
+         var schema = InputSchema;
+         var valueIx = 0;
+         return new Prediction(await GetPredictionDataAsync(cancel, schema.Select(c => (object)(c.Name == LabelColumnName ? 0f : values[valueIx++])).ToArray()));
       }
       /// <summary>
       /// Restituisce la pipe di training del modello
@@ -112,7 +139,7 @@ namespace MachineLearning
          return _pipes ??= new ModelPipes
          {
             Input =
-               ML.NET.Transforms.Concatenate("Features", (from c in Evaluation.Data.Schema
+               ML.NET.Transforms.Concatenate("Features", (from c in InputSchema
                                                           where c.Name != LabelColumnName
                                                           select c.Name).ToArray()),
             Trainer =
@@ -122,50 +149,7 @@ namespace MachineLearning
                }),
          };
       }
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => SetInputSchema("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
-      /// <summary>
-      /// Imposta il formato di input dei dati
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label (significato delle frasi)</param>
-      /// <param name="options">Opzioni</param>
-      public void SetInputSchema(string labelColumnName = "Label", TextLoader.Options options = default)
-      {
-         LabelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
-         options ??= new TextLoader.Options();
-         if (options.Columns == null) {
-            options.Columns = new TextLoader.Options
-            {
-               Columns = new[]
-               {
-                  new TextLoader.Column(!string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label", DataKind.Single, 0),
-                  new TextLoader.Column("Data", DataKind.Single, 1),
-               }
-            }.Columns;
-         }
-         else if (!options.Columns.Any(c => c.Name == LabelColumnName))
-            throw new ArgumentException("Label column not defined in the input schema");
-         TextLoaderOptions = options;
-      }
       #endregion
-   }
-
-   /// <summary>
-   /// Algoritmo della previsione
-   /// </summary>
-   public sealed partial class SizeRecognizer // Prediction
-   {
-      [Serializable]
-      public enum Algorithms
-      {
-         LbfgsMaximumEntropy,
-         LightGbm,
-         NaiveBayes,
-         SdcaMaximumEntropy,
-         SdcaNonCalibrated
-      }
    }
 
    /// <summary>

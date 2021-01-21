@@ -24,14 +24,14 @@ namespace MachineLearning.Data
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
+      public DateTime DataTimestamp { get; private set; }
       #endregion
       #region Methods
       /// <summary>
       /// Restituisce uno stream leggibile.
       /// </summary>
       /// <returns>Lo stream di lettura</returns>
-      protected override Stream GetReadStream() => new MemoryStream(BinaryData);
+      protected override Stream GetReadStream() => BinaryData == null ? null : new MemoryStream(BinaryData);
       /// <summary>
       /// Salva i dati
       /// </summary>
@@ -42,9 +42,10 @@ namespace MachineLearning.Data
          MachineLearningContext.CheckMLNET(context, nameof(context));
          var timestamp = DateTime.UtcNow;
          lock (this) {
-            var stream = new MemoryStream();
-            SaveBinaryData(context, data, stream, KeepHidden);
+            using var stream = new MemoryStream();
+            SaveBinaryData(context, data, stream);
             BinaryData = stream.ToArray();
+            stream.Close();
             DataTimestamp = timestamp;
          }
       }

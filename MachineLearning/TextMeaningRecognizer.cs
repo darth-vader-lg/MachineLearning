@@ -20,7 +20,6 @@ namespace MachineLearning
       IDataStorageProvider,
       IModelStorageProvider,
       IModelTrainerProvider,
-      ITextLoaderOptionsProvider,
       ITrainingDataProvider
    {
       #region Fields
@@ -36,9 +35,9 @@ namespace MachineLearning
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
-      /// Numero massimo di tentativi di training del modello
+      /// Schema di input dei dati
       /// </summary>
-      public int MaxTrainingCycles { get; set; }
+      public override DataViewSchema InputSchema => base.InputSchema ?? GetDefaultInputSchema();
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -48,10 +47,6 @@ namespace MachineLearning
       /// </summary>
       public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
       /// <summary>
-      /// Opzioni di caricamento dati testuali
-      /// </summary>
-      public TextLoader.Options TextLoaderOptions { get; private set; }
-      /// <summary>
       /// Dati di training
       /// </summary>
       public IDataStorage TrainingData { get; set; }
@@ -60,17 +55,67 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public TextMeaningRecognizer() => Init();
+      public TextMeaningRecognizer() : base() { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public TextMeaningRecognizer(int? seed) : base(seed) => Init();
+      public TextMeaningRecognizer(int? seed) : base(seed) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaningRecognizer(MachineLearningContext ml) : base(ml) => Init();
+      public TextMeaningRecognizer(MachineLearningContext ml) : base(ml) { }
+      /// <summary>
+      /// Aggiunge un elenco di dati di training
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
+      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingDataAsync(checkForDuplicates, default, data);
+      /// <summary>
+      /// Aggiunge un elenco di dati di training
+      /// </summary>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <param name="data">Dati</param>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
+      public Task AddTrainingDataAsync(bool checkForDuplicates, CancellationToken cancellation, params string[] data)
+      {
+         var dataGrid = DataViewGrid.Create(this, InputSchema);
+         dataGrid.Add(data);
+         return AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
+      }
+      /// <summary>
+      /// Schema di input dei dati
+      /// </summary>
+      /// <param name="labelColumnName">Nome colonna label</param>
+      /// <param name="dataColumnName">Nome colonna dei dati</param>
+      /// <returns>Lo schema di default</returns>
+      public static DataViewSchema GetDefaultInputSchema(string labelColumnName = "Label", string dataColumnName = "Data")
+      {
+         var builder = new DataViewSchema.Builder();
+         builder.AddColumn(labelColumnName, TextDataViewType.Instance);
+         builder.AddColumn(dataColumnName, TextDataViewType.Instance);
+         return builder.ToSchema();
+      }
+      /// <summary>
+      /// Restituisce le opzioni di caricamento in formato testo di default
+      /// </summary>
+      /// <param name="labelColumnName">Nome colonna label</param>
+      /// <param name="dataColumnName">Nome colonna dei dati</param>
+      /// <returns>Le opzioni di caricamento testi di default</returns>
+      public static TextLoader.Options GetDefaultTextLoaderOptions(string labelColumnName = "Label", string dataColumnName = "Data")
+      {
+         return new TextLoader.Options
+         {
+            AllowQuoting = true,
+            Separators = new[] { ',' },
+            Columns = new[]
+            {
+               new TextLoader.Column(labelColumnName, DataKind.String, 0),
+               new TextLoader.Column(dataColumnName, DataKind.String, 1),
+            }
+         };
+      }
       /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
@@ -82,7 +127,7 @@ namespace MachineLearning
          {
             Input =
                ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName)
-               .Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in Evaluation.InputSchema
+               .Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in InputSchema
                                                                                                                      where c.Name != LabelColumnName
                                                                                                                      select c.Name).ToArray()))
                .Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText"))
@@ -97,41 +142,19 @@ namespace MachineLearning
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="sentence">Significato da prevedere</param>
+      /// <param name="sentences">Elenco di sentenze di cui prevedere il significato</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(string sentence) => new Prediction(GetPredictionData(null, sentence));
+      public Prediction GetPrediction(params string[] sentences) => GetPredictionAsync(default, sentences).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="sentence">Significato da prevedere</param>
+      /// <param name="sentences">Elenco di sentenze di cui prevedere il significato</param>
       /// <returns>Il task della previsione</returns>
-      public async Task<Prediction> GetPredictionAsync(string sentence, CancellationToken cancel = default) => new Prediction(await GetPredictionDataAsync(cancel, null, sentence));
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => SetInputSchema("Label", new TextLoader.Options { AllowQuoting = true, Separators = new[] { ',' } });
-      /// <summary>
-      /// Imposta il formato di input dei dati
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label (significato delle frasi)</param>
-      /// <param name="options">Opzioni</param>
-      public void SetInputSchema(string labelColumnName = "Label", TextLoader.Options options = default)
+      public async Task<Prediction> GetPredictionAsync(CancellationToken cancel = default, params string[] sentences)
       {
-         LabelColumnName = !string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label";
-         options ??= new TextLoader.Options();
-         if (options.Columns == null) {
-            options.Columns = new TextLoader.Options
-            {
-               Columns = new[]
-               {
-                  new TextLoader.Column(!string.IsNullOrWhiteSpace(labelColumnName) ? labelColumnName : "Label", DataKind.String, 0),
-                  new TextLoader.Column("Sentence", DataKind.String, 1),
-               }
-            }.Columns;
-         }
-         else if (!options.Columns.Any(c => c.Name == LabelColumnName))
-            throw new ArgumentException("Label column not defined in the input schema");
-         TextLoaderOptions = options;
+         var schema = InputSchema;
+         var valueIx = 0;
+         return new Prediction(await GetPredictionDataAsync(cancel, schema.Select(c => c.Name == LabelColumnName ? "" : sentences[valueIx++]).ToArray()));
       }
       #endregion
    }

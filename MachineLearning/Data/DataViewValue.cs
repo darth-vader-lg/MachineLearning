@@ -111,11 +111,12 @@ namespace MachineLearning.Data
       /// <returns>Il valore convertito</returns>
       public static object Convert(object value, Type toType)
       {
-         if (Converter.TryGetValue((value.GetType(), toType), out Func<object, object> convertion))
+         var valueType = value.GetType();
+         if (Converter.TryGetValue((valueType, toType), out Func<object, object> convertion))
             return convertion(value);
-         if (toType.IsAssignableFrom(value.GetType()))
+         if (toType.IsAssignableFrom(valueType))
             return value;
-         throw new InvalidCastException($"Type {value.GetType()} cannot be converted to {toType}");
+         throw new InvalidCastException($"Type {valueType} cannot be converted to {toType}");
       }
       /// <summary>
       /// Test di uguaglianza
