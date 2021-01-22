@@ -22,6 +22,16 @@ namespace Microsoft.ML.Data
          expr += @"]*)""";
          return Regex.Matches(row, expr).Cast<Match>().Select(m => m.Groups["match"].Value).ToArray();
       }
+      /// <summary>
+      /// Trasforma le opzioni di caricamento testi in schema di vista dati.
+      /// </summary>
+      /// <param name="textLoaderOptions">Opzioni di caricamento testi</param>
+      /// <returns>Lo schema di vista dati</returns>
+      public static DataViewSchema ToDataViewSchema(this TextLoader.Options textLoaderOptions)
+      {
+         var mlContext = new MLContext();
+         return mlContext.Data.CreateTextLoader(textLoaderOptions).GetOutputSchema();
+      }
       #endregion
    }
 }
