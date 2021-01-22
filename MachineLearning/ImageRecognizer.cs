@@ -265,7 +265,7 @@ namespace MachineLearning
          }, cancellation);
          cancellation.ThrowIfCancellationRequested();
       }
-#endregion
+      #endregion
    }
 
    /// <summary>
@@ -276,7 +276,7 @@ namespace MachineLearning
       [Serializable]
       public class Prediction
       {
-#region Properties
+         #region Properties
          /// <summary>
          /// Significato
          /// </summary>
@@ -289,8 +289,8 @@ namespace MachineLearning
          /// Punteggi per label
          /// </summary>
          public KeyValuePair<string, float>[] Scores { get; }
-#endregion
-#region Methods
+         #endregion
+         #region Methods
          /// <summary>
          /// Costruttore
          /// </summary>
@@ -304,7 +304,7 @@ namespace MachineLearning
             Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
             Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
          }
-#endregion
+         #endregion
       }
    }
 }

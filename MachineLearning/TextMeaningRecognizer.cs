@@ -71,7 +71,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="data">Dati</param>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingDataAsync(checkForDuplicates, default, data);
+      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingDataAsync(checkForDuplicates, default, data).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
