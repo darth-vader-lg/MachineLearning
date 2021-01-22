@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Microsoft.ML.Data
@@ -10,8 +11,33 @@ namespace Microsoft.ML.Data
    {
       #region Methods
       /// <summary>
+      /// Formatta una riga di dati di input da un elenco di dati di input
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <param name="data">Dati di input</param>
+      /// <returns>La stringa unica formattata</returns>
+      public static string FormatDataRow(this TextLoader.Options options, params string[] data)
+      {
+         // Linea da passare al modello
+         var inputLine = new StringBuilder();
+         // Quotatura stringhe
+         var quote = options.AllowQuoting ? "\"" : "";
+         // Separatore di colonne
+         var separatorChar = options.Separators?.FirstOrDefault() ?? ',';
+         // Loop di costruzione della linea di dati
+         var separator = "";
+         foreach (var item in data) {
+            var text = item ?? "";
+            var quoting = quote.Length > 0 && text.TrimStart().StartsWith(quote) && text.TrimEnd().EndsWith(quote) ? "" : quote;
+            inputLine.Append($"{separator}{quoting}{text}{quoting}");
+            separator = new string(separatorChar, 1);
+         }
+         return inputLine.ToString();
+      }
+      /// <summary>
       /// Splitta i dati di una riga in base alle colonne
       /// </summary>
+      /// <param name="options">Opzioni</param>
       /// <param name="row">Riga di dati</param>
       /// <returns>I dati splittati</returns>
       public static string[] SplitData(this TextLoader.Options options, string row)

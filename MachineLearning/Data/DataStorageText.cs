@@ -4,7 +4,6 @@ using Microsoft.ML.Runtime;
 using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace MachineLearning.Data
 {
@@ -41,29 +40,6 @@ namespace MachineLearning.Data
       {
          Contracts.CheckValue(options, nameof(options));
          TextLoaderOptions = options;
-      }
-      /// <summary>
-      /// Formatta una riga di dati di input da un elenco di dati di input
-      /// </summary>
-      /// <param name="data">Dati di input</param>
-      /// <returns></returns>
-      public string FormatDataRow(params string[] data)
-      {
-         // Linea da passare al modello
-         var inputLine = new StringBuilder();
-         // Quotatura stringhe
-         var quote = TextLoaderOptions.AllowQuoting ? "\"" : "";
-         // Separatore di colonne
-         var separatorChar = TextLoaderOptions.Separators?.FirstOrDefault() ?? ',';
-         // Loop di costruzione della linea di dati
-         var separator = "";
-         foreach (var item in data) {
-            var text = item ?? "";
-            var quoting = quote.Length > 0 && text.TrimStart().StartsWith(quote) && text.TrimEnd().EndsWith(quote) ? "" : quote;
-            inputLine.Append($"{separator}{quoting}{text}{quoting}");
-            separator = new string(separatorChar, 1);
-         }
-         return inputLine.ToString();
       }
       /// <summary>
       /// Carica i dati
