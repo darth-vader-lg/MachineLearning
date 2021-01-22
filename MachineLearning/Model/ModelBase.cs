@@ -159,89 +159,67 @@ namespace MachineLearning.Model
       /// <returns>Il task</returns>
       protected Task AddTrainingDataAsync(IDataView data, bool checkForDuplicates, CancellationToken cancellation)
       {
-         return Task.Run(() =>
-         {
-            var trainingData = TrainingData;
-            if (trainingData == null)
-               throw new InvalidOperationException("The object doesn't have training data characteristics");
-            var merged = trainingData.LoadData(this).Merge(new DataAccess(this, data));
-            var temp = new DataStorageBinaryTempFile();
-            temp.SaveData(this, merged);
-            trainingData.SaveData(this, temp.LoadData(this));
-         }, cancellation);
-         /*@@@
-         // Ottiene le opzioni di testo
-         // Verifica esistenza dati di training
-         if (TrainingData is not IMultiStreamSource trainingDataSource || TrainingData is not IDataStorage trainingData)
+         var trainingData = TrainingData;
+         if (trainingData == null)
             throw new InvalidOperationException("The object doesn't have training data characteristics");
-         var sb = new StringBuilder();
-         var hash = new HashSet<int>();
-         var formatter = new DataStorageTextMemory();
-         // Genera le hash per ciascuna riga del sorgente se e' abilitato il controllo dei duplicati 
-         if (checkForDuplicates) {
-            void AddHashes(IMultiStreamSource source)
+         if (!checkForDuplicates) {
+            return Task.Run(() =>
             {
-               if (source == null)
-                  return;
-               for (var i = 0; i < source.Count; i++) {
-                  using var reader = source.OpenTextReader(i);
-                  for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
-                     formatter.TextData = line;
-                     formatter.SaveData(this, formatter.LoadData(this));
-                     hash.Add(formatter.TextData.GetHashCode());
-                  }
-               }
-            }
-            AddHashes(DataStorage as IMultiStreamSource);
-            AddHashes(TrainingData as IMultiStreamSource);
-         }
-         // Aggiunge i dati di training preesistenti
-         for (var i = 0; i < trainingDataSource.Count; i++) {
-            using var reader = trainingDataSource.OpenTextReader(i);
-            for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
-               if (checkForDuplicates) {
-                  formatter.TextData = line;
-                  formatter.SaveData(this, formatter.LoadData(this));
-                  if (!hash.Contains(formatter.TextData.GetHashCode())) {
-                     hash.Add(formatter.TextData.GetHashCode());
-                     sb.AppendLine(line);
-                  }
+               var currentTrainingData = TrainingData.LoadData(this);
+               if (currentTrainingData != null) {
+                  var merged = trainingData.LoadData(this).Merge(new DataAccess(this, data));
+                  var temp = new DataStorageBinaryTempFile();
+                  temp.SaveData(this, merged);
+                  trainingData.SaveData(this, temp.LoadData(this));
                }
                else
-                  sb.AppendLine(line);
-            }
+                  trainingData.SaveData(this, data);
+            }, cancellation);
          }
-         // Aggiunge le linee di training
-         using var dataReader = new StringReader(data);
-         for (var line = dataReader.ReadLine(); line != null; line = dataReader.ReadLine()) {
-            if (checkForDuplicates) {
-               formatter.TextData = line;
-               formatter.SaveData(this, formatter.LoadData(this));
-               if (!hash.Contains(formatter.TextData.GetHashCode())) {
-                  hash.Add(formatter.TextData.GetHashCode());
-                  sb.AppendLine(line);
+         else {
+            return Task.Run(() =>
+            {
+               // Set di righe duplicate di training
+               var invalidRows = new HashSet<long>();
+               // Dati di training attuali
+               var currentTrainingData = TrainingData.LoadData(this);
+               var currentStorageData = DataStorage?.LoadData(this);
+               // Loop su tutti i dati di training
+               var rowsCount = 0;
+               foreach (var dataCursor in data.GetRowCursor(data.Schema).AsEnumerable()) {
+                  // Ottiene i valori
+                  var dataRow = dataCursor.ToDataViewValuesRow(this);
+                  rowsCount++;
+                  // Loop sui set di dati
+                  foreach (var dataSet in new[] { currentStorageData, currentTrainingData }) {
+                     // Loop sui dati di training gia' esistenti
+                     if (dataSet != null) {
+                        foreach (var dataSetCursor in dataSet.GetRowCursor(dataSet.Schema).AsEnumerable()) {
+                           var dataSetRow = dataSetCursor.ToDataViewValuesRow(this);
+                           if (dataRow.Zip(dataSetRow).All(item => item.First == item.Second)) {
+                              invalidRows.Add(dataRow.Position);
+                              break;
+                           }
+                        }
+                        if (invalidRows.Contains(dataRow.Position))
+                           continue;
+                     }
+                  }
                }
-            }
-            else
-               sb.AppendLine(line);
+               // Verifica se deve aggiornare i dati di training
+               if (invalidRows.Count < rowsCount) {
+                  if (currentTrainingData != null) {
+                     var merged = currentTrainingData.Merge(new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
+                     using var temp = new DataStorageBinaryTempFile();
+                     temp.SaveData(this, merged);
+                     trainingData.SaveData(this, temp.LoadData(this));
+                  }
+                  else
+                     trainingData.SaveData(this, new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
+               }
+            }, cancellation);
          }
-         // Aggiorna i dati di training
-         if (sb.Length > 0) {
-            // Annulla il training
-            ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-            // Formatta in testo e salva
-            formatter.TextData = sb.ToString();
-            trainingData.SaveData(this, formatter.LoadData(this));
-            OnTrainingDataChanged(EventArgs.Empty);
-         }
-         */
       }
-      /// <summary>
-      /// Aggiunge un dato di training definito a colonne
-      /// </summary>
-      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      /// <param name="data">Valori della linea da aggiungere</param>
-      //@@@public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingData(FormatDataRow(data), checkForDuplicates);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>
