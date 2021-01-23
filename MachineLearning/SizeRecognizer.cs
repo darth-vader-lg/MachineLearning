@@ -62,17 +62,9 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public SizeRecognizer() : base() => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="seed">Seme operazioni random</param>
-      public SizeRecognizer(int? seed) : base(seed) => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public SizeRecognizer(MachineLearningContext ml) : base(ml) => Init();
+      public SizeRecognizer(MachineLearningContext ml = default) : base(ml) =>
+         InputSchema = DataViewSchemaBuilder.Build((LabelColumnName, typeof(string)), ("Data", typeof(float)));
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
@@ -128,12 +120,6 @@ namespace MachineLearning
                }),
          };
       }
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => InputSchema = DataViewSchemaBuilder.Build(
-         (LabelColumnName, typeof(string)),
-         ("Data", typeof(float)));
       #endregion
    }
 

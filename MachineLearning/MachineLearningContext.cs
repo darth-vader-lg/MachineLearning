@@ -35,6 +35,10 @@ namespace MachineLearning
       #endregion
       #region Properties
       /// <summary>
+      /// Contesto di default
+      /// </summary>
+      public static MachineLearningContext Default { get; } = new MachineLearningContext();
+      /// <summary>
       /// Contesto di machine learning
       /// </summary>
       MachineLearningContext IMachineLearningContextProvider.ML => this;
@@ -129,15 +133,15 @@ namespace MachineLearning
             {
                foreach (var wt in _allWorkingTasks) {
                   lock (wt) {
-                     foreach (var t in wt)
-                        t.cts.Cancel();
+                     foreach (var (task, cts) in wt)
+                        cts.Cancel();
                   }
                }
                foreach (var wt in _allWorkingTasks) {
                   lock (wt) {
-                     foreach (var t in wt) {
-                        if (t.cts.IsCancellationRequested)
-                           t.task.Wait();
+                     foreach (var (task, cts) in wt) {
+                        if (cts.IsCancellationRequested)
+                           task.Wait();
                      }
                   }
                }

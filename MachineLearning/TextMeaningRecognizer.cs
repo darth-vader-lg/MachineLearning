@@ -66,17 +66,9 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public TextMeaningRecognizer() : base() => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="seed">Seme operazioni random</param>
-      public TextMeaningRecognizer(int? seed) : base(seed) => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaningRecognizer(MachineLearningContext ml) : base(ml) => Init();
+      public TextMeaningRecognizer(MachineLearningContext ml = default) : base(ml) =>
+         InputSchema = DataViewSchemaBuilder.Build((LabelColumnName, typeof(string)), ("Data", typeof(string)));
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
@@ -135,12 +127,6 @@ namespace MachineLearning
          var valueIx = 0;
          return new Prediction(await GetPredictionDataAsync(schema.Select(c => c.Name == LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
       }
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => InputSchema = DataViewSchemaBuilder.Build(
-         (LabelColumnName, typeof(string)),
-         ("Data", typeof(string)));
       #endregion
    }
 

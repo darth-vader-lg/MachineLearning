@@ -55,17 +55,8 @@ namespace MachineLearning.Model
       /// <summary>
       /// Costruttore
       /// </summary>
-      public MulticlassModelBase() : base() => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="seed">Seme operazioni random</param>
-      public MulticlassModelBase(int? seed) : base(seed) => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public MulticlassModelBase(MachineLearningContext ml) : base(ml) => Init();
+      public MulticlassModelBase(MachineLearningContext ml = default) : base(ml) => Trainers = new MulticlassClassificationTrainersCatalog(ML);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>
@@ -219,10 +210,6 @@ namespace MachineLearning.Model
          sb.AppendLine(metrics.ConfusionMatrix.GetFormattedConfusionTable());
          return sb.ToString();
       }
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => Trainers = new MulticlassClassificationTrainersCatalog(ML);
       #endregion
    }
 }

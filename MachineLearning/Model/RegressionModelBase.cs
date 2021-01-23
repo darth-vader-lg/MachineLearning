@@ -55,17 +55,8 @@ namespace MachineLearning.Model
       /// <summary>
       /// Costruttore
       /// </summary>
-      public RegressionModelBase() : base() => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="seed">Seme operazioni random</param>
-      public RegressionModelBase(int? seed) : base(seed) => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public RegressionModelBase(MachineLearningContext ml) : base(ml) => Init();
+      public RegressionModelBase(MachineLearningContext ml = default) : base(ml) => Trainers = new RegressionTrainersCatalog(ML);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>
@@ -218,10 +209,6 @@ namespace MachineLearning.Model
          sb.AppendLine(metrics.ToText());
          return sb.ToString();
       }
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => Trainers = new RegressionTrainersCatalog(ML);
       #endregion
    }
 }

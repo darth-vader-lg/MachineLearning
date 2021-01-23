@@ -66,20 +66,12 @@ namespace MachineLearning
       };
       #endregion
          #region Methods
-         /// <summary>
-         /// Costruttore
-         /// </summary>
-      public ImageRecognizer() => Init();
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="seed">Seme operazioni random</param>
-      public ImageRecognizer(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public ImageRecognizer(MachineLearningContext ml) : base(ml) => Init();
+      public ImageRecognizer(MachineLearningContext ml = default) : base(ml) =>
+         InputSchema = DataViewSchemaBuilder.Build(("Label", typeof(string)), (ImagePathColumnName, typeof(string)), (ImageTimestampColumnName, typeof(DateTime)));
       /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
@@ -153,13 +145,6 @@ namespace MachineLearning
             return dataGrid;
          }, cancellation);
       }
-      /// <summary>
-      /// Funzione di inizializzazione
-      /// </summary>
-      private void Init() => InputSchema = DataViewSchemaBuilder.Build(
-         ("Label", typeof(string)),
-         (ImagePathColumnName, typeof(string)),
-         (ImageTimestampColumnName, typeof(DateTime)));
       /// <summary>
       /// Aggiorna lo storage di dati con l'elenco delle immagini categorizzate contenute nella directory indicata
       /// </summary>

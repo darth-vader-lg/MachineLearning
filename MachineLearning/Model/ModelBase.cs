@@ -128,20 +128,11 @@ namespace MachineLearning.Model
       /// <summary>
       /// Costruttore
       /// </summary>
-      public ModelBase() : this(default(int?)) { }
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="seed">Seme operazioni random</param>
-      public ModelBase(int? seed) : this(new MachineLearningContext(seed)) { }
-      /// <summary>
-      /// Costruttore
-      /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public ModelBase(MachineLearningContext ml)
+      public ModelBase(MachineLearningContext ml = default)
       {
          // Memorizza il contesto di machine learning
-         ML = ml;
+         ML = ml ?? MachineLearningContext.Default;
          // Memorizza lo scheduler e il thread di creazione
          _creationThread = Thread.CurrentThread;
          if (SynchronizationContext.Current != null)
