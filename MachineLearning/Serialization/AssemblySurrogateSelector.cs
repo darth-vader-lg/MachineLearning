@@ -21,6 +21,13 @@ namespace MachineLearning.Serialization
       /// </summary>
       private ISurrogateSelector _nextSelector;
       #endregion
+      #region Properties
+      /// <summary>
+      /// Contesto di streaming
+      /// </summary>
+      public static StreamingContext StreamingContext { get; } = new StreamingContext(StreamingContextStates.All, new MachineLearningContext());
+      #endregion
+      #region Methods
       /// <summary>
       /// Costruttore statico
       /// </summary>
@@ -28,14 +35,14 @@ namespace MachineLearning.Serialization
       {
          _assemblySurrogates = new System.Runtime.Serialization.SurrogateSelector();
          try {
-            var context = new StreamingContext(StreamingContextStates.All);
+            AppContext.SetSwitch("Switch.System.Runtime.Serialization.SerializationGuard.AllowFileWrites", true);
             var surrogates = Assembly.GetExecutingAssembly().GetTypes()
                .Select(t => (Surrogate: t, Interface: t.GetInterface($"{nameof(ISerializationSurrogate)}`1")))
                .Where(t => t.Interface != null)
                .Select(t => (t.Surrogate, Type: t.Interface.GetGenericArguments()[0]));
             foreach (var s in surrogates) {
                var surrogate = (ISerializationSurrogate)Assembly.GetExecutingAssembly().CreateInstance(s.Surrogate.ToString());
-               _assemblySurrogates.AddSurrogate(s.Type, context, surrogate);
+               _assemblySurrogates.AddSurrogate(s.Type, StreamingContext, surrogate);
             }
          }
          catch (Exception exc) {
@@ -120,8 +127,8 @@ namespace MachineLearning.Serialization
       private static bool HasCycle(ISurrogateSelector selector)
       {
          ISurrogateSelector head;
-      ISurrogateSelector tail;
-      head = selector;
+         ISurrogateSelector tail;
+         head = selector;
          tail = selector;
          while (head != null) {
             head = head.GetNextSelector();
@@ -136,5 +143,6 @@ namespace MachineLearning.Serialization
          }
          return true;
       }
+      #endregion
    }
 }

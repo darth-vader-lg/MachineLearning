@@ -19,7 +19,7 @@ namespace MachineLearning.Serialization
       /// <returns>L'oggetto clonato</returns>
       public static T Clone<T>(T obj)
       {
-         var formatter = new BinaryFormatter(new SurrogateSelector(), new StreamingContext(StreamingContextStates.Clone));
+         var formatter = new BinaryFormatter(new SurrogateSelector(), SurrogateSelector.StreamingContext);
          using var memoryStream = new MemoryStream();
          formatter.Serialize(memoryStream, obj);
          memoryStream.Position = 0;
@@ -35,7 +35,7 @@ namespace MachineLearning.Serialization
       {
          if (stream == null)
             throw new ArgumentException("Parameter cannot be null", nameof(stream));
-         formatter ??= new BinaryFormatter(null, new StreamingContext(StreamingContextStates.All));
+         formatter ??= new BinaryFormatter(null, SurrogateSelector.StreamingContext);
          var orgSelector = formatter.SurrogateSelector;
          try {
             var surrogatesSelector = new SurrogateSelector();
@@ -59,7 +59,7 @@ namespace MachineLearning.Serialization
             throw new ArgumentException("Parameter cannot be null", nameof(stream));
          if (graph == null)
             throw new ArgumentException("Parameter cannot be null", nameof(graph));
-         formatter ??= new BinaryFormatter(null, new StreamingContext(StreamingContextStates.All));
+         formatter ??= new BinaryFormatter(null, SurrogateSelector.StreamingContext);
          var orgSelector = formatter.SurrogateSelector;
          try {
             var surrogatesSelector = new SurrogateSelector();
