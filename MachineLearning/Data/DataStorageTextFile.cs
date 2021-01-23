@@ -27,8 +27,7 @@ namespace MachineLearning.Data
       /// Costruttore
       /// </summary>
       /// <param name="filePath">Path del file</param>
-      /// <param name="options">Opzioni di caricamento dei testi</param>
-      public DataStorageTextFile(string filePath, TextLoader.Options options) : base(options)
+      public DataStorageTextFile(string filePath)
       {
          Contracts.CheckNonEmpty(filePath, nameof(filePath));
          FilePath = filePath;
@@ -48,12 +47,13 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public override void SaveData(IMachineLearningContextProvider context, IDataView data)
+      /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
+      public override void SaveData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options textLoaderOptions = default)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          using var stream = File.Create(FilePath);
          context.ML.NET.CheckIO(stream != null, $"Cannot write to file {FilePath}");
-         SaveTextData(context, data, stream, true);
+         SaveTextData(context, data, textLoaderOptions, stream, true);
       }
       #endregion
    }

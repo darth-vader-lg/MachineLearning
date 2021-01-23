@@ -15,7 +15,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Dizionario di conversione da tipo standard a tipo vista di dati
       /// </summary>
-      private static Dictionary<Type, Func<DataViewType>> _typeToDataView = new Dictionary<Type, Func<DataViewType>>
+      private static readonly Dictionary<Type, Func<DataViewType>> _typeToDataView = new Dictionary<Type, Func<DataViewType>>
       {
          { typeof(bool), () => BooleanDataViewType.Instance },
          { typeof(sbyte), () => NumberDataViewType.SByte },
@@ -92,10 +92,10 @@ namespace MachineLearning.Data
       public static DataViewSchema Build(params (string Name, object Value)[] items)
       {
          var list = new List<(string Name, Type Type)>();
-         foreach (var item in items) {
-            if (item.Value == null)
-               throw new ArgumentException($"The value of the column {item.Name} cannot be null", nameof(items));
-            list.Add((item.Name, item.Value.GetType()));
+         foreach (var (Name, Value) in items) {
+            if (Value == null)
+               throw new ArgumentException($"The value of the column {Name} cannot be null", nameof(items));
+            list.Add((Name, Value.GetType()));
          }
          return Build(list.ToArray());
       }

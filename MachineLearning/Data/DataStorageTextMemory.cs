@@ -30,11 +30,6 @@ namespace MachineLearning.Data
       #endregion
       #region Methods
       /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="options">Opzioni di caricamento dei testi</param>
-      public DataStorageTextMemory(TextLoader.Options options) : base(options) { }
-      /// <summary>
       /// Restituisce uno stream leggibile.
       /// </summary>
       /// <returns>Lo stream di lettura</returns>
@@ -44,7 +39,8 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public override void SaveData(IMachineLearningContextProvider context, IDataView data)
+      /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
+      public override void SaveData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options textLoaderOptions = default)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          // Data e ora
@@ -52,7 +48,7 @@ namespace MachineLearning.Data
          lock (this) {
             // Oggetto per la scrittura dei dati in memoria
             using var stream = new MemoryStream();
-            SaveTextData(context, data, stream, false);
+            SaveTextData(context, data, textLoaderOptions, stream, false);
             // Crea uno stream per la lettura
             stream.Position = 0;
             using var reader = new StreamReader(stream);

@@ -137,7 +137,7 @@ namespace MachineLearning.Serialization
             var validationSet = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[]));
             if (validationSet != null) {
                var storage = new DataStorageBinaryMemory() { BinaryData = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[])) };
-               data.ValidationSet = storage.LoadData(null);
+               data.ValidationSet = storage.LoadData(new MachineLearningContext());
             }
             else
                data.ValidationSet = null;

@@ -2,6 +2,7 @@
 using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -73,9 +74,9 @@ namespace MachineLearning.Model
       /// </summary>
       public EventWaitHandle EvaluationAvailable => _evaluationAvailable ??= new EventWaitHandle(false, EventResetMode.ManualReset);
       /// <summary>
-      /// Schema di input
+      /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
       /// </summary>
-      public virtual DataViewSchema InputSchema => FindInputSchema();
+      public bool IsRowToRowMapper => GetEvaluator(new ModelTrainerStandard()).Model?.IsRowToRowMapper ?? false;
       /// <summary>
       /// Contesto di machine learning
       /// </summary>
@@ -104,10 +105,6 @@ namespace MachineLearning.Model
       /// Dati aggiuntivi di training
       /// </summary>
       private IDataStorage TrainingData => (this as ITrainingDataProvider)?.TrainingData;
-      /// <summary>
-      /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
-      /// </summary>
-      public bool IsRowToRowMapper => GetEvaluator(new ModelTrainerStandard()).Model?.IsRowToRowMapper ?? false;
       #endregion
       #region Events
       /// <summary>
@@ -165,15 +162,15 @@ namespace MachineLearning.Model
          if (!checkForDuplicates) {
             return Task.Run(() =>
             {
-               var currentTrainingData = TrainingData.LoadData(this);
+               var currentTrainingData = LoadData(TrainingData);
                if (currentTrainingData != null) {
-                  var merged = trainingData.LoadData(this).Merge(new DataAccess(this, data));
+                  var merged = LoadData(trainingData).Merge(new DataAccess(this, data));
                   var temp = new DataStorageBinaryTempFile();
-                  temp.SaveData(this, merged);
-                  trainingData.SaveData(this, temp.LoadData(this));
+                  SaveData(temp, merged);
+                  SaveData(trainingData, LoadData(temp));
                }
                else
-                  trainingData.SaveData(this, data);
+                  SaveData(trainingData, data);
             }, cancellation);
          }
          else {
@@ -182,8 +179,8 @@ namespace MachineLearning.Model
                // Set di righe duplicate di training
                var invalidRows = new HashSet<long>();
                // Dati di training attuali
-               var currentTrainingData = TrainingData.LoadData(this);
-               var currentStorageData = DataStorage?.LoadData(this);
+               var currentTrainingData = LoadData(TrainingData);
+               var currentStorageData = DataStorage == null ? null : LoadData(DataStorage);
                // Loop su tutti i dati di training
                var rowsCount = 0;
                foreach (var dataCursor in data.GetRowCursor(data.Schema).AsEnumerable()) {
@@ -211,11 +208,11 @@ namespace MachineLearning.Model
                   if (currentTrainingData != null) {
                      var merged = currentTrainingData.Merge(new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
                      using var temp = new DataStorageBinaryTempFile();
-                     temp.SaveData(this, merged);
-                     trainingData.SaveData(this, temp.LoadData(this));
+                     SaveData(temp, merged);
+                     SaveData(trainingData, LoadData(temp));
                   }
                   else
-                     trainingData.SaveData(this, new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
+                     SaveData(trainingData, new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
                }
             }, cancellation);
          }
@@ -267,7 +264,7 @@ namespace MachineLearning.Model
          await ClearTrainingAsync(cancellation);
          // Cancella i dati di training
          cancellation.ThrowIfCancellationRequested();
-         trainingData.SaveData(this, DataViewGrid.Create(this, trainingData.LoadData(this).Schema));
+         SaveData(trainingData, DataViewGrid.Create(this, LoadData(trainingData).Schema));
          cancellation.ThrowIfCancellationRequested();
          OnTrainingDataChanged(EventArgs.Empty);
       }
@@ -283,14 +280,14 @@ namespace MachineLearning.Model
          var tmpFileName = Path.GetTempFileName();
          try {
             // Dati di storage e di training concatenati
-            var mergedData = dataStorage.LoadData(this).Merge(trainingData.LoadData(this));
+            var mergedData = LoadData(dataStorage).Merge(LoadData(trainingData));
             // Salva in un file temporaneo il merge
             var tmpStorage = new DataStorageBinaryFile(tmpFileName) { KeepHidden = true };
-            tmpStorage.SaveData(this, mergedData);
+            SaveData(tmpStorage, mergedData);
             // Aggiorna lo storage
-            dataStorage.SaveData(this, tmpStorage.LoadData(this));
+            SaveData(dataStorage, LoadData(tmpStorage));
             // Cancella i dati di training
-            trainingData.SaveData(this, DataViewGrid.Create(this, mergedData.Schema));
+            SaveData(trainingData, DataViewGrid.Create(this, mergedData.Schema));
             OnTrainingDataChanged(EventArgs.Empty);
          }
          finally {
@@ -317,23 +314,6 @@ namespace MachineLearning.Model
          int numberOfFolds = 5,
          string samplingKeyColumnName = null,
          int? seed = null);
-      /// <summary>
-      /// Cerca lo schema di input engli oggetti disponibili
-      /// </summary>
-      protected DataViewSchema FindInputSchema()
-      {
-         if (EvaluationAvailable.WaitOne(0) && Evaluation?.InputSchema != null)
-            return Evaluation.InputSchema;
-         else if (DataStorage is ITextLoaderOptionsProvider textDataStorage)
-            return ML.NET.Data.CreateTextLoader(textDataStorage.TextLoaderOptions).GetOutputSchema();
-         else if (TrainingData is ITextLoaderOptionsProvider textTrainingData)
-            return ML.NET.Data.CreateTextLoader(textTrainingData.TextLoaderOptions).GetOutputSchema();
-         else if (DataStorage != null)
-            return DataStorage.LoadData(this).Schema;
-         else if (TrainingData != null)
-            return TrainingData.LoadData(this).Schema;
-         return null;
-      }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
@@ -409,14 +389,14 @@ namespace MachineLearning.Model
       /// <param name="data">Riga di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      protected IDataAccess GetPredictionData(IEnumerable<object> data) => GetPredictionDataAsync(default, data).ConfigureAwait(false).GetAwaiter().GetResult();
+      protected IDataAccess GetPredictionData(IEnumerable<object> data) => GetPredictionDataAsync(data, default).ConfigureAwait(false).GetAwaiter().GetResult();
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
-      /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <param name="data">Riga di dati da usare per la previsione</param>
+      /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      protected async Task<IDataAccess> GetPredictionDataAsync(CancellationToken cancellation, IEnumerable<object> data)
+      protected async Task<IDataAccess> GetPredictionDataAsync(IEnumerable<object> data, CancellationToken cancellation)
       {
          // Attande il modello od un eventuale errore di training
          var evaluator = await GetEvaluatorAsync(ModelTrainer, cancellation);
@@ -436,6 +416,17 @@ namespace MachineLearning.Model
       /// <param name="inputSchema">Schema di input</param>
       /// <returns>Il mappatore</returns>
       public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => GetEvaluator(new ModelTrainerStandard()).Model?.GetRowToRowMapper(inputSchema);
+      /// <summary>
+      /// Carica i dati da uno storage
+      /// </summary>
+      /// <param name="dataStorage">Storage di dati</param>
+      /// <returns>La vista di dati</returns>
+      public IDataAccess LoadData(IDataStorage dataStorage)
+      {
+         ML.NET.CheckValue(dataStorage, nameof(dataStorage));
+         var options = (this as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchemaProvider)?.InputSchema?.ToTextLoaderColumns() };
+         return dataStorage.LoadData(this, options);
+      }
       /// <summary>
       /// Funzione chiamata al termine della deserializzazione
       /// </summary>
@@ -524,6 +515,18 @@ namespace MachineLearning.Model
          var evaluator = GetEvaluator(new ModelTrainerStandard());
          if (evaluator.Model != null && ModelStorage != null)
             ModelStorage.SaveModel(this, evaluator.Model, evaluator.InputSchema);
+      }
+      /// <summary>
+      /// Salva i dati in uno storage
+      /// </summary>
+      /// <param name="dataStorage">Storage di dati</param>
+      /// <param name="data">Dati</param>
+      public void SaveData(IDataStorage dataStorage, IDataView data)
+      {
+         ML.NET.CheckValue(dataStorage, nameof(dataStorage));
+         ML.NET.CheckValue(data, nameof(data));
+         var options = (this as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchemaProvider)?.InputSchema?.ToTextLoaderColumns() };
+         dataStorage.SaveData(this, data, options);
       }
       /// <summary>
       /// Imposta i dati di valutazione
@@ -630,8 +633,8 @@ namespace MachineLearning.Model
          // Funzione di caricamento dati di storage e training mergiati
          IDataAccess LoadData()
          {
-            var storageData = DataStorage?.LoadData(this);
-            var trainingData = TrainingData?.LoadData(this);
+            var storageData = DataStorage == null ? null : this.LoadData(DataStorage);
+            var trainingData = TrainingData == null ? null : this.LoadData(TrainingData);
             if (storageData != null)
                return trainingData != null ? storageData.Merge(trainingData) : storageData;
             return trainingData;
@@ -690,7 +693,7 @@ namespace MachineLearning.Model
                         return;
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
-                     if (AutoCommitData && data != null && DataStorage != null && (TrainingData?.LoadData(this)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
+                     if (AutoCommitData && data != null && DataStorage != null && TrainingData != null && (this.LoadData(TrainingData)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
                         ML.NET.WriteLog("Committing the new data", Name);
                         await Task.Run(() => CommitTrainingData(), cancel);
                      }
@@ -710,7 +713,7 @@ namespace MachineLearning.Model
                   // Ricarica i dati
                   else {
                      // Effettua eventuale commit automatico
-                     if (AutoCommitData && data != null && DataStorage != null && (TrainingData?.LoadData(this)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
+                     if (AutoCommitData && data != null && DataStorage != null && TrainingData != null && (this.LoadData(TrainingData)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
                         try {
                            ML.NET.WriteLog("Committing the new data", Name);
                            await Task.Run(() => CommitTrainingData(), cancel);

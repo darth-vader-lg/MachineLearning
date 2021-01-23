@@ -32,11 +32,6 @@ namespace MachineLearning.Data
       #endregion
       #region Methods
       /// <summary>
-      /// Costruttore
-      /// </summary>
-      /// <param name="options">Opzioni di caricamento dei testi</param>
-      public DataStorageTextTempFile(TextLoader.Options options) : base(options) { }
-      /// <summary>
       /// Finalizzatore
       /// </summary>
       ~DataStorageTextTempFile() => Dispose(false);
@@ -70,12 +65,13 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public override void SaveData(IMachineLearningContextProvider context, IDataView data)
+      /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
+      public override void SaveData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options textLoaderOptions = default)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          using var stream = File.Create(FilePath);
          context.ML.NET.CheckIO(stream != null, $"Cannot write to file {FilePath}");
-         SaveTextData(context, data, stream, true);
+         SaveTextData(context, data, textLoaderOptions, stream, true);
       }
       #endregion
    }

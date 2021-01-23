@@ -15,8 +15,10 @@ namespace MachineLearning
    public sealed partial class SizeRecognizer :
       RegressionModelBase,
       IDataStorageProvider,
+      IInputSchemaProvider,
       IModelStorageProvider,
       IModelTrainerProvider,
+      ITextLoaderOptionsProvider,
       ITrainingDataProvider
    {
       #region Fields
@@ -34,7 +36,7 @@ namespace MachineLearning
       /// <summary>
       /// Schema di input dei dati
       /// </summary>
-      public override DataViewSchema InputSchema => base.InputSchema ?? GetDefaultInputSchema();
+      public DataViewSchema InputSchema { get; set; }
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -44,6 +46,14 @@ namespace MachineLearning
       /// </summary>
       public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
       /// <summary>
+      /// Opzioni di caricamenti dati in formato testo
+      /// </summary>
+      public TextLoader.Options TextLoaderOptions => new TextLoader.Options
+      {
+         Columns = InputSchema.ToTextLoaderColumns(),
+         Separators = new[] { ',' },
+      };
+      /// <summary>
       /// Dati di training
       /// </summary>
       public IDataStorage TrainingData { get; set; }
@@ -52,17 +62,17 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      public SizeRecognizer() : base() { }
+      public SizeRecognizer() : base() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public SizeRecognizer(int? seed) : base(seed) { }
+      public SizeRecognizer(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public SizeRecognizer(MachineLearningContext ml) : base(ml) { }
+      public SizeRecognizer(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
@@ -82,37 +92,6 @@ namespace MachineLearning
          return AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
       }
       /// <summary>
-      /// Schema di input dei dati
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label</param>
-      /// <param name="dataColumnName">Nome colonna dei dati</param>
-      /// <returns>Lo schema di default</returns>
-      public static DataViewSchema GetDefaultInputSchema(string labelColumnName = "Label", string dataColumnName = "Data")
-      {
-         var builder = new DataViewSchema.Builder();
-         builder.AddColumn(labelColumnName, NumberDataViewType.Single);
-         builder.AddColumn(dataColumnName, NumberDataViewType.Single);
-         return builder.ToSchema();
-      }
-      /// <summary>
-      /// Restituisce le opzioni di caricamento in formato testo di default
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label</param>
-      /// <param name="dataColumnName">Nome colonna dei dati</param>
-      /// <returns>Le opzioni di caricamento testi di default</returns>
-      public static TextLoader.Options GetDefaultTextLoaderOptions(string labelColumnName = "Label", string dataColumnName = "Data")
-      {
-         return new TextLoader.Options
-         {
-            Separators = new[] { ',' },
-            Columns = new[]
-            {
-               new TextLoader.Column(labelColumnName, DataKind.Single, 0),
-               new TextLoader.Column(dataColumnName, DataKind.Single, 1),
-            }
-         };
-      }
-      /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="values">Valori di input</param>
@@ -127,7 +106,7 @@ namespace MachineLearning
       {
          var schema = InputSchema;
          var valueIx = 0;
-         return new Prediction(await GetPredictionDataAsync(cancel, schema.Select(c => (object)(c.Name == LabelColumnName ? 0f : values[valueIx++])).ToArray()));
+         return new Prediction(await GetPredictionDataAsync(schema.Select(c => (object)(c.Name == LabelColumnName ? 0f : values[valueIx++])).ToArray(), cancel));
       }
       /// <summary>
       /// Restituisce la pipe di training del modello
@@ -149,6 +128,12 @@ namespace MachineLearning
                }),
          };
       }
+      /// <summary>
+      /// Funzione di inizializzazione
+      /// </summary>
+      private void Init() => InputSchema = DataViewSchemaBuilder.Build(
+         (LabelColumnName, typeof(string)),
+         ("Data", typeof(float)));
       #endregion
    }
 

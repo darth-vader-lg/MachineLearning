@@ -1,4 +1,5 @@
 ﻿using Microsoft.ML;
+using Microsoft.ML.Data;
 using System;
 using System.IO;
 
@@ -36,8 +37,9 @@ namespace MachineLearning.Data
       /// Carica i dati
       /// </summary>
       /// <param name="context">Contesto</param>
+      /// <param name="textLoaderOptions">Opzioni di caricamento testuale (non utilizzate per i dati binari)</param>
       /// <returns>L'accesso ai dati</returns>
-      public virtual IDataAccess LoadData(IMachineLearningContextProvider context) => LoadBinaryData(context);
+      public virtual IDataAccess LoadData(IMachineLearningContextProvider context, TextLoader.Options textLoaderOptions = default) => LoadBinaryData(context);
       /// <summary>
       /// Salva i dati in formato binario
       /// </summary>
@@ -70,7 +72,8 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      public abstract void SaveData(IMachineLearningContextProvider context, IDataView data);
+      /// <param name="textLoaderOptions">Opzioni di caricamento testuale (non utilizzate per i dati binari)</param>
+      public abstract void SaveData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options textLoaderOptions = default);
       #endregion
    }
 }

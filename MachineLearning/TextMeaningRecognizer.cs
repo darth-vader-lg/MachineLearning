@@ -18,8 +18,10 @@ namespace MachineLearning
    public sealed partial class TextMeaningRecognizer :
       MulticlassModelBase,
       IDataStorageProvider,
+      IInputSchemaProvider,
       IModelStorageProvider,
       IModelTrainerProvider,
+      ITextLoaderOptionsProvider,
       ITrainingDataProvider
    {
       #region Fields
@@ -37,7 +39,7 @@ namespace MachineLearning
       /// <summary>
       /// Schema di input dei dati
       /// </summary>
-      public override DataViewSchema InputSchema => base.InputSchema ?? GetDefaultInputSchema();
+      public DataViewSchema InputSchema { get; set; }
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -50,22 +52,31 @@ namespace MachineLearning
       /// Dati di training
       /// </summary>
       public IDataStorage TrainingData { get; set; }
+      /// <summary>
+      /// Opzioni di caricamento dati in formato testo
+      /// </summary>
+      public TextLoader.Options TextLoaderOptions => new TextLoader.Options
+      {
+         AllowQuoting = true,
+         Separators = new[] { ',' },
+         Columns = InputSchema.ToTextLoaderColumns(),
+      };
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      public TextMeaningRecognizer() : base() { }
+      public TextMeaningRecognizer() : base() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public TextMeaningRecognizer(int? seed) : base(seed) { }
+      public TextMeaningRecognizer(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaningRecognizer(MachineLearningContext ml) : base(ml) { }
+      public TextMeaningRecognizer(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
@@ -83,38 +94,6 @@ namespace MachineLearning
          var dataGrid = DataViewGrid.Create(this, InputSchema);
          dataGrid.Add(data);
          return AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
-      }
-      /// <summary>
-      /// Schema di input dei dati
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label</param>
-      /// <param name="dataColumnName">Nome colonna dei dati</param>
-      /// <returns>Lo schema di default</returns>
-      public static DataViewSchema GetDefaultInputSchema(string labelColumnName = "Label", string dataColumnName = "Data")
-      {
-         var builder = new DataViewSchema.Builder();
-         builder.AddColumn(labelColumnName, TextDataViewType.Instance);
-         builder.AddColumn(dataColumnName, TextDataViewType.Instance);
-         return builder.ToSchema();
-      }
-      /// <summary>
-      /// Restituisce le opzioni di caricamento in formato testo di default
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label</param>
-      /// <param name="dataColumnName">Nome colonna dei dati</param>
-      /// <returns>Le opzioni di caricamento testi di default</returns>
-      public static TextLoader.Options GetDefaultTextLoaderOptions(string labelColumnName = "Label", string dataColumnName = "Data")
-      {
-         return new TextLoader.Options
-         {
-            AllowQuoting = true,
-            Separators = new[] { ',' },
-            Columns = new[]
-            {
-               new TextLoader.Column(labelColumnName, DataKind.String, 0),
-               new TextLoader.Column(dataColumnName, DataKind.String, 1),
-            }
-         };
       }
       /// <summary>
       /// Restituisce le pipe di training del modello
@@ -154,8 +133,14 @@ namespace MachineLearning
       {
          var schema = InputSchema;
          var valueIx = 0;
-         return new Prediction(await GetPredictionDataAsync(cancel, schema.Select(c => c.Name == LabelColumnName ? "" : sentences[valueIx++]).ToArray()));
+         return new Prediction(await GetPredictionDataAsync(schema.Select(c => c.Name == LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
       }
+      /// <summary>
+      /// Funzione di inizializzazione
+      /// </summary>
+      private void Init() => InputSchema = DataViewSchemaBuilder.Build(
+         (LabelColumnName, typeof(string)),
+         ("Data", typeof(string)));
       #endregion
    }
 

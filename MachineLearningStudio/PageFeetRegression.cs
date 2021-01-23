@@ -132,18 +132,11 @@ namespace MachineLearningStudio
             {
                AutoCommitData = true,
                AutoSaveModel = true,
-               DataStorage = new DataStorageTextFile(
-                  Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text),
-                  new TextLoader.Options
-                  {
-                     Columns = new[]
-                     {
-                        new TextLoader.Column("Number", DataKind.Single, 0),
-                        new TextLoader.Column("Length", DataKind.Single, 1),
-                        new TextLoader.Column("Instep", DataKind.Single, 2),
-                     },
-                     Separators = new[] { ',' },
-                  }),
+               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
+               InputSchema = DataViewSchemaBuilder.Build(
+                  ("Number", typeof(float)),
+                  ("Length", typeof(float)),
+                  ("Instep", typeof(float))),
                LabelColumnName = "Number",
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
                Name = "Predictor",

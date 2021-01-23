@@ -17,9 +17,11 @@ namespace MachineLearning
    [Serializable]
    public sealed partial class ImageRecognizer :
       MulticlassModelBase,
+      IInputSchemaProvider,
       IDataStorageProvider,
       IModelStorageProvider,
-      IModelTrainerProvider
+      IModelTrainerProvider,
+      ITextLoaderOptionsProvider
    {
       #region Fields
       /// <summary>
@@ -44,7 +46,7 @@ namespace MachineLearning
       /// <summary>
       /// Schema di input dei dati
       /// </summary>
-      public override DataViewSchema InputSchema => base.InputSchema ?? GetDefaultInputSchema();
+      public DataViewSchema InputSchema { get; set; }
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -53,59 +55,31 @@ namespace MachineLearning
       /// Trainer del modello
       /// </summary>
       public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
-      #endregion
-      #region Methods
       /// <summary>
-      /// Costruttore
+      /// Opzioni di caricamento dati in formato testo
       /// </summary>
-      public ImageRecognizer() { }
+      public TextLoader.Options TextLoaderOptions => new TextLoader.Options
+      {
+         AllowQuoting = true,
+         Separators = new[] { ',' },
+         Columns = InputSchema.ToTextLoaderColumns(),
+      };
+      #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+      public ImageRecognizer() => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="seed">Seme operazioni random</param>
-      public ImageRecognizer(int? seed) : base(seed) { }
+      public ImageRecognizer(int? seed) : base(seed) => Init();
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public ImageRecognizer(MachineLearningContext ml) : base(ml) { }
-      /// <summary>
-      /// Restituisce lo schema di input di default
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label</param>
-      /// <param name="imagePathColumnName">Nome colonna path immagine</param>
-      /// <param name="imageTimestampColumnName">Nome colonna data e ora immagine</param>
-      /// <returns>Lo schema di default</returns>
-      public static DataViewSchema GetDefaultInputSchema(string labelColumnName = "Label", string imagePathColumnName = "ImagePath", string imageTimestampColumnName = "ImageTimestamp")
-      {
-         var builder = new DataViewSchema.Builder();
-         builder.AddColumn(labelColumnName, TextDataViewType.Instance);
-         builder.AddColumn(imagePathColumnName, TextDataViewType.Instance);
-         if (!string.IsNullOrWhiteSpace(imageTimestampColumnName))
-            builder.AddColumn(imageTimestampColumnName, DateTimeDataViewType.Instance);
-         return builder.ToSchema();
-      }
-      /// <summary>
-      /// Restituisce le opzioni di caricamento in formato testo di default
-      /// </summary>
-      /// <param name="labelColumnName">Nome colonna label</param>
-      /// <param name="imagePathColumnName">Nome colonna path immagine</param>
-      /// <param name="imageTimestampColumnName">Nome colonna data e ora immagine</param>
-      /// <returns>Le opzioni di caricamento testi di default</returns>
-      public static TextLoader.Options GetDefaultTextLoaderOptions(string labelColumnName = "Label", string imagePathColumnName = "ImagePath", string imageTimestampColumnName = "ImageTimestamp")
-      {
-         return new TextLoader.Options
-         {
-            AllowQuoting = true,
-            Separators = new[] { ',' },
-            Columns = new[]
-            {
-               new TextLoader.Column(labelColumnName, DataKind.String, 0),
-               new TextLoader.Column(imagePathColumnName, DataKind.String, 1),
-               new TextLoader.Column(imageTimestampColumnName, DataKind.DateTime, 2),
-            }
-         };
-      }
+      public ImageRecognizer(MachineLearningContext ml) : base(ml) => Init();
       /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
@@ -139,7 +113,7 @@ namespace MachineLearning
       public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default)
       {
          var schema = InputSchema;
-         return new Prediction(await GetPredictionDataAsync(cancel, schema.Select(c => c.Name == ImagePathColumnName ? imagePath : null).ToArray()));
+         return new Prediction(await GetPredictionDataAsync(schema.Select(c => c.Name == ImagePathColumnName ? imagePath : null).ToArray(), cancel));
       }
       /// <summary>
       /// Ottiene un elenco di dati di training data dalla directory radice delle immagini.
@@ -180,6 +154,13 @@ namespace MachineLearning
          }, cancellation);
       }
       /// <summary>
+      /// Funzione di inizializzazione
+      /// </summary>
+      private void Init() => InputSchema = DataViewSchemaBuilder.Build(
+         ("Label", typeof(string)),
+         (ImagePathColumnName, typeof(string)),
+         (ImageTimestampColumnName, typeof(DateTime)));
+      /// <summary>
       /// Aggiorna lo storage di dati con l'elenco delle immagini categorizzate contenute nella directory indicata
       /// </summary>
       /// <param name="path">La directory radice delle immagini</param>
@@ -205,7 +186,7 @@ namespace MachineLearning
             var tasks = Enumerable.Range(0, Environment.ProcessorCount).Select(i => Task.CompletedTask).ToArray();
             var taskIx = 0;
             // Scandisce lo storage alla ricerca di elementi non piu' validi o aggiornati
-            foreach (var cursor in DataStorage.LoadData(this).GetRowCursor(trainingData.Schema).AsEnumerable()) {
+            foreach (var cursor in LoadData(DataStorage).GetRowCursor(trainingData.Schema).AsEnumerable()) {
                cancellation.ThrowIfCancellationRequested();
                // Riga di dati di storage
                var storageRow = cursor.ToDataViewValuesRow(this);
@@ -251,16 +232,16 @@ namespace MachineLearning
             if (invalidStorageImages.Count > 0 || invalidTrainingImages.Count == 0) {
                // Crea la vista dati mergiata e filtrata
                var mergedDataView =
-                  DataStorage.LoadData(this).ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).
+                  LoadData(DataStorage).ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).
                   Merge(trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position)));
                cancellation.ThrowIfCancellationRequested();
                // File temporaneo per il merge
                using var mergedStorage = new DataStorageBinaryTempFile();
                // Salva il mix di dati nel file temporaneo
-               mergedStorage.SaveData(this, mergedDataView);
+               SaveData(mergedStorage, mergedDataView);
                // Salva il file temporaneo nello storage
-               mergedDataView = mergedStorage.LoadData(this);
-               DataStorage.SaveData(this, mergedStorage.LoadData(this));
+               mergedDataView = LoadData(mergedStorage);
+               SaveData(DataStorage, LoadData(mergedStorage));
             }
          }, cancellation);
          cancellation.ThrowIfCancellationRequested();

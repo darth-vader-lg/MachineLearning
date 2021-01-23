@@ -9,7 +9,7 @@ namespace Microsoft.ML
    /// </summary>
    public static class DataViewSchemaExtensions
    {
-      private static Dictionary<DataViewType, DataKind> _toDataKind = new Dictionary<DataViewType, DataKind>
+      private static readonly Dictionary<DataViewType, DataKind> _toDataKind = new Dictionary<DataViewType, DataKind>
       {
          { BooleanDataViewType.Instance, DataKind.Boolean },
          { NumberDataViewType.SByte, DataKind.SByte },

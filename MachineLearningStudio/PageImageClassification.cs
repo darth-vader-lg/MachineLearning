@@ -170,7 +170,7 @@ namespace MachineLearningStudio
                {
                   await predictor.StopTrainingAsync(cancel);
                   cancel.ThrowIfCancellationRequested();
-                  predictor.DataStorage = new DataStorageTextFile(dataStoragePath, ImageRecognizer.GetDefaultTextLoaderOptions());
+                  predictor.DataStorage = new DataStorageTextFile(dataStoragePath);
                   await predictor.UpdateStorageAsync(Path.ChangeExtension(dataStoragePath, null), cancel);
                   predictor.ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(dataStoragePath, "model.zip")));
                   predictor.ModelTrainer = crossValidation ? new ModelTrainerCrossValidation { NumFolds = 5 } : new ModelTrainerStandard();

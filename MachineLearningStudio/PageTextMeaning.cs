@@ -123,7 +123,7 @@ namespace MachineLearningStudio
             {
                AutoCommitData = true,
                AutoSaveModel = true,
-               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text), TextMeaningRecognizer.GetDefaultTextLoaderOptions()),
+               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
                ModelTrainer = new ModelTrainerAuto(),
                Name = "Predictor",
