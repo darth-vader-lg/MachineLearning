@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using MachineLearning;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -53,11 +54,8 @@ namespace Microsoft.ML.Data
       /// </summary>
       /// <param name="textLoaderOptions">Opzioni di caricamento testi</param>
       /// <returns>Lo schema di vista dati</returns>
-      public static DataViewSchema ToDataViewSchema(this TextLoader.Options textLoaderOptions)
-      {
-         var mlContext = new MLContext();
-         return mlContext.Data.CreateTextLoader(textLoaderOptions).GetOutputSchema();
-      }
+      public static DataViewSchema ToDataViewSchema(this TextLoader.Options textLoaderOptions) =>
+         MachineLearningContext.Default.NET.Data.CreateTextLoader(textLoaderOptions).GetOutputSchema();
       #endregion
    }
 }

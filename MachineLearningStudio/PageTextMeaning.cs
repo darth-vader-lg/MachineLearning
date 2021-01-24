@@ -69,21 +69,17 @@ namespace MachineLearningStudio
       /// </summary>
       /// <param name="sender"></param>
       /// <param name="e"></param>
-      private void Log(object sender, LoggingEventArgs e)
+      private void Log(object sender, MachineLearningLogEventArgs e)
       {
          try {
-            if (e.Kind < ChannelMessageKind.Info || e.Source != predictor.Name)
+            if (e.Kind < MachineLearningLogKind.Info || e.Source != predictor.Name)
                return;
-            predictor.Post(() =>
-            {
-               var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
-               var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
-               textBoxOutput.AppendText(e.Message + Environment.NewLine);
-               if (resel) {
-                  textBoxOutput.Select(SelectionStart, SelectionLength);
-                  textBoxOutput.ScrollToCaret();
-               }
-            });
+            var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
+            textBoxOutput.AppendText(e.Message + Environment.NewLine);
+            if (resel) {
+               textBoxOutput.Select(SelectionStart, SelectionLength);
+               textBoxOutput.ScrollToCaret();
+            }
          }
          catch (Exception) { }
       }
@@ -119,7 +115,9 @@ namespace MachineLearningStudio
             // Imposta il nome del file di dati
             textBoxDataSetName.Text = Settings.Default.PageTextMeaning.DataSetName?.Trim();
             // Crea il previsore
-            predictor = new TextMeaningRecognizer
+            var context = new MachineLearningContext { SyncLogs = true };
+            context.Log += Log;
+            predictor = new TextMeaningRecognizer(context)
             {
                AutoCommitData = true,
                AutoSaveModel = true,
@@ -129,8 +127,6 @@ namespace MachineLearningStudio
                Name = "Predictor",
                TrainingData = new DataStorageBinaryMemory(),
             };
-            // Aggancia il log
-            predictor.ML.NET.Log += Log;
             // Indicatore di inizializzazione ok
             initialized = true;
          }

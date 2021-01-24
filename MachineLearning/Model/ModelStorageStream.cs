@@ -37,10 +37,11 @@ namespace MachineLearning.Model
       /// <returns>Il modello</returns>
       public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema)
       {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          var stream = ReadStream?.Invoke();
          if (stream == null)
             throw new InvalidOperationException("Cannot read from the stream");
-         return (context?.ML?.NET ?? new MLContext()).Model.Load(stream, out inputSchema);
+         return context.ML.NET.Model.Load(stream, out inputSchema);
       }
       /// <summary>
       /// Funzione di salvataggio modello
@@ -51,10 +52,11 @@ namespace MachineLearning.Model
       /// <param name="inputSchema">Schema di input del modello</param>
       public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema)
       {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          var stream = WriteStream?.Invoke();
          if (stream == null)
             throw new InvalidOperationException("Cannot write to the stream");
-         (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, stream);
+         context.ML.NET.Model.Save(model, inputSchema, stream);
       }
       #endregion
    }

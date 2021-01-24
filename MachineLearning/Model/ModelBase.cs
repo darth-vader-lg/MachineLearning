@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,19 +17,9 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase : IDeserializationCallback, IMachineLearningContextProvider, ITransformer
+   public abstract partial class ModelBase : IMachineLearningContextProvider, ITransformer
    {
       #region Fields
-      /// <summary>
-      /// Scheduler di creazione dell'oggetto
-      /// </summary>
-      [NonSerialized]
-      private TaskScheduler _creationTaskScheduler;
-      /// <summary>
-      /// Thread di creazione dell'oggetto
-      /// </summary>
-      [NonSerialized]
-      private Thread _creationThread;
       /// <summary>
       /// Valutazione
       /// </summary>
@@ -94,10 +83,6 @@ namespace MachineLearning.Model
       /// </summary>
       public string Name { get; set; }
       /// <summary>
-      /// Indica necessita' di postare un azione nel thread di creazione dal momento che ci si trova in un altro
-      /// </summary>
-      public bool PostRequired => Thread.CurrentThread != _creationThread && _creationTaskScheduler != null;
-      /// <summary>
       /// Task di training
       /// </summary>
       private CancellableTask TaskTraining => _taskTraining ??= new CancellableTask();
@@ -133,10 +118,6 @@ namespace MachineLearning.Model
       {
          // Memorizza il contesto di machine learning
          ML = ml ?? MachineLearningContext.Default;
-         // Memorizza lo scheduler e il thread di creazione
-         _creationThread = Thread.CurrentThread;
-         if (SynchronizationContext.Current != null)
-            _creationTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
       }
       /// <summary>
       /// Aggiunge un elenco di dati di training
@@ -419,17 +400,6 @@ namespace MachineLearning.Model
          return dataStorage.LoadData(this, options);
       }
       /// <summary>
-      /// Funzione chiamata al termine della deserializzazione
-      /// </summary>
-      /// <param name="sender"></param>
-      public virtual void OnDeserialization(object sender)
-      {
-         // Memorizza lo scheduler di creazione
-         _creationThread = Thread.CurrentThread;
-         if (SynchronizationContext.Current != null)
-            _creationTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
-      }
-      /// <summary>
       /// Funzione di notifica della variazione del modello
       /// </summary>
       /// <param name="e">Argomenti dell'evento</param>
@@ -485,17 +455,6 @@ namespace MachineLearning.Model
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
-      }
-      /// <summary>
-      /// Posta un azione nel thread di creazione oggetto
-      /// </summary>
-      /// <param name="Action">Azione</param>
-      public void Post(Action Action)
-      {
-         if (PostRequired)
-            new Task(Action).Start(_creationTaskScheduler);
-         else
-            Action();
       }
       /// <summary>
       /// Effettua il salvataggio del modello

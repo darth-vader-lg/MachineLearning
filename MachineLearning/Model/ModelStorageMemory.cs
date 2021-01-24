@@ -40,12 +40,13 @@ namespace MachineLearning.Model
       /// <returns>Il modello</returns>
       public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema)
       {
-         if (Bytes == default) {
-            inputSchema = default;
-            return default;
+         if (Bytes == null) {
+            inputSchema = null;
+            return null;
          }
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          using var memoryStream = new MemoryStream(Bytes);
-         return (context?.ML?.NET ?? new MLContext()).Model.Load(memoryStream, out inputSchema);
+         return context.ML.NET.Model.Load(memoryStream, out inputSchema);
       }
       /// <summary>
       /// Funzione di salvataggio modello
@@ -56,10 +57,11 @@ namespace MachineLearning.Model
       /// <param name="inputSchema">Schema di input del modello</param>
       public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema)
       {
+         MachineLearningContext.CheckMLNET(context, nameof(context));
          lock (this) {
             var timestamp = DateTime.UtcNow;
             using var memoryStream = new MemoryStream();
-            (context?.ML?.NET ?? new MLContext()).Model.Save(model, inputSchema, memoryStream);
+            context.ML.NET.Model.Save(model, inputSchema, memoryStream);
             Bytes = memoryStream.ToArray();
             DataTimestamp = timestamp;
          }

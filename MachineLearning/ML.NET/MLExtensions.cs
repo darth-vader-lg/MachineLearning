@@ -131,13 +131,12 @@ namespace Microsoft.ML
       {
          try {
             var channelProvider = (IChannelProvider)ml;
-            var channel = channelProvider.Start(contextDescription ?? channelProvider.ContextDescription);
+            using var channel = channelProvider.Start(contextDescription ?? channelProvider.ContextDescription);
             using var reader = new StringReader(text);
             for (var line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
                if (!string.IsNullOrEmpty(line))
                   channel.Info(sensitivity, line);
             }
-            channel.Dispose();
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);

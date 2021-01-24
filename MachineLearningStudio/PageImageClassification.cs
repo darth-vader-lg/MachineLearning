@@ -91,6 +91,26 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Log del machine learning
+      /// </summary>
+      /// <param name="sender"></param>
+      /// <param name="e"></param>
+      private void Log(object sender, MachineLearningLogEventArgs e)
+      {
+         try {
+            if ((e.Kind < MachineLearningLogKind.Info || e.Source == "TextSaver; Saving") && !e.Source.Contains("Trainer"))
+               return;
+            var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
+            textBoxOutput.AppendText(e.Message + Environment.NewLine);
+            if (resel) {
+               textBoxOutput.Select(SelectionStart, SelectionLength);
+               textBoxOutput.ScrollToCaret();
+            }
+         }
+         catch (Exception) {
+         }
+      }
+      /// <summary>
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
       /// <param name="rebuildModel">Forzatura ricostruzione modello</param>
@@ -110,29 +130,6 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
-      /// Log del machine learning
-      /// </summary>
-      /// <param name="sender"></param>
-      /// <param name="e"></param>
-      private void Ml_Log(object sender, LoggingEventArgs e)
-      {
-         try {
-            if ((e.Kind < ChannelMessageKind.Info || e.Source == "TextSaver; Saving") && !e.Source.Contains("Trainer"))
-               return;
-            predictor.Post(() =>
-            {
-               var (resel, SelectionStart, SelectionLength) = (textBoxOutput.SelectionStart < textBoxOutput.TextLength, textBoxOutput.SelectionStart, textBoxOutput.SelectionLength);
-               var currentSelection = textBoxOutput.SelectionStart >= textBoxOutput.TextLength ? -1 : textBoxOutput.SelectionStart;
-               textBoxOutput.AppendText(e.Message + Environment.NewLine);
-               if (resel) {
-                  textBoxOutput.Select(SelectionStart, SelectionLength);
-                  textBoxOutput.ScrollToCaret();
-               }
-            });
-         }
-         catch (Exception) { }
-      }
-      /// <summary>
       /// Funzione di caricamento del controllo
       /// </summary>
       /// <param name="e"></param>
@@ -142,8 +139,9 @@ namespace MachineLearningStudio
          try {
             base.OnLoad(e);
             // Crea il previsore
-            predictor = new ImageRecognizer { AutoSaveModel = true, Name = "Predictor", DataStorage = null };
-            predictor.ML.NET.Log += Ml_Log;
+            var context = new MachineLearningContext { SyncLogs = true };
+            context.Log += Log;
+            predictor = new ImageRecognizer(context) { AutoSaveModel = true, Name = "Predictor", DataStorage = null };
             textBoxImageSetName.Text = Settings.Default.PageImageClassification.DataSetDir?.Trim();
             checkBoxCrossValidate.Checked = Settings.Default.PageImageClassification.CrossValidate;
             initialized = true;

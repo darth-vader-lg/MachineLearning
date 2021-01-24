@@ -69,7 +69,7 @@ namespace MachineLearning.Serialization
             info.AddValue(nameof(data.TestOnTrainSet), data.TestOnTrainSet);
             info.AddValue(nameof(data.TrainSetBottleneckCachedValuesFileName), data.TrainSetBottleneckCachedValuesFileName);
             if (data.ValidationSet != null) {
-               var ml = (context.Context as IMachineLearningContextProvider)?.ML?.NET ?? new MLContext();
+               var ml = (context.Context as IMachineLearningContextProvider)?.ML?.NET ?? MachineLearningContext.Default.NET;
                using var ms = new MemoryStream();
                ml.Data.SaveAsBinary(data.ValidationSet, ms, true);
                info.AddValue(nameof(data.ValidationSet), ms.ToArray());
