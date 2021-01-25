@@ -34,7 +34,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
       /// <returns>L'accesso ai dati</returns>
-      public virtual IDataAccess LoadData(IMachineLearningContextProvider context, TextLoader.Options textLoaderOptions = default) =>
+      public virtual IDataAccess LoadData(IMachineLearningContext context, TextLoader.Options textLoaderOptions = default) =>
          LoadTextData(context, textLoaderOptions);
       /// <summary>
       /// Carica i dati in formato testo
@@ -42,11 +42,11 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
       /// <returns>L'accesso ai dati</returns>
-      protected IDataAccess LoadTextData(IMachineLearningContextProvider context, TextLoader.Options textLoaderOptions = default)
+      protected IDataAccess LoadTextData(IMachineLearningContext context, TextLoader.Options textLoaderOptions = default)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
-         textLoaderOptions ??= (context as ITextLoaderOptionsProvider)?.TextLoaderOptions;
-         context.ML.NET.Check(textLoaderOptions != null, $"There are no text loader options supplied and the context is not type of {nameof(ITextLoaderOptionsProvider)}");
+         textLoaderOptions ??= (context as ITextLoaderOptions)?.TextLoaderOptions;
+         context.ML.NET.Check(textLoaderOptions != null, $"There are no text loader options supplied and the context is not type of {nameof(ITextLoaderOptions)}");
          return new DataAccess(context, context.ML.NET.Data.CreateTextLoader(textLoaderOptions).Load(this));
       }
       /// <summary>
@@ -55,7 +55,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
-      public abstract void SaveData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options textLoaderOptions = default);
+      public abstract void SaveData(IMachineLearningContext context, IDataView data, TextLoader.Options textLoaderOptions = default);
       /// <summary>
       /// Salva i dati in formato testo
       /// </summary>
@@ -64,11 +64,11 @@ namespace MachineLearning.Data
       /// <param name="options">Opzioni di caricamento testuale</param>
       /// <param name="stream">Stream per la scrittura. Lo stream viene chiuso automaticamente al termine della scrittura a meno che non specificato</param>
       /// <param name="closeStream">Determina se chiudere lo stream al termine della scrittura</param>
-      protected void SaveTextData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options options, Stream stream, bool closeStream = true)
+      protected void SaveTextData(IMachineLearningContext context, IDataView data, TextLoader.Options options, Stream stream, bool closeStream = true)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
-         options ??= (context as ITextLoaderOptionsProvider)?.TextLoaderOptions;
-         context.ML.NET.Check(options != null, $"There are no text loader options supplied and the context is not type of {nameof(ITextLoaderOptionsProvider)}");
+         options ??= (context as ITextLoaderOptions)?.TextLoaderOptions;
+         context.ML.NET.Check(options != null, $"There are no text loader options supplied and the context is not type of {nameof(ITextLoaderOptions)}");
          lock (this) {
             try {
                // Verifica del writer

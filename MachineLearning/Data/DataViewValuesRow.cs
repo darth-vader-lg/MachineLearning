@@ -14,7 +14,7 @@ namespace MachineLearning.Data
    /// <summary>
    /// Riga di vista di dati
    /// </summary>
-   public class DataViewValuesRow : DataViewRow, IEnumerable<DataViewValue>, IMachineLearningContextProvider
+   public class DataViewValuesRow : DataViewRow, IEnumerable<DataViewValue>, IMachineLearningContext
    {
       #region Fields
       /// <summary>
@@ -84,7 +84,7 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="cursor">Cursore</param>
-      private DataViewValuesRow(IMachineLearningContextProvider context, DataViewRowCursor cursor)
+      private DataViewValuesRow(IMachineLearningContext context, DataViewRowCursor cursor)
       {
          // Checks e inizializzazioni
          MachineLearningContext.AssertMLNET(context, nameof(context));
@@ -114,7 +114,7 @@ namespace MachineLearning.Data
       /// <param name="id">Identificatore univoco</param>
       /// <param name="values">Valori</param>
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
-      private DataViewValuesRow(IMachineLearningContextProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
+      private DataViewValuesRow(IMachineLearningContext context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
          MachineLearningContext.AssertMLNET(context, nameof(context));
          ML = context.ML;
@@ -136,7 +136,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="cursor">Cursore</param>
       /// <returns>La griglia di dati</returns>
-      internal static DataViewValuesRow Create(IMachineLearningContextProvider context, DataViewRowCursor cursor)
+      internal static DataViewValuesRow Create(IMachineLearningContext context, DataViewRowCursor cursor)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(cursor, nameof(cursor));
@@ -150,7 +150,7 @@ namespace MachineLearning.Data
       /// <param name="id">Identificatore univoco</param>
       /// <param name="values">Valori</param>
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
-      internal static DataViewValuesRow Create(IMachineLearningContextProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
+      internal static DataViewValuesRow Create(IMachineLearningContext context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(schema, nameof(schema));

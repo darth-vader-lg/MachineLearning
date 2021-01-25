@@ -1,9 +1,6 @@
 ﻿using MachineLearning;
 using MachineLearning.Data;
 using MachineLearning.Model;
-using Microsoft.ML;
-using Microsoft.ML.Data;
-using Microsoft.ML.Runtime;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -59,7 +56,7 @@ namespace MachineLearningStudio
       {
          try {
             // Forza il training
-            MakePrediction(default, true);
+            MakePrediction(default);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -88,8 +85,7 @@ namespace MachineLearningStudio
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
       /// <param name="delay"></param>
-      /// <param name="forceRebuildModel">Forza la ricostruzione del modello da zero</param>
-      private void MakePrediction(TimeSpan delay = default, bool forceRebuildModel = false)
+      private void MakePrediction(TimeSpan delay = default)
       {
          try {
             // Verifica che il controllo sia inizializzato
@@ -103,8 +99,7 @@ namespace MachineLearningStudio
                float.TryParse(textBoxLength.Text.Trim(), out var length) ? length : float.NaN,
                float.TryParse(textBoxInstep.Text.Trim(), out var instep) ? instep : float.NaN,
                taskPrediction.cancellation.Token,
-               delay,
-               forceRebuildModel);
+               delay);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -128,18 +123,12 @@ namespace MachineLearningStudio
             context.Log += Log;
             predictor = new SizeRecognizer(context)
             {
-               AutoCommitData = true,
-               AutoSaveModel = true,
                DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
-               InputSchema = DataViewSchemaBuilder.Build(
-                  ("Number", typeof(float)),
-                  ("Length", typeof(float)),
-                  ("Instep", typeof(float))),
-               LabelColumnName = "Number",
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
                Name = "Predictor",
                TrainingData = new DataStorageBinaryMemory(),
             };
+            predictor.SetSchema(0, "Number", "Length", "Instep");
             // Indicatore di inizializzazione ok
             initialized = true;
          }
@@ -155,20 +144,13 @@ namespace MachineLearningStudio
       /// <param name="instep">Calzata</param>
       /// <param name="cancel">Token di cancellazione</param>
       /// <param name="delay">Ritardo dell'avvio</param>
-      /// <param name="forceRebuildModel">Forza la ricostruzione del modello da zero</param>
       /// <returns>Il task</returns>
-      private async Task TaskPrediction(string dataSetName, float length, float instep, CancellationToken cancel, TimeSpan delay = default, bool forceRebuildModel = false)
+      private async Task TaskPrediction(string dataSetName, float length, float instep, CancellationToken cancel, TimeSpan delay = default)
       {
          try {
             // Attende la pausa
             await Task.Delay(delay, cancel);
-            // Pulizia combo in caso di ricostruzione modello
-            cancel.ThrowIfCancellationRequested();
             // Rilancia o avvia il task di training
-            if (forceRebuildModel) {
-               await predictor.StopTrainingAsync();
-               _ = predictor.StartTrainingAsync(cancel);
-            }
             cancel.ThrowIfCancellationRequested();
             if (float.IsNaN(length) || float.IsNaN(instep)) {
                labelNumberResult.Text = "";
@@ -180,7 +162,6 @@ namespace MachineLearningStudio
          catch (Exception exc) {
             Trace.WriteLine(exc);
             labelNumberResult.Text = "???";
-            predictor.ML.NET.WriteLog(exc.ToString(), nameof(TaskPrediction));
          }
          //try { @@@
          //   cancel.ThrowIfCancellationRequested();
@@ -340,7 +321,7 @@ namespace MachineLearningStudio
                   Settings.Default.Save();
                }
             }
-            MakePrediction(new TimeSpan(0, 0, 0, 0, 500), true);
+            MakePrediction(new TimeSpan(0, 0, 0, 0, 500));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);

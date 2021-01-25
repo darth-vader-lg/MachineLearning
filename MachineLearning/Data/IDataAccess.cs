@@ -5,7 +5,7 @@ namespace MachineLearning.Data
    /// <summary>
    /// Interfaccia per l'accesso ai dati
    /// </summary>
-   public interface IDataAccess : IDataView, IMachineLearningContextProvider
+   public interface IDataAccess : IDataView, IMachineLearningContext
    {
    }
 }

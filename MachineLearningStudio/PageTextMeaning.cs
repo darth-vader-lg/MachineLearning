@@ -1,8 +1,6 @@
 ﻿using MachineLearning;
 using MachineLearning.Data;
 using MachineLearning.Model;
-using Microsoft.ML;
-using Microsoft.ML.Runtime;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -58,7 +56,7 @@ namespace MachineLearningStudio
       {
          try {
             // Forza il training
-            MakePrediction(default, true);
+            MakePrediction(default);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -87,8 +85,7 @@ namespace MachineLearningStudio
       /// Effettua la previsione in base ai dati impostati
       /// </summary>
       /// <param name="delay"></param>
-      /// <param name="forceRebuildModel">Forza la ricostruzione del modello da zero</param>
-      private void MakePrediction(TimeSpan delay = default, bool forceRebuildModel = false)
+      private void MakePrediction(TimeSpan delay = default)
       {
          try {
             // Verifica che il controllo sia inizializzato
@@ -97,7 +94,7 @@ namespace MachineLearningStudio
             // Avvia un nuovo task di previsione
             taskPrediction.cancellation.Cancel();
             taskPrediction.cancellation = new CancellationTokenSource();
-            taskPrediction.task = TaskPrediction(textBoxDataSetName.Text.Trim(), textBoxSentence.Text.Trim(), taskPrediction.cancellation.Token, delay, forceRebuildModel);
+            taskPrediction.task = TaskPrediction(textBoxSentence.Text.Trim(), delay, taskPrediction.cancellation.Token);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -112,21 +109,26 @@ namespace MachineLearningStudio
          // Metodo base
          try {
             base.OnLoad(e);
-            // Imposta il nome del file di dati
-            textBoxDataSetName.Text = Settings.Default.PageTextMeaning.DataSetName?.Trim();
             // Crea il previsore
             var context = new MachineLearningContext { SyncLogs = true };
             context.Log += Log;
+            var dataSet = Path.ChangeExtension(Path.Combine(Environment.CurrentDirectory, "Data", (Settings.Default.PageTextMeaning.DataSetName ?? "").Trim()), "data");
+            try {
+               if (!File.Exists(dataSet))
+                  dataSet = null;
+            }
+            catch (Exception) {
+               dataSet = null;
+            }
             predictor = new TextMeaningRecognizer(context)
             {
-               AutoCommitData = true,
-               AutoSaveModel = true,
-               DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
-               ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
+               DataStorage = dataSet == null ? null : new DataStorageTextFile(dataSet),
+               ModelStorage = new ModelStorageFile(Path.ChangeExtension(dataSet, "model.zip")),
                ModelTrainer = new ModelTrainerAuto(),
                Name = "Predictor",
-               TrainingData = new DataStorageBinaryMemory(),
             };
+            // Imposta il nome del file di dati
+            textBoxDataSetName.Text = Settings.Default.PageTextMeaning.DataSetName?.Trim();
             // Indicatore di inizializzazione ok
             initialized = true;
          }
@@ -137,26 +139,21 @@ namespace MachineLearningStudio
       /// <summary>
       /// Task di previsione
       /// </summary>
-      /// <param name="dataSetName">Nome del set di dati</param>
       /// <param name="sentence">Sentenza attuale</param>
-      /// <param name="cancel">Token di cancellazione</param>
       /// <param name="delay">Ritardo dell'avvio</param>
-      /// <param name="forceRebuildModel">Forza la ricostruzione del modello da zero</param>
+      /// <param name="cancel">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      private async Task TaskPrediction(string dataSetName, string sentence, CancellationToken cancel, TimeSpan delay = default, bool forceRebuildModel = false)
+      private async Task TaskPrediction(string sentence, TimeSpan delay = default, CancellationToken cancel = default)
       {
          try {
             // Attende la pausa
             await Task.Delay(delay, cancel);
-            // Pulizia combo in caso di ricostruzione modello
             cancel.ThrowIfCancellationRequested();
-            // Rilancia o avvia il task di training
-            if (forceRebuildModel) {
-               await predictor.StopTrainingAsync();
-               _ = predictor.StartTrainingAsync(cancel);
-            }
-            cancel.ThrowIfCancellationRequested();
-            textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await predictor.GetPredictionAsync(cancel, sentence)).Meaning;
+            // Effettua la previsione
+            if (predictor.ModelStorage != null && predictor.DataStorage != null && !string.IsNullOrEmpty(sentence))
+               textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await predictor.GetPredictionAsync(cancel, sentence)).Meaning;
+            else
+               textBoxIntent.Text = "";
             textBoxIntent.BackColor = textBoxBackColor;
          }
          catch (OperationCanceledException) { }
@@ -164,7 +161,6 @@ namespace MachineLearningStudio
             Trace.WriteLine(exc);
             textBoxIntent.Text = "";
             textBoxIntent.BackColor = Color.Red;
-            predictor.ML.NET.WriteLog(exc.ToString(), nameof(TaskPrediction));
          }
       }
       /// <summary>
@@ -182,22 +178,25 @@ namespace MachineLearningStudio
             var path = Path.Combine(Environment.CurrentDirectory, "Data", tb.Text.Trim());
             // Verifica se file non esistente
             if (!File.Exists(path)) {
-               // Visualizza l'errore
+               predictor.ClearModel();
                dataSetName = null;
                tb.BackColor = Color.Red;
             }
             else {
                // Aggiorna il set di dati
+               predictor.ClearModel();
                tb.BackColor = textBoxBackColor;
                dataSetName = tb.Text.Trim();
                // Salva nei settings lo stato
                if (dataSetName != Settings.Default.PageTextMeaning.DataSetName) {
                   Settings.Default.PageTextMeaning.DataSetName = dataSetName;
                   Settings.Default.Save();
+                  predictor.DataStorage = new DataStorageTextFile(Path.ChangeExtension(dataSetName, "data"));
+                  predictor.ModelStorage = new ModelStorageFile(Path.ChangeExtension(dataSetName, "model.zip"));
                }
             }
             // Avvia una ricostruzione del modello
-            MakePrediction(new TimeSpan(0, 0, 0, 0, 500), true);
+            MakePrediction(new TimeSpan(0, 0, 0, 0, 500));
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -221,8 +220,9 @@ namespace MachineLearningStudio
                return;
             if (string.IsNullOrWhiteSpace(dataSetName))
                return;
+            predictor.ClearModel();
             predictor.AddTrainingData(true, textBoxIntent.Text.Trim(), textBoxSentence.Text.Trim());
-            MakePrediction(default, true);
+            MakePrediction(default);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);

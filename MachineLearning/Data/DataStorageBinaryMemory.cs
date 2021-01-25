@@ -39,7 +39,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale (non utilizzate per il salvataggio binario)</param>
-      public override void SaveData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options textLoaderOptions = default)
+      public override void SaveData(IMachineLearningContext context, IDataView data, TextLoader.Options textLoaderOptions = default)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          var timestamp = DateTime.UtcNow;

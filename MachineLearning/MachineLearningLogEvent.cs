@@ -1,9 +1,11 @@
-﻿namespace MachineLearning
+﻿using System;
+
+namespace MachineLearning
 {
    /// <summary>
    /// Argomenti dell'evento di log
    /// </summary>
-   public class MachineLearningLogEventArgs
+   public class MachineLearningLogEventArgs : EventArgs
    {
       #region Properties
       /// <summary>

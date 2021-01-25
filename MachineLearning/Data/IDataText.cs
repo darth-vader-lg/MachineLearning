@@ -1,15 +1,15 @@
 ﻿namespace MachineLearning.Data
 {
    /// <summary>
-   /// Interfaccia per i provider di dati di training
+   /// Contenitore di dati di tipo testuale
    /// </summary>
-   public interface ITrainingDataProvider
+   public interface IDataText
    {
       #region Properties
       /// <summary>
-      /// Dati di training
+      /// Dati testuali
       /// </summary>
-      IDataStorage TrainingData { get; }
+      public string TextData { get; set; }
       #endregion
    }
 }

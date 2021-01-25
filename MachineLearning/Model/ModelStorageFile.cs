@@ -39,7 +39,7 @@ namespace MachineLearning.Model
       /// <param name="context">Contesto</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(IMachineLearningContextProvider context, out DataViewSchema inputSchema)
+      public ITransformer LoadModel(IMachineLearningContext context, out DataViewSchema inputSchema)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          return context.ML.NET.Model.Load(FilePath, out inputSchema);
@@ -51,7 +51,7 @@ namespace MachineLearning.Model
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
       /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(IMachineLearningContextProvider context, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(IMachineLearningContext context, ITransformer model, DataViewSchema inputSchema)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.Model.Save(model, inputSchema, FilePath);

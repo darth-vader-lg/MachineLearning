@@ -36,7 +36,7 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">Vista di dati</param>
-      public DataAccess(IMachineLearningContextProvider context, IDataView data)
+      public DataAccess(IMachineLearningContext context, IDataView data)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(data, nameof(data));

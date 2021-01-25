@@ -3,9 +3,9 @@
 namespace MachineLearning.Data
 {
    /// <summary>
-   /// Interfaccia per i providers di opzioni di testo
+   /// Interfaccia per i contenitori di opzioni di testo
    /// </summary>
-   public interface ITextLoaderOptionsProvider
+   public interface ITextLoaderOptions
    {
       #region Properties
       /// <summary>

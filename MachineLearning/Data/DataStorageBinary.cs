@@ -23,7 +23,7 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      protected IDataAccess LoadBinaryData(IMachineLearningContextProvider context)
+      protected IDataAccess LoadBinaryData(IMachineLearningContext context)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          using (var checkHeader = GetReadStream()) {
@@ -39,14 +39,14 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="textLoaderOptions">Opzioni di caricamento testuale (non utilizzate per i dati binari)</param>
       /// <returns>L'accesso ai dati</returns>
-      public virtual IDataAccess LoadData(IMachineLearningContextProvider context, TextLoader.Options textLoaderOptions = default) => LoadBinaryData(context);
+      public virtual IDataAccess LoadData(IMachineLearningContext context, TextLoader.Options textLoaderOptions = default) => LoadBinaryData(context);
       /// <summary>
       /// Salva i dati in formato binario
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="stream">Stream per la scrittura. Lo stream viene chiuso automaticamente al termine della scrittura</param>
-      protected void SaveBinaryData(IMachineLearningContextProvider context, IDataView data, Stream stream)
+      protected void SaveBinaryData(IMachineLearningContext context, IDataView data, Stream stream)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          lock (this) {
@@ -73,7 +73,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="textLoaderOptions">Opzioni di caricamento testuale (non utilizzate per i dati binari)</param>
-      public abstract void SaveData(IMachineLearningContextProvider context, IDataView data, TextLoader.Options textLoaderOptions = default);
+      public abstract void SaveData(IMachineLearningContext context, IDataView data, TextLoader.Options textLoaderOptions = default);
       #endregion
    }
 }

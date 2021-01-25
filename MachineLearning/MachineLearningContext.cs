@@ -13,7 +13,7 @@ namespace MachineLearning
    /// Contesto di machine learning
    /// </summary>
    [Serializable]
-   public class MachineLearningContext : IMachineLearningContextProvider, IDeserializationCallback
+   public class MachineLearningContext : IMachineLearningContext, IDeserializationCallback
    {
       #region Fields
       /// <summary>
@@ -57,7 +57,7 @@ namespace MachineLearning
       /// <summary>
       /// Contesto di machine learning
       /// </summary>
-      MachineLearningContext IMachineLearningContextProvider.ML => this;
+      MachineLearningContext IMachineLearningContext.ML => this;
       /// <summary>
       /// Contesto ML.NET
       /// </summary>
@@ -103,22 +103,22 @@ namespace MachineLearning
       /// </summary>
       /// <param name="provider">Il provider</param>
       /// <param name="name">Nome del parametro</param>
-      public static void AssertMLNET(IMachineLearningContextProvider provider, string name)
+      public static void AssertMLNET(IMachineLearningContext provider, string name)
       {
          Contracts.AssertValue(provider, name);
-         Contracts.AssertValue(provider.ML, $"{name}.{nameof(IMachineLearningContextProvider.ML)}");
-         Contracts.AssertValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContextProvider.ML.NET)}");
+         Contracts.AssertValue(provider.ML, $"{name}.{nameof(IMachineLearningContext.ML)}");
+         Contracts.AssertValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContext.ML.NET)}");
       }
       /// <summary>
       /// Verifica che un provider di contesto sia valido per l'ML.NET
       /// </summary>
       /// <param name="provider">Il provider</param>
       /// <param name="name">Nome del parametro</param>
-      public static void CheckMLNET(IMachineLearningContextProvider provider, string name)
+      public static void CheckMLNET(IMachineLearningContext provider, string name)
       {
          Contracts.CheckValue(provider, name);
-         Contracts.CheckValue(provider.ML, $"{name}.{nameof(IMachineLearningContextProvider.ML)}");
-         Contracts.CheckValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContextProvider.ML.NET)}");
+         Contracts.CheckValue(provider.ML, $"{name}.{nameof(IMachineLearningContext.ML)}");
+         Contracts.CheckValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContext.ML.NET)}");
       }
       /// <summary>
       /// Log della ML.NET

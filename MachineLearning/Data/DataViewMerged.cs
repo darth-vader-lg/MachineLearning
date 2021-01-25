@@ -55,7 +55,7 @@ namespace MachineLearning.Data
       /// <param name="schema">The schema for the result. If this is null, the first source's schema will be used.</param>
       /// <param name="sources">The sources to be appended.</param>
       /// <returns>The resulting IDataView.</returns>
-      public static IDataAccess Create(IMachineLearningContextProvider context, DataViewSchema schema, params IDataAccess[] sources)
+      public static IDataAccess Create(IMachineLearningContext context, DataViewSchema schema, params IDataAccess[] sources)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(sources, nameof(sources));
@@ -67,7 +67,7 @@ namespace MachineLearning.Data
          return new DataViewMerged(context, schema, sources);
       }
 
-      private DataViewMerged(IMachineLearningContextProvider context, DataViewSchema schema, IDataAccess[] sources)
+      private DataViewMerged(IMachineLearningContext context, DataViewSchema schema, IDataAccess[] sources)
       {
          MachineLearningContext.AssertMLNET(context, nameof(context));
          ML = context.ML;

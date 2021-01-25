@@ -17,97 +17,54 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase : IMachineLearningContextProvider, ITransformer
+   public abstract partial class ModelBase : IMachineLearningContext, ITransformer
    {
       #region Fields
       /// <summary>
       /// Valutazione
       /// </summary>
       [NonSerialized]
-      private Evaluator _evaluation;
-      /// <summary>
-      /// Valutazione disponibile
-      /// </summary>
-      [NonSerialized]
-      private EventWaitHandle _evaluationAvailable;
-      /// <summary>
-      /// Task di training
-      /// </summary>
-      [NonSerialized]
-      private CancellableTask _taskTraining;
-      /// <summary>
-      /// Contatore di training
-      /// </summary>
-      [NonSerialized]
-      private int _trainsCount;
+      private Evaluator _evaluator;
       #endregion
       #region Properties
       /// <summary>
-      /// Abilitazione al commit automatico dei dati di training nello storage
-      /// </summary>
-      public bool AutoCommitData { get; set; }
-      /// <summary>
-      /// Abilitazione al salvataggio automatico del modello ogni volta che viene aggiornato 
-      /// </summary>
-      public bool AutoSaveModel { get; set; }
-      /// <summary>
-      /// Gestore storage dati principale
-      /// </summary>
-      private IDataStorage DataStorage => (this as IDataStorageProvider)?.DataStorage ?? this as IDataStorage;
-      /// <summary>
-      /// Valutazione
-      /// </summary>
-      protected Evaluator Evaluation { get => _evaluation ??= new Evaluator(); private set => _evaluation = value; }
-      /// <summary>
-      /// Valutazione disponibile
-      /// </summary>
-      public EventWaitHandle EvaluationAvailable => _evaluationAvailable ??= new EventWaitHandle(false, EventResetMode.ManualReset);
-      /// <summary>
       /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
       /// </summary>
-      public bool IsRowToRowMapper => GetEvaluator(new ModelTrainerStandard()).Model?.IsRowToRowMapper ?? false;
+      public bool IsRowToRowMapper => GetEvaluation(new ModelTrainerStandard()).Model?.IsRowToRowMapper ?? false;
       /// <summary>
       /// Contesto di machine learning
       /// </summary>
       public MachineLearningContext ML { get; }
       /// <summary>
-      /// Gestore storage modello
+      /// Nome del modello
       /// </summary>
-      private IModelStorage ModelStorage => (this as IModelStorageProvider)?.ModelStorage ?? this as IModelStorage;
+      private string ModelName => (this as IModelName)?.ModelName;
       /// <summary>
       /// Gestore trainer modello
       /// </summary>
       private IModelTrainer ModelTrainer => (this as IModelTrainerProvider)?.ModelTrainer ?? this as IModelTrainer;
-      /// <summary>
-      /// Nome dell'oggetto
-      /// </summary>
-      public string Name { get; set; }
-      /// <summary>
-      /// Task di training
-      /// </summary>
-      private CancellableTask TaskTraining => _taskTraining ??= new CancellableTask();
-      /// <summary>
-      /// Dati aggiuntivi di training
-      /// </summary>
-      private IDataStorage TrainingData => (this as ITrainingDataProvider)?.TrainingData;
       #endregion
       #region Events
       /// <summary>
       /// Evento di variazione modello
       /// </summary>
-      public event EventHandler ModelChanged;
+      public event ModelTrainingEventHandler ModelChanged;
+      /// <summary>
+      /// Evento di segnalazione ciclo di training avviato
+      /// </summary>
+      public event ModelTrainingEventHandler TrainingCycleStarted;
       /// <summary>
       /// Evento di variazione dati di training
       /// </summary>
-      public event EventHandler TrainingDataChanged;
+      public event ModelTrainingEventHandler TrainingDataChanged;
       /// <summary>
       /// Evento di segnalazione training terminato
       /// </summary>
-      public event EventHandler TrainingEnded;
+      public event ModelTrainingEventHandler TrainingEnded;
       /// <summary>
       /// Evento di segnalazione training avviato
       /// </summary>
-      public event EventHandler TrainingStarted;
+      public event ModelTrainingEventHandler TrainingStarted;
       #endregion
       #region Methods
       /// <summary>
@@ -126,33 +83,42 @@ namespace MachineLearning.Model
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      protected Task AddTrainingDataAsync(IDataView data, bool checkForDuplicates, CancellationToken cancellation)
+      public Task AddTrainingDataAsync(IDataView data, bool checkForDuplicates, CancellationToken cancellation)
       {
-         var trainingData = TrainingData;
-         if (trainingData == null)
-            throw new InvalidOperationException("The object doesn't have training data characteristics");
          if (!checkForDuplicates) {
-            return Task.Run(() =>
+            return Task.Run(async () =>
             {
-               var currentTrainingData = LoadData(TrainingData);
+               // Ottiene e verifica l'evaluator
+               var evaluator = await GetEvaluatorAsync(ModelTrainer, cancellation);
+               var trainingStorage = evaluator.TrainingStorage;
+               if (trainingStorage == null)
+                  throw new InvalidOperationException("The object doesn't have training data characteristics");
+               // Effettua l'accodamento
+               var currentTrainingData = LoadData(trainingStorage);
                if (currentTrainingData != null) {
-                  var merged = LoadData(trainingData).Merge(new DataAccess(this, data));
+                  var merged = currentTrainingData.Merge(new DataAccess(this, data));
                   var temp = new DataStorageBinaryTempFile();
                   SaveData(temp, merged);
-                  SaveData(trainingData, LoadData(temp));
+                  SaveData(trainingStorage, LoadData(temp));
                }
                else
-                  SaveData(trainingData, data);
+                  SaveData(trainingStorage, data);
+               cancellation.ThrowIfCancellationRequested();
             }, cancellation);
          }
          else {
-            return Task.Run(() =>
+            return Task.Run(async () =>
             {
+               // Ottiene e verifica l'evaluator
+               var evaluator = await GetEvaluatorAsync(ModelTrainer, cancellation);
+               var trainingStorage = evaluator.TrainingStorage;
+               if (trainingStorage == null)
+                  throw new InvalidOperationException("The object doesn't have training data characteristics");
                // Set di righe duplicate di training
                var invalidRows = new HashSet<long>();
                // Dati di training attuali
-               var currentTrainingData = LoadData(TrainingData);
-               var currentStorageData = DataStorage == null ? null : LoadData(DataStorage);
+               var currentTrainingData = LoadData(trainingStorage);
+               var currentStorageData = evaluator.DataStorage == null ? null : LoadData(evaluator.DataStorage);
                // Loop su tutti i dati di training
                var rowsCount = 0;
                foreach (var dataCursor in data.GetRowCursor(data.Schema).AsEnumerable()) {
@@ -169,6 +135,7 @@ namespace MachineLearning.Model
                               invalidRows.Add(dataRow.Position);
                               break;
                            }
+                           cancellation.ThrowIfCancellationRequested();
                         }
                         if (invalidRows.Contains(dataRow.Position))
                            continue;
@@ -176,16 +143,18 @@ namespace MachineLearning.Model
                   }
                }
                // Verifica se deve aggiornare i dati di training
+               cancellation.ThrowIfCancellationRequested();
                if (invalidRows.Count < rowsCount) {
                   if (currentTrainingData != null) {
                      var merged = currentTrainingData.Merge(new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
                      using var temp = new DataStorageBinaryTempFile();
                      SaveData(temp, merged);
-                     SaveData(trainingData, LoadData(temp));
+                     SaveData(trainingStorage, LoadData(temp));
                   }
                   else
-                     SaveData(trainingData, new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
+                     SaveData(trainingStorage, new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
                }
+               cancellation.ThrowIfCancellationRequested();
             }, cancellation);
          }
       }
@@ -205,62 +174,66 @@ namespace MachineLearning.Model
          int numberOfFolds = 1,
          CancellationToken cancellation = default);
       /// <summary>
-      /// Stoppa il training ed annulla la validita' dei dati
+      /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
-      public void ClearTraining() => ClearTrainingAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+      public void ClearModel() => ClearTrainingAsync().WaitSync();
       /// <summary>
-      /// Stoppa il training ed annulla la validita' dei dati
+      /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
       /// <param name="cancellation">Token di cancellazione</param>
       public async Task ClearTrainingAsync(CancellationToken cancellation = default)
       {
-         // Stoppa il training
-         await StopTrainingAsync(cancellation);
-         // Invalida la valutazione
-         SetEvaluation(null);
+         if (_evaluator is Evaluator evaluator && evaluator != null) {
+            // Stoppa il training
+            await StopTrainingInternalAsync(evaluator);
+            // Invalida la valutazione
+            lock (evaluator)
+               SetEvaluation(evaluator, null, null, evaluator.Timestamp);
+            // Segnala variazione modello
+            OnModelChanged(new ModelTrainingEventArgs(evaluator));
+         }
       }
       /// <summary>
-      /// Cancella l'elenco di dati di training e le informazioni di training
+      /// Verifica la consistenza di due schemi
       /// </summary>
-      public void ClearTrainingData() => ClearTrainingDataAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-      /// <summary>
-      /// Cancella l'elenco di dati di training e le informazioni di training
-      /// </summary>
-      /// <param name="cancellation">Token di cancellazione</param>
-      public async Task ClearTrainingDataAsync(CancellationToken cancellation = default)
+      /// <param name="schema1">Primo schema</param>
+      /// <param name="schema2">Secondo schema</param>
+      /// <param name="errMsg">Eventuale messaggio di errore personalizzato</param>
+      private void CheckSchemaConsistence(DataViewSchema schema1, DataViewSchema schema2, string errMsg = null)
       {
-         // Verifica che i dati di training siano validi
-         if (TrainingData is not IDataStorage trainingData)
-            throw new InvalidOperationException("The object doesn't have training data characteristics");
-         // Annulla il training
-         await ClearTrainingAsync(cancellation);
-         // Cancella i dati di training
-         cancellation.ThrowIfCancellationRequested();
-         SaveData(trainingData, DataViewGrid.Create(this, LoadData(trainingData).Schema));
-         cancellation.ThrowIfCancellationRequested();
-         OnTrainingDataChanged(EventArgs.Empty);
+         // REVIEW: Allow schema isomorphism.
+         errMsg ??= "Inconsistent schema: all source dataviews must have identical column names, sizes, and item types.";
+         var colCount = schema1.Count;
+         // Check if the column counts are identical.
+         ML.NET.Check(colCount == schema2.Count, errMsg);
+         for (int c = 0; c < colCount; c++) {
+            ML.NET.Check(schema1[c].Name == schema2[c].Name, errMsg);
+            ML.NET.Check(schema1[c].Type.SameSizeAndItemType(schema2[c].Type), errMsg);
+         }
       }
       /// <summary>
       /// Commit dei dati di training
       /// </summary>
-      /// <returns>Il Task</returns>
-      private void CommitTrainingData()
+      /// <param name="evaluator">L'evaluator</param>
+      private void CommitTrainingData(Evaluator evaluator)
       {
          // Verifica degli storage
-         if (DataStorage is not IDataStorage dataStorage || TrainingData is not IDataStorage trainingData)
+         if (evaluator.DataStorage is not IDataStorage dataStorage || evaluator.TrainingStorage is not IDataStorage trainingStorage)
             return;
          var tmpFileName = Path.GetTempFileName();
          try {
             // Dati di storage e di training concatenati
-            var mergedData = LoadData(dataStorage).Merge(LoadData(trainingData));
+            var mergedData = LoadData(dataStorage).Merge(LoadData(trainingStorage));
             // Salva in un file temporaneo il merge
             var tmpStorage = new DataStorageBinaryFile(tmpFileName) { KeepHidden = true };
             SaveData(tmpStorage, mergedData);
             // Aggiorna lo storage
             SaveData(dataStorage, LoadData(tmpStorage));
             // Cancella i dati di training
-            SaveData(trainingData, DataViewGrid.Create(this, mergedData.Schema));
-            OnTrainingDataChanged(EventArgs.Empty);
+            SaveData(trainingStorage, DataViewGrid.Create(this, mergedData.Schema));
+            // Genera evento
+            OnTrainingDataChanged(new ModelTrainingEventArgs(evaluator));
+
          }
          finally {
             try {
@@ -295,25 +268,24 @@ namespace MachineLearning.Model
       /// <remarks>Tenere conto che le valutazioni potrebbero essere null</remarks>
       protected virtual object GetBestModelEvaluation(object modelEvaluation1, object modelEvaluation2) => modelEvaluation1;
       /// <summary>
-      /// Restituisce l'evaluator
+      /// Restituisce la valutazione
       /// </summary>
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La valutazione</returns>
-      protected Evaluator GetEvaluator(IModelTrainer trainer, CancellationToken cancellation = default) =>
-         GetEvaluatorAsync(trainer, cancellation).ConfigureAwait(false).GetAwaiter().GetResult();
+      protected IEvaluator GetEvaluation(IModelTrainer trainer, CancellationToken cancellation = default) => GetEvaluationAsync(trainer, cancellation).WaitSync();
       /// <summary>
-      /// Restituisce l'evaluator
+      /// Restituisce la valutazione
       /// </summary>
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La valutazione</returns>
-      protected async Task<Evaluator> GetEvaluatorAsync(IModelTrainer trainer, CancellationToken cancellation = default)
+      protected async Task<IEvaluator> GetEvaluationAsync(IModelTrainer trainer, CancellationToken cancellation = default)
       {
-         // Avvia il ntraining se necessario
-         await StartTrainingIfNeededAsync(trainer, cancellation);
+         // Ottiene l'evaluator
+         var evaluator = await GetEvaluatorAsync(trainer, cancellation);
          // Attende la valutazione o la cancellazione del training
-         var waitResult = await Task.Run(() => WaitHandle.WaitAny(new[] { EvaluationAvailable, cancellation.WaitHandle, TaskTraining.CancellationToken.WaitHandle }));
+         var waitResult = await Task.Run(() => WaitHandle.WaitAny(new[] { evaluator.Available, cancellation.WaitHandle, evaluator.Cancellation.WaitHandle }));
          // Se il task non era quello di valutazione valida propaga l'eventuale eccezione del task di training
          switch (waitResult) {
             case 0:
@@ -322,13 +294,94 @@ namespace MachineLearning.Model
                throw new OperationCanceledException();
             case 2:
                // Await per propagare eventuale eccezione
-               await TaskTraining;
+               await evaluator.Task;
                break;
          }
          // Verifica che sia veramente disponibile un risultato
-         if (!EvaluationAvailable.WaitOne(0))
+         if (!evaluator.Available.WaitOne(0))
             throw new OperationCanceledException();
-         return Evaluation;
+         return evaluator;
+      }
+      /// <summary>
+      /// Restituisce l'evaluator
+      /// </summary>
+      /// <param name="trainer">Il trainer</param>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il task</returns>
+      protected async Task<IEvaluator> GetEvaluatorAsync(IModelTrainer trainer, CancellationToken cancellation = default)
+      {
+         var currentEvaluator = default(Evaluator);
+         var stopEvaluator = default(Evaluator);
+         var startEvaluator = default(Evaluator);
+         lock (this) {
+            // Avvia il task di training se necessario
+            currentEvaluator = _evaluator;
+            var startCurrentEvaluator = false;
+            var createEvaluator = false;
+            var _dataStorage = (this as IDataStorageProvider)?.DataStorage ?? this as IDataStorage;
+            var _modelStorage = (this as IModelStorageProvider)?.ModelStorage ?? this as IModelStorage;
+            var _trainingStorage = (this as ITrainingStorageProvider)?.TrainingStorage;
+            var _inputSchema = (this as IInputSchema)?.InputSchema;
+            var _modelAutoCommit = (this as IModelAutoCommit)?.ModelAutoCommit ?? false;
+            var _modelAutoSave = (this as IModelAutoSave)?.ModelAutoSave ?? false;
+            if (currentEvaluator != null) {
+               if (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested) {
+                  if (!currentEvaluator.Available.WaitOne(0))
+                     startCurrentEvaluator = true;
+                  else if (trainer is IModelTrainerCycling cycling && currentEvaluator.TrainsCount < cycling.MaxTrainingCycles)
+                     startCurrentEvaluator = true;
+               }
+               if (((currentEvaluator.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
+                  createEvaluator = true;
+               else if (((currentEvaluator.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
+                  createEvaluator = true;
+               else if (((currentEvaluator.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
+                  createEvaluator = true;
+               else if (currentEvaluator.DataStorage != _dataStorage)
+                  createEvaluator = true;
+               else if (currentEvaluator.ModelStorage != _modelStorage)
+                  createEvaluator = true;
+               else if (currentEvaluator.TrainingStorage != _trainingStorage)
+                  createEvaluator = true;
+               else if (currentEvaluator.InputSchema != _inputSchema)
+                  createEvaluator = true;
+               else if (currentEvaluator.ModelAutoCommit != _modelAutoCommit)
+                  createEvaluator = true;
+               else if (currentEvaluator.ModelAutoSave != _modelAutoSave)
+                  createEvaluator = true;
+            }
+            else
+               createEvaluator = true;
+            if (createEvaluator) {
+               if (currentEvaluator != null) {
+                  if (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested)
+                     stopEvaluator = currentEvaluator;
+               }
+               startEvaluator = currentEvaluator = _evaluator = new Evaluator
+               {
+                  DataStorage = _dataStorage,
+                  InputSchema = _inputSchema,
+                  Model = null,
+                  ModelAutoCommit = _modelAutoCommit,
+                  ModelAutoSave = _modelAutoSave,
+                  ModelStorage = _modelStorage,
+                  Timestamp = default,
+                  Trainer = trainer,
+                  TrainingStorage = _trainingStorage,
+                  TrainsCount = 0
+               };
+            }
+            else if (startCurrentEvaluator)
+               startEvaluator = currentEvaluator;
+         }
+         if (stopEvaluator != null) {
+            await StopTrainingInternalAsync(stopEvaluator);
+            cancellation.ThrowIfCancellationRequested();
+         }
+         if (startEvaluator != null)
+            _ = StartTrainingInternalAsync(startEvaluator, cancellation);
+         cancellation.ThrowIfCancellationRequested();
+         return currentEvaluator;
       }
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
@@ -349,7 +402,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="inputSchema">Scema di input</param>
       /// <returns>Lo schema di output</returns>
-      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => GetEvaluator(new ModelTrainerStandard()).Model?.GetOutputSchema(inputSchema);
+      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => GetEvaluation(new ModelTrainerStandard()).Model?.GetOutputSchema(inputSchema);
       /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
@@ -361,33 +414,45 @@ namespace MachineLearning.Model
       /// <param name="data">Riga di dati da usare per la previsione</param>
       /// <returns>La previsione</returns>
       /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      protected IDataAccess GetPredictionData(IEnumerable<object> data) => GetPredictionDataAsync(data, default).ConfigureAwait(false).GetAwaiter().GetResult();
+      public IDataAccess GetPredictionData(IEnumerable<object> data) => GetPredictionDataAsync(data, default).WaitSync();
       /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
       /// <param name="data">Riga di dati da usare per la previsione</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      protected async Task<IDataAccess> GetPredictionDataAsync(IEnumerable<object> data, CancellationToken cancellation)
+      public async Task<IDataAccess> GetPredictionDataAsync(IEnumerable<object> data, CancellationToken cancellation)
       {
          // Attande il modello od un eventuale errore di training
-         var evaluator = await GetEvaluatorAsync(ModelTrainer, cancellation);
-         cancellation.ThrowIfCancellationRequested();
-         // Crea la vista di dati per la previsione
-         var dataViewGrid = DataViewGrid.Create(this, evaluator.InputSchema);
-         dataViewGrid.Add(data.ToArray());
-         cancellation.ThrowIfCancellationRequested();
-         // Effettua la predizione
-         var prediction = new DataAccess(this, evaluator.Model.Transform(dataViewGrid));
-         cancellation.ThrowIfCancellationRequested();
-         return prediction;
+         var evaluation = await GetEvaluationAsync(ModelTrainer, cancellation);
+         lock (evaluation) {
+            cancellation.ThrowIfCancellationRequested();
+            // Crea la vista di dati per la previsione
+            var dataViewGrid = DataViewGrid.Create(this, evaluation.InputSchema);
+            dataViewGrid.Add(data.ToArray());
+            cancellation.ThrowIfCancellationRequested();
+            // Effettua la predizione
+            var prediction = new DataAccess(this, evaluation.Model.Transform(dataViewGrid));
+            cancellation.ThrowIfCancellationRequested();
+            return prediction;
+         }
       }
       /// <summary>
       /// Restituisce il mapper riga a riga
       /// </summary>
       /// <param name="inputSchema">Schema di input</param>
       /// <returns>Il mappatore</returns>
-      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => GetEvaluator(new ModelTrainerStandard()).Model?.GetRowToRowMapper(inputSchema);
+      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => GetEvaluation(new ModelTrainerStandard()).Model?.GetRowToRowMapper(inputSchema);
+      /// <summary>
+      /// Effettua il salvataggio del modello
+      /// </summary>
+      /// <param name="ctx">Contesto di salvataggio</param>
+      void ICanSaveModel.Save(ModelSaveContext ctx)
+      {
+         var evaluation = GetEvaluation(new ModelTrainerStandard());
+         if (evaluation.Model != null && evaluation.ModelStorage != null)
+            evaluation.ModelStorage.SaveModel(this, evaluation.Model, evaluation.InputSchema);
+      }
       /// <summary>
       /// Carica i dati da uno storage
       /// </summary>
@@ -396,18 +461,16 @@ namespace MachineLearning.Model
       public IDataAccess LoadData(IDataStorage dataStorage)
       {
          ML.NET.CheckValue(dataStorage, nameof(dataStorage));
-         var options = (this as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchemaProvider)?.InputSchema?.ToTextLoaderColumns() };
+         var options = (this as ITextLoaderOptions)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchema)?.InputSchema?.ToTextLoaderColumns() };
          return dataStorage.LoadData(this, options);
       }
       /// <summary>
       /// Funzione di notifica della variazione del modello
       /// </summary>
       /// <param name="e">Argomenti dell'evento</param>
-      protected virtual void OnModelChanged(EventArgs e)
+      protected virtual void OnModelChanged(ModelTrainingEventArgs e)
       {
          try {
-            if (Evaluation.Model != null)
-               ML.NET.WriteLog("Model setted", Name);
             ModelChanged?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -418,7 +481,7 @@ namespace MachineLearning.Model
       /// Funzione di notifica della variazione dei dati di training
       /// </summary>
       /// <param name="e">Argomenti dell'evento</param>
-      protected virtual void OnTrainingDataChanged(EventArgs e)
+      protected virtual void OnTrainingDataChanged(ModelTrainingEventArgs e)
       {
          try {
             TrainingDataChanged?.Invoke(this, e);
@@ -428,14 +491,28 @@ namespace MachineLearning.Model
          }
       }
       /// <summary>
+      /// Funzione di inizio ciclo di training
+      /// </summary>
+      /// <param name="e">Argomenti dell'evento</param>
+      protected virtual void OnTrainingCycleStarted(ModelTrainingEventArgs e)
+      {
+         try {
+            ML.NET.WriteLog($"Training cycle {e.Evaluator.TrainsCount}", ModelName);
+            TrainingCycleStarted?.Invoke(this, e);
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
       /// Funzione di notifica della fine del training
       /// </summary>
       /// <param name="e">Argomenti dell'evento</param>
-      protected virtual void OnTrainingEnded(EventArgs e)
+      protected virtual void OnTrainingEnded(ModelTrainingEventArgs e)
       {
          try {
-            ML.NET.WriteLog("Training ended", Name);
-            ML.NET.WriteLog("--------------", Name);
+            ML.NET.WriteLog("Training ended", ModelName);
+            ML.NET.WriteLog("--------------", ModelName);
             TrainingEnded?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -446,25 +523,16 @@ namespace MachineLearning.Model
       /// Funzione di notifica dello start del training
       /// </summary>
       /// <param name="e">Argomenti dell'evento</param>
-      protected virtual void OnTrainingStarted(EventArgs e)
+      protected virtual void OnTrainingStarted(ModelTrainingEventArgs e)
       {
          try {
-            ML.NET.WriteLog("Training started", Name);
+            ML.NET.WriteLog("--------------", ModelName);
+            ML.NET.WriteLog("Training started", ModelName);
             TrainingStarted?.Invoke(this, e);
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
          }
-      }
-      /// <summary>
-      /// Effettua il salvataggio del modello
-      /// </summary>
-      /// <param name="ctx">Contesto di salvataggio</param>
-      public void Save(ModelSaveContext ctx)
-      {
-         var evaluator = GetEvaluator(new ModelTrainerStandard());
-         if (evaluator.Model != null && ModelStorage != null)
-            ModelStorage.SaveModel(this, evaluator.Model, evaluator.InputSchema);
       }
       /// <summary>
       /// Salva i dati in uno storage
@@ -475,54 +543,65 @@ namespace MachineLearning.Model
       {
          ML.NET.CheckValue(dataStorage, nameof(dataStorage));
          ML.NET.CheckValue(data, nameof(data));
-         var options = (this as ITextLoaderOptionsProvider)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchemaProvider)?.InputSchema?.ToTextLoaderColumns() };
+         var options = (this as ITextLoaderOptions)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchema)?.InputSchema?.ToTextLoaderColumns() };
          dataStorage.SaveData(this, data, options);
       }
       /// <summary>
       /// Imposta i dati di valutazione
       /// </summary>
-      /// <param name="evaluation">Dati di valutazione</param>
+      /// <param name="model">Il modello</param>
+      /// <param name="schema">Lo schema</param>
+      /// <param name="timestamp">L'istante</param>
       /// <remarks>Se la valutazione e' nulla annulla la validita' dei dati</remarks>
-      protected void SetEvaluation(Evaluator evaluation)
+      private void SetEvaluation(Evaluator evaluator, ITransformer model, DataViewSchema schema, DateTime timestamp)
       {
-         // Annulla il modello
-         if (evaluation == default) {
-            Evaluation.Timestamp = default;
-            EvaluationAvailable.Reset();
-         }
-         // Imposta il modello
-         else {
-            // Imposta la nuova valutazione
-            Evaluation = evaluation;
-            if (evaluation.Model != null)
-               EvaluationAvailable.Set();
-            // Segnala la vartiazione del modello
-            OnModelChanged(EventArgs.Empty);
+         lock (evaluator) {
+            // Annulla il modello
+            if (model == null) {
+               var writeLog = evaluator.Model != null;
+               evaluator.Model = null;
+               evaluator.InputSchema = schema;
+               evaluator.Timestamp = default;
+               evaluator.Available.Reset();
+               if (writeLog)
+                  ML.NET.WriteLog("Model cleared", ModelName);
+            }
+            // Imposta il modello
+            else {
+               var writeLog = _evaluator.Model != model;
+               evaluator.Model = model;
+               evaluator.InputSchema = schema;
+               evaluator.Timestamp = timestamp;
+               evaluator.Available.Set();
+               if (writeLog)
+                  ML.NET.WriteLog("Model setted", ModelName);
+            }
          }
       }
       /// <summary>
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public Task StartTrainingAsync(CancellationToken cancellation = default) => StartTrainingInternalAsync(ModelTrainer, cancellation);
+      public async Task StartTrainingAsync(CancellationToken cancellation = default) =>
+         await StartTrainingInternalAsync((Evaluator)await GetEvaluatorAsync(ModelTrainer, cancellation), cancellation);
       /// <summary>
       /// FUnzione interna di start del training
       /// </summary>
-      /// <param name="trainer">Il trainer</param>
+      /// <param name="evaluator">L'evaluator</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      private async Task StartTrainingInternalAsync(IModelTrainer trainer, CancellationToken cancellation)
+      private async Task StartTrainingInternalAsync(Evaluator evaluator, CancellationToken cancellation)
       {
-         if (TaskTraining.Task.IsCompleted) {
-            EvaluationAvailable.Reset();
-            await TaskTraining.StartNew(
+         if (evaluator.TaskTraining.Task.IsCompleted) {
+            evaluator.Available.Reset();
+            await evaluator.TaskTraining.StartNew(
                c => Task.Factory.StartNew(
                   async () =>
                   {
                      var task = default(Task);
-                     var cts = CancellationTokenSource.CreateLinkedTokenSource(c);
+                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(c);
                      try {
-                        await ML.AddWorkingTask(task = TrainingAsync(trainer, cts.Token), cts).ConfigureAwait(false);
+                        await ML.AddWorkingTask(task = TrainingAsync(evaluator, cts.Token), cts).ConfigureAwait(false);
                      }
                      finally {
                         if (task != null)
@@ -535,28 +614,7 @@ namespace MachineLearning.Model
                cancellation);
          }
          else
-            await TaskTraining;
-      }
-      /// <summary>
-      /// Avvia il training se necessario
-      /// </summary>
-      /// <param name="trainer">Il trainer</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il task</returns>
-      protected async Task StartTrainingIfNeededAsync(IModelTrainer trainer, CancellationToken cancellation = default)
-      {
-         // Avvia il task di training se necessario
-         var startTrain = false;
-         if (trainer is IModelTrainerCycling cycling && _trainsCount < cycling.MaxTrainingCycles)
-            startTrain = true;
-         else if (((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp || ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > Evaluation.Timestamp)
-            startTrain = true;
-         if (startTrain) {
-            await StopTrainingAsync(cancellation);
-            cancellation.ThrowIfCancellationRequested();
-            _ = StartTrainingInternalAsync(trainer, cancellation);
-         }
-         cancellation.ThrowIfCancellationRequested();
+            await evaluator.TaskTraining;
       }
       /// <summary>
       /// Stoppa il training del modello
@@ -564,9 +622,22 @@ namespace MachineLearning.Model
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
       public virtual async Task StopTrainingAsync(CancellationToken cancellation = default)
       {
-         TaskTraining.Cancel();
          try {
-            await TaskTraining.Task.ConfigureAwait(false);
+            if (_evaluator is Evaluator evaluator && evaluator != null)
+               await StopTrainingInternalAsync(evaluator);
+         }
+         catch (OperationCanceledException) {
+         }
+      }
+      /// <summary>
+      /// Stoppa il training del modello
+      /// </summary>
+      /// <param name="evaluator">L'evaluator da stoppare</param>
+      private async static Task StopTrainingInternalAsync(Evaluator evaluator)
+      {
+         evaluator.TaskTraining.Cancel();
+         try {
+            await evaluator.TaskTraining.Task.ConfigureAwait(false);
          }
          catch (OperationCanceledException) {
          }
@@ -574,78 +645,103 @@ namespace MachineLearning.Model
       /// <summary>
       /// Routine di training continuo
       /// </summary>
-      /// <param name="trainer">Il trainer da utilizzare</param>
+      /// <param name="e">L'evaluator</param>
       /// <param name="cancel">Token di cancellazione</param>
-      protected async Task TrainingAsync(IModelTrainer trainer, CancellationToken cancel)
+      private async Task TrainingAsync(Evaluator e, CancellationToken cancel)
       {
          // Token di cancellazione del trainer del modello
-         var trainerCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancel);
-         // Funzione di caricamento dati di storage e training mergiati
-         IDataAccess LoadData()
-         {
-            var storageData = DataStorage == null ? null : this.LoadData(DataStorage);
-            var trainingData = TrainingData == null ? null : this.LoadData(TrainingData);
-            if (storageData != null)
-               return trainingData != null ? storageData.Merge(trainingData) : storageData;
-            return trainingData;
-         }
+         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancel);
          // Task di salvataggio modello
          var taskSaveModel = Task.CompletedTask;
          try {
+            // Funzione di caricamento dati di storage e training mergiati
+            IDataAccess LoadData()
+            {
+               var storageData = e.DataStorage == null ? null : this.LoadData(e.DataStorage);
+               if (storageData != null && e.InputSchema != null)
+                  CheckSchemaConsistence(storageData.Schema, e.InputSchema, "Inconsistent schema: data storage and model must have identical column names, sizes, and item types.");
+               var trainingData = e.TrainingStorage == null ? null : this.LoadData(e.TrainingStorage);
+               if (trainingData != null && e.InputSchema != null)
+                  CheckSchemaConsistence(trainingData.Schema, e.InputSchema, "Inconsistent schema: training storage and model must have identical column names, sizes, and item types.");
+               if (storageData != null)
+                  return trainingData != null ? storageData.Merge(trainingData) : storageData;
+               return trainingData;
+            }
             // Azzera contatore di train
-            _trainsCount = 0;
+            e.TrainsCount = 0;
             // Segnala lo start del training
             cancel.ThrowIfCancellationRequested();
-            OnTrainingStarted(EventArgs.Empty);
+            OnTrainingStarted(new ModelTrainingEventArgs(e));
             // Validita' modello attuale
             var validModel =
-               (Evaluation?.Timestamp ?? default) >= ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
-               (Evaluation?.Timestamp ?? default) >= ((TrainingData as IDataTimestamp)?.DataTimestamp ?? default);
+               e.Timestamp >= ((e.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
+               e.Timestamp >= ((e.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default);
             // Definizioni
             var data = default(IDataAccess);
             var eval1 = default(object);
             var eval2 = default(object);
             var firstRun = true;
-            var inputSchema = Evaluation?.InputSchema;
-            var model = validModel ? Evaluation?.Model : null;
-            var timestamp = validModel ? (Evaluation?.Timestamp ?? default) : default;
+            var inputSchema = e.InputSchema;
+            var model = validModel ? e.Model : null;
+            var timestamp = validModel ? e.Timestamp : default;
             // Loop di training continuo
             while (!cancel.IsCancellationRequested) {
                try {
+                  // Segnala lo start di un ciclo di training
+                  OnTrainingCycleStarted(new ModelTrainingEventArgs(e));
                   // Primo giro
                   if (firstRun) {
                      firstRun = false;
                      // Carica il modello
                      var loadExistingModel =
-                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
-                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((TrainingData as IDataTimestamp)?.DataTimestamp ?? default) &&
-                        ((ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= (Evaluation?.Timestamp ?? default);
+                        ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
+                        ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
+                        ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > e.Timestamp;
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;
-                           ML.NET.WriteLog("Loading the model", Name);
-                           model = await Task.Run(() => ModelStorage?.LoadModel(this, out inputSchema), cancel);
+                           ML.NET.WriteLog("Loading the model", ModelName);
+                           model = await Task.Run(() => e.ModelStorage?.LoadModel(this, out inputSchema), cancel);
+                           if (e.InputSchema != null && inputSchema != null) {
+                              try {
+                                 CheckSchemaConsistence(e.InputSchema, inputSchema, "Inconsistent schema: input schema and stored model schema are different. The model will be discarded.");
+                              }
+                              catch (Exception) {
+                                 throw;
+                              }
+                           }
                         }
                         catch (Exception exc) {
-                           ML.NET.WriteLog($"Error loading the model: {exc.Message}", Name);
+                           ML.NET.WriteLog($"Error loading the model: {exc.Message}", ModelName);
+                           model = null;
+                           inputSchema = null;
                            timestamp = default;
                         }
                      }
                      cancel.ThrowIfCancellationRequested();
-                     ML.NET.WriteLog(!loadExistingModel && model == null ? "No model loaded. Retrain all" : model == default ? "No valid model present" : "Model loaded", Name);
+                     if (!loadExistingModel && model == null)
+                        ML.NET.WriteLog("No model loaded. Retrain all", ModelName);
+                     else if (model == null)
+                        ML.NET.WriteLog("No valid model present", ModelName);
+                     else if (loadExistingModel && model != null)
+                        ML.NET.WriteLog("Model loaded", ModelName);
                      // Carica i dati
                      data = LoadData();
                      cancel.ThrowIfCancellationRequested();
                      // Imposta la valutazione
-                     SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = data?.Schema ?? inputSchema, Timestamp = timestamp });
+                     var prevModel = e.Model;
+                     SetEvaluation(e, model, e.InputSchema ?? inputSchema ?? data?.Schema, timestamp);
+                     if (prevModel != model)
+                        OnModelChanged(new ModelTrainingEventArgs(e));
+                     cancel.ThrowIfCancellationRequested();
                      // Verifica l'esistenza di dati
                      if (data == null)
                         return;
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
-                     if (AutoCommitData && data != null && DataStorage != null && TrainingData != null && (this.LoadData(TrainingData)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
-                        ML.NET.WriteLog("Committing the new data", Name);
-                        await Task.Run(() => CommitTrainingData(), cancel);
+                     if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
+                        ML.NET.WriteLog("Committing the new data", ModelName);
+                        await Task.Run(() => CommitTrainingData(e), cancel);
                      }
                      // Log della valutazione del modello
                      cancel.ThrowIfCancellationRequested();
@@ -654,19 +750,19 @@ namespace MachineLearning.Model
                         cancel.ThrowIfCancellationRequested();
                         var evalInfo = GetModelEvaluationInfo(eval1);
                         if (!string.IsNullOrEmpty(evalInfo))
-                           ML.NET.WriteLog(evalInfo, Name);
+                           ML.NET.WriteLog(evalInfo, ModelName);
                      }
                      // Azzera il contatore di retraining
                      cancel.ThrowIfCancellationRequested();
-                     _trainsCount = 0;
+                     e.TrainsCount = 0;
                   }
                   // Ricarica i dati
                   else {
                      // Effettua eventuale commit automatico
-                     if (AutoCommitData && data != null && DataStorage != null && TrainingData != null && (this.LoadData(TrainingData)?.GetRowCursor(Evaluation.InputSchema).MoveNext() ?? false)) {
+                     if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
                         try {
-                           ML.NET.WriteLog("Committing the new data", Name);
-                           await Task.Run(() => CommitTrainingData(), cancel);
+                           ML.NET.WriteLog("Committing the new data", ModelName);
+                           await Task.Run(() => CommitTrainingData(e), cancel);
                            cancel.ThrowIfCancellationRequested();
                         }
                         catch (OperationCanceledException) {
@@ -685,19 +781,19 @@ namespace MachineLearning.Model
                   timestamp = DateTime.UtcNow;
                   cancel.ThrowIfCancellationRequested();
                   // Verifica se non e' necessario un altro training
-                  if (trainer is IModelTrainerCycling cyclingTrainer) {
-                     if (EvaluationAvailable.WaitOne(0)) {
-                        if (_trainsCount >= cyclingTrainer.MaxTrainingCycles)
+                  if (e.Trainer is IModelTrainerCycling cyclingTrainer) {
+                     if (e.Available.WaitOne(0)) {
+                        if (e.TrainsCount >= cyclingTrainer.MaxTrainingCycles)
                            return;
                      }
                   }
-                  else if (EvaluationAvailable.WaitOne(0))
+                  else if (e.Available.WaitOne(0))
                      return;
                   // Effettua la valutazione del modello corrente
                   var currentModel = model;
                   var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
                   // Effettua il training
-                  var taskTrain = Task.Run(() => trainer?.GetTrainedModel(this, data, out eval2, trainerCancellation.Token));
+                  var taskTrain = Task.Run(() => e.Trainer?.GetTrainedModel(this, data, out eval2, linkedCancellation.Token));
                   // Messaggio di training ritardato
                   cancel.ThrowIfCancellationRequested();
                   var taskTrainingMessage = Task.Run(async () =>
@@ -706,49 +802,72 @@ namespace MachineLearning.Model
                      if (taskTrain.IsCompleted && taskTrain.Result == default)
                         return;
                      cancel.ThrowIfCancellationRequested();
-                     ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", Name);
+                     ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", ModelName);
                   }, cancel);
                   // Ottiene il risultato del training
                   cancel.ThrowIfCancellationRequested();
                   if ((model = await taskTrain) == default)
                      return;
                   // Incrementa contatore di traning
-                  _trainsCount++;
+                  e.TrainsCount++;
                   // Attende output log
                   await taskTrainingMessage;
                   eval2 ??= await Task.Run(() => GetModelEvaluation(model, data));
                   // Attende la valutazione del primo modello
                   eval1 = await taskEvaluate1;
                   // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
-                  if (GetBestModelEvaluation(eval1, eval2) == eval2 || Evaluation?.Model == null) {
+                  if (GetBestModelEvaluation(eval1, eval2) == eval2 || e?.Model == null) {
                      // Emette il log
-                     ML.NET.WriteLog("Found suitable model", Name);
+                     ML.NET.WriteLog("Found suitable model", ModelName);
                      var evalInfo = GetModelEvaluationInfo(eval2);
                      if (!string.IsNullOrEmpty(evalInfo))
-                        ML.NET.WriteLog(evalInfo, Name);
+                        ML.NET.WriteLog(evalInfo, ModelName);
                      cancel.ThrowIfCancellationRequested();
                      // Eventuale salvataggio automatico modello
-                     if (model != default && AutoSaveModel) {
-                        ML.NET.WriteLog("Saving the new model", Name);
+                     if (model != default && e.ModelAutoSave) {
+                        ML.NET.WriteLog("Saving the new model", ModelName);
                         await taskSaveModel;
                         cancel.ThrowIfCancellationRequested();
-                        taskSaveModel = Task.Run(() => ModelStorage?.SaveModel(this, model, Evaluation.InputSchema), CancellationToken.None);
+                        taskSaveModel = Task.Run(() =>
+                        {
+                           if (e.ModelStorage != null) {
+                              e.ModelStorage.SaveModel(this, model, e.InputSchema);
+                              e.Timestamp = (e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? DateTime.UtcNow;
+                           }
+                        }, CancellationToken.None);
                      }
                      eval1 = eval2;
                      // Aggiorna la valutazione
                      cancel.ThrowIfCancellationRequested();
-                     SetEvaluation(new Evaluator { Data = data, Model = model, InputSchema = Evaluation.InputSchema, Timestamp = timestamp });
+                     var prevModel = e.Model;
+                     SetEvaluation(e, model, e.InputSchema, timestamp);
+                     if (prevModel != model)
+                        OnModelChanged(new ModelTrainingEventArgs(e));
+                     cancel.ThrowIfCancellationRequested();
                      // Azzera coontatore retraining
-                     _trainsCount = 0;
+                     e.TrainsCount = 0;
                   }
                   else
-                     ML.NET.WriteLog("The model is worst than the current one; discarded.", Name);
+                     ML.NET.WriteLog("The model is worst than the current one; discarded.", ModelName);
                }
                catch (OperationCanceledException) { throw; }
                catch (Exception exc) {
                   Trace.WriteLine(exc);
                   throw;
                }
+               // Verifica se deve uscire dal training perche' sono cambiate le condizioni del modello 
+               if (e.DataStorage != ((this as IDataStorageProvider)?.DataStorage ?? this as IDataStorage))
+                  break;
+               else if (e.ModelStorage != ((this as IModelStorageProvider)?.ModelStorage ?? this as IModelStorage))
+                  break;
+               else if (e.TrainingStorage != (this as ITrainingStorageProvider)?.TrainingStorage)
+                  break;
+               else if (e.InputSchema != (this as IInputSchema)?.InputSchema)
+                  break;
+               else if (e.ModelAutoCommit != (this as IModelAutoCommit)?.ModelAutoCommit)
+                  break;
+               else if (e.ModelAutoSave != (this as IModelAutoSave)?.ModelAutoSave)
+                  break;
             }
          }
          catch (OperationCanceledException) { }
@@ -758,11 +877,12 @@ namespace MachineLearning.Model
          }
          finally {
             // Forza cancellazione task del trainer
-            trainerCancellation.Cancel();
+            linkedCancellation.Cancel();
             // Attende il termine dei task
             try { await taskSaveModel; } catch { }
             // Segnala la fine del training
-            OnTrainingEnded(EventArgs.Empty);
+            if (!cancel.IsCancellationRequested)
+               try { OnTrainingEnded(new ModelTrainingEventArgs(e)); } catch { }
          }
       }
       /// <summary>
@@ -770,7 +890,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="input">Vista di dati di input</param>
       /// <returns>I dati trasformati</returns>
-      public IDataView Transform(IDataView input) => GetEvaluator(new ModelTrainerStandard()).Model?.Transform(input);
+      public IDataView Transform(IDataView input) => GetEvaluation(new ModelTrainerStandard()).Model?.Transform(input);
       #endregion
    }
 
@@ -779,14 +899,29 @@ namespace MachineLearning.Model
    /// </summary>
    public partial class ModelBase // Evaluator
    {
-      [Serializable]
-      protected class Evaluator
+      private class Evaluator : IDisposable, IEvaluator
       {
          #region Properties
          /// <summary>
-         /// Dati del modello
+         /// Valutazione disponibile
          /// </summary>
-         public IDataAccess Data { get; set; }
+         public EventWaitHandle Available { get; set; } = new ManualResetEvent(false);
+         /// <summary>
+         /// Storage di dati
+         /// </summary>
+         public IDataStorage DataStorage { get; set; }
+         /// <summary>
+         /// Membro di interfaccia Available
+         /// </summary>
+         WaitHandle IEvaluator.Available => Available;
+         /// <summary>
+         /// Membro di interfaccia
+         /// </summary>
+         CancellationToken IEvaluator.Cancellation => TaskTraining.CancellationToken;
+         /// <summary>
+         /// Membro di interfaccia
+         /// </summary>
+         Task IEvaluator.Task => TaskTraining.Task;
          /// <summary>
          /// Schema di input
          /// </summary>
@@ -796,9 +931,124 @@ namespace MachineLearning.Model
          /// </summary>
          public ITransformer Model { get; set; }
          /// <summary>
+         /// Abilitazione al commit automatico dei dati di training
+         /// </summary>
+         public bool ModelAutoCommit { get; set; }
+         /// <summary>
+         /// Abilitazione al salvataggio automatico del modello
+         /// </summary>
+         public bool ModelAutoSave { get; set; }
+         /// <summary>
+         /// Storage di dati
+         /// </summary>
+         public IModelStorage ModelStorage { get; set; }
+         /// <summary>
+         /// Task di training
+         /// </summary>
+         internal CancellableTask TaskTraining { get; set; } = new CancellableTask();
+         /// <summary>
          /// Data e ora dell'evaluator
          /// </summary>
          public DateTime Timestamp { get; set; }
+         /// <summary>
+         /// Tipo di trainer da utilizzare
+         /// </summary>
+         public IModelTrainer Trainer { get; set; }
+         /// <summary>
+         /// Storage di dati di training
+         /// </summary>
+         public IDataStorage TrainingStorage { get; set; }
+         /// <summary>
+         /// Contatore di training
+         /// </summary>
+         public int TrainsCount { get; set; }
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Funzione di cancellazione del task di valutazione
+         /// </summary>
+         public void Cancel() => TaskTraining.Cancel();
+         /// <summary>
+         /// Dispose dell'oggetto
+         /// </summary>
+         public void Dispose()
+         {
+            if (Available != null) {
+               Available.Dispose();
+               Available = null;
+            }
+            GC.SuppressFinalize(this);
+         }
+         #endregion
+      }
+   }
+
+   /// <summary>
+   /// Interfaccia dei dati di valutazione
+   /// </summary>
+   public partial class ModelBase // Evaluator
+   {
+      public interface IEvaluator
+      {
+         #region Properties
+         /// <summary>
+         /// Valutazione disponibile
+         /// </summary>
+         WaitHandle Available { get; }
+         /// <summary>
+         /// Token di cancellazione
+         /// </summary>
+         CancellationToken Cancellation { get; }
+         /// <summary>
+         /// Storage di dati
+         /// </summary>
+         IDataStorage DataStorage { get; }
+         /// <summary>
+         /// Schema di input
+         /// </summary>
+         DataViewSchema InputSchema { get; }
+         /// <summary>
+         /// Modello
+         /// </summary>
+         ITransformer Model { get; }
+         /// <summary>
+         /// Abilitazione al commit automatico dei dati di training
+         /// </summary>
+         bool ModelAutoCommit { get; }
+         /// <summary>
+         /// Abilitazione al salvataggio automatico del modello
+         /// </summary>
+         bool ModelAutoSave { get; }
+         /// <summary>
+         /// Storage di dati
+         /// </summary>
+         IModelStorage ModelStorage { get; }
+         /// <summary>
+         /// Task di training
+         /// </summary>
+         Task Task { get; }
+         /// <summary>
+         /// Data e ora dell'evaluator
+         /// </summary>
+         DateTime Timestamp { get; }
+         /// <summary>
+         /// Tipo di trainer da utilizzare
+         /// </summary>
+         IModelTrainer Trainer { get; }
+         /// <summary>
+         /// Storage di dati di training
+         /// </summary>
+         IDataStorage TrainingStorage { get; }
+         /// <summary>
+         /// Contatore di training
+         /// </summary>
+         int TrainsCount { get; }
+         #endregion
+         #region Fields
+         /// <summary>
+         /// Funzione di cancellazione del task di valutazione
+         /// </summary>
+         void Cancel();
          #endregion
       }
    }

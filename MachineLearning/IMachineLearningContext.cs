@@ -1,9 +1,9 @@
 ﻿namespace MachineLearning
 {
    /// <summary>
-   /// Provider di contesto ML.NET
+   /// Interfaccia per gli oggetti contenenti un contesto di machine learning
    /// </summary>
-   public interface IMachineLearningContextProvider
+   public interface IMachineLearningContext
    {
       #region Properties
       /// <summary>

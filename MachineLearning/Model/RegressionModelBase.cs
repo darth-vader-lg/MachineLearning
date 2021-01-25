@@ -6,6 +6,7 @@ using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -84,20 +85,25 @@ namespace MachineLearning.Model
             // Funzione di accodamento modelli
             void Enqueue(string trainerName, double runtimeInSeconds, ITransformer model, RegressionMetrics metrics)
             {
-               if (pipes.Output != null) {
-                  var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
-                  var outputTransformer = pipes.Output.Fit(dataFirstRow);
-                  model = new TransformerChain<ITransformer>(model, outputTransformer);
-                  metrics = (RegressionMetrics)GetModelEvaluation(model, data);
+               try {
+                  if (pipes.Output != null) {
+                     var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
+                     var outputTransformer = pipes.Output.Fit(dataFirstRow);
+                     model = new TransformerChain<ITransformer>(model, outputTransformer);
+                     metrics = (RegressionMetrics)GetModelEvaluation(model, data);
+                  }
+                  lock (queue) {
+                     ML.NET.WriteLog($"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs", (this as IModelName)?.ModelName);
+                     queue.Enqueue((model, metrics));
+                     availableEvent.Set();
+                  }
                }
-               lock (queue) {
-                  ML.NET.WriteLog($"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs", Name);
-                  queue.Enqueue((model, metrics));
-                  availableEvent.Set();
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
                }
             }
             // Progress dell'autotraining
-            var progress = new AutoMLProgress<RegressionMetrics>(ML.NET, Name,
+            var progress = new AutoMLProgress<RegressionMetrics>(ML.NET, (this as IModelName)?.ModelName,
                (sender, e) =>
                {
                   cancellation.ThrowIfCancellationRequested();

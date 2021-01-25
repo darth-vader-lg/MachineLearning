@@ -3,9 +3,9 @@
 namespace MachineLearning.Model
 {
    /// <summary>
-   /// Interfaccia per i providers di schema di input
+   /// Interfaccia per i modelli con definizione di schema di input
    /// </summary>
-   public interface IInputSchemaProvider
+   public interface IInputSchema
    {
       #region Properties
       /// <summary>

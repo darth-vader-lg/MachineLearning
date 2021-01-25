@@ -71,7 +71,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="schema">Lo schema della vista di dati</param>
       /// <param name="data">Vista di dati</param>
-      private DataViewGrid(IMachineLearningContextProvider context, DataViewSchema schema, IDataAccess data)
+      private DataViewGrid(IMachineLearningContext context, DataViewSchema schema, IDataAccess data)
       {
          // Check
          MachineLearningContext.AssertMLNET(context, nameof(context));
@@ -171,7 +171,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="schema">Schema</param>
       /// <returns>La griglia di dati</returns>
-      public static DataViewGrid Create(IMachineLearningContextProvider context, DataViewSchema schema)
+      public static DataViewGrid Create(IMachineLearningContext context, DataViewSchema schema)
       {
          MachineLearningContext.CheckMLNET(context, nameof(context));
          context.ML.NET.CheckValue(schema, nameof(schema));

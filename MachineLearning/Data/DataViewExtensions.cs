@@ -108,7 +108,7 @@ namespace MachineLearning.Data
       /// <param name="cursor">Cursore</param>
       /// <param name="context">Contesto</param>
       /// <returns>La riga di dati</returns>
-      public static DataViewValuesRow ToDataViewValuesRow(this DataViewRowCursor cursor, IMachineLearningContextProvider context) => DataViewValuesRow.Create(context, cursor);
+      public static DataViewValuesRow ToDataViewValuesRow(this DataViewRowCursor cursor, IMachineLearningContext context) => DataViewValuesRow.Create(context, cursor);
       #endregion
    }
 }

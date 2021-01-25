@@ -1,5 +1,6 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
+using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.Text;
@@ -16,20 +17,16 @@ namespace MachineLearning
    /// </summary>
    [Serializable]
    public sealed partial class TextMeaningRecognizer :
-      MulticlassModelBase,
       IDataStorageProvider,
-      IInputSchemaProvider,
+      IInputSchema,
       IModelStorageProvider,
-      IModelTrainerProvider,
-      ITextLoaderOptionsProvider,
-      ITrainingDataProvider
+      IModelTrainerProvider
    {
       #region Fields
       /// <summary>
-      /// Pipe di training
+      /// Modello
       /// </summary>
-      [NonSerialized]
-      private ModelPipes _pipes;
+      private readonly Model _model;
       #endregion
       #region Properties
       /// <summary>
@@ -39,7 +36,7 @@ namespace MachineLearning
       /// <summary>
       /// Schema di input dei dati
       /// </summary>
-      public DataViewSchema InputSchema { get; set; }
+      public DataViewSchema InputSchema { get; private set; }
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -49,73 +46,48 @@ namespace MachineLearning
       /// </summary>
       public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
       /// <summary>
-      /// Dati di training
+      /// Nome dell'oggetto
       /// </summary>
-      public IDataStorage TrainingData { get; set; }
-      /// <summary>
-      /// Opzioni di caricamento dati in formato testo
-      /// </summary>
-      public TextLoader.Options TextLoaderOptions => new TextLoader.Options
-      {
-         AllowQuoting = true,
-         Separators = new[] { ',' },
-         Columns = InputSchema.ToTextLoaderColumns(),
-      };
+      public string Name { get; set; }
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaningRecognizer(MachineLearningContext ml = default) : base(ml) =>
-         InputSchema = DataViewSchemaBuilder.Build((LabelColumnName, typeof(string)), ("Data", typeof(string)));
+      public TextMeaningRecognizer(MachineLearningContext ml = default)
+      {
+         _model = new Model(this, ml);
+         SetSchema(0, "Meaning", "Text");
+      }
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
-      /// <param name="data">Dati</param>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingDataAsync(checkForDuplicates, default, data).ConfigureAwait(false).GetAwaiter().GetResult();
+      /// <param name="data">Dati</param>
+      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingDataAsync(checkForDuplicates, default, data).WaitSync();
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
+      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <param name="data">Dati</param>
-      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       public Task AddTrainingDataAsync(bool checkForDuplicates, CancellationToken cancellation, params string[] data)
       {
-         var dataGrid = DataViewGrid.Create(this, InputSchema);
+         var dataGrid = DataViewGrid.Create(_model, InputSchema);
          dataGrid.Add(data);
-         return AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
+         return _model.AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
       }
       /// <summary>
-      /// Restituisce le pipe di training del modello
+      /// Pulisce il modello
       /// </summary>
-      /// <returns>Le pipe</returns>
-      public override ModelPipes GetPipes()
-      {
-         // Pipe di training
-         return _pipes ??= new ModelPipes
-         {
-            Input =
-               ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName)
-               .Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in InputSchema
-                                                                                                                     where c.Name != LabelColumnName
-                                                                                                                     select c.Name).ToArray()))
-               .Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText"))
-               .Append(ML.NET.Transforms.NormalizeMinMax("Features"))
-               .AppendCacheCheckpoint(ML.NET),
-            Trainer =
-               Trainers.SdcaNonCalibrated(),
-            Output =
-               ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel")
-         };
-      }
+      public void ClearModel() => _model.ClearModel();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="sentences">Elenco di sentenze di cui prevedere il significato</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(params string[] sentences) => GetPredictionAsync(default, sentences).ConfigureAwait(false).GetAwaiter().GetResult();
+      public Prediction GetPrediction(params string[] sentences) => GetPredictionAsync(default, sentences).WaitSync();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
@@ -125,9 +97,132 @@ namespace MachineLearning
       {
          var schema = InputSchema;
          var valueIx = 0;
-         return new Prediction(await GetPredictionDataAsync(schema.Select(c => c.Name == LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
+         return new Prediction(await _model.GetPredictionDataAsync(schema.Select(c => c.Name == _model.LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
+      }
+      /// <summary>
+      /// Imposta lo schema dei dati
+      /// </summary>
+      /// <param name="predictionColumnIndex">Indice della colonna di previsione</param>
+      /// <param name="columnsNames">Nomi delle colonne dello schema</param>
+      public void SetSchema(int predictionColumnIndex = 0, params string[] columnsNames)
+      {
+         if (predictionColumnIndex < 0 || predictionColumnIndex >= columnsNames.Length)
+            throw new ArgumentException("The prediction column index is out of range", nameof(predictionColumnIndex));
+         if (columnsNames.Any(item => string.IsNullOrEmpty(item)))
+            throw new ArgumentException("All the columns must have a name", nameof(columnsNames));
+         _model.LabelColumnName = columnsNames[predictionColumnIndex];
+         InputSchema = DataViewSchemaBuilder.Build(columnsNames.Select(c => (c, typeof(string))).ToArray());
       }
       #endregion
+   }
+
+   /// <summary>
+   /// Modello
+   /// </summary>
+   public sealed partial class TextMeaningRecognizer // Model
+   {
+      [Serializable]
+      private sealed class Model :
+         MulticlassModelBase,
+         IDataStorageProvider,
+         IInputSchema,
+         IModelAutoCommit,
+         IModelAutoSave,
+         IModelName,
+         IModelStorageProvider,
+         IModelTrainerProvider,
+         ITextLoaderOptions,
+         ITrainingStorageProvider
+      {
+         #region Fields
+         /// <summary>
+         /// Oggetto di appartenenza
+         /// </summary>
+         private readonly TextMeaningRecognizer _owner;
+         /// <summary>
+         /// Pipe di training
+         /// </summary>
+         [NonSerialized]
+         private ModelPipes _pipes;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// Storage di dati
+         /// </summary>
+         public IDataStorage DataStorage => ((IDataStorageProvider)_owner).DataStorage;
+         /// <summary>
+         /// Schema di input del modello
+         /// </summary>
+         public DataViewSchema InputSchema => ((IInputSchema)_owner).InputSchema;
+         /// <summary>
+         /// Abilitazione salvataggio automatico modello
+         /// </summary>
+         public bool ModelAutoCommit => true;
+         /// <summary>
+         /// Abilitazione commit automatico dei dati di training
+         /// </summary>
+         public bool ModelAutoSave => true;
+         /// <summary>
+         /// Nome del modello
+         /// </summary>
+         public string ModelName => _owner.Name;
+         /// <summary>
+         /// Storage del modello
+         /// </summary>
+         public IModelStorage ModelStorage => ((IModelStorageProvider)_owner).ModelStorage;
+         /// <summary>
+         /// Trainer del modello
+         /// </summary>
+         public IModelTrainer ModelTrainer => ((IModelTrainerProvider)_owner).ModelTrainer;
+         /// <summary>
+         /// Opzioni di caricamento dati in formato testo
+         /// </summary>
+         public TextLoader.Options TextLoaderOptions => new TextLoader.Options
+         {
+            AllowQuoting = true,
+            Separators = new[] { ',' },
+            Columns = InputSchema.ToTextLoaderColumns(),
+         };
+         /// <summary>
+         /// Dati di training
+         /// </summary>
+         public IDataStorage TrainingStorage { get; } = new DataStorageBinaryMemory();
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="owner">Oggetto di appartenenza</param>
+         /// <param name="ml">Contesto di machine learning</param>
+         internal Model(TextMeaningRecognizer owner, MachineLearningContext ml) : base(ml) => _owner = owner;
+         /// <summary>
+         /// Restituisce le pipe di training del modello
+         /// </summary>
+         /// <returns>Le pipe</returns>
+         public override ModelPipes GetPipes()
+         {
+            // Pipe di training
+            return _pipes ??= new ModelPipes
+            {
+               Input =
+                  ML.NET.Transforms.Conversion.MapValueToKey(LabelColumnName)
+                  .Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in InputSchema
+                                                                                                                         where c.Name != LabelColumnName
+                                                                                                                         select c.Name).ToArray()))
+                  .Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText"))
+                  .Append(ML.NET.Transforms.NormalizeMinMax("Features"))
+                  .AppendCacheCheckpoint(ML.NET),
+               Trainer =
+                  Trainers.SdcaNonCalibrated(new Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options
+                  {
+                     LabelColumnName = LabelColumnName
+                  }),
+               Output =
+                  ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel")
+            };
+         }
+         #endregion
+      }
    }
 
    /// <summary>
@@ -136,7 +231,7 @@ namespace MachineLearning
    public sealed partial class TextMeaningRecognizer // Prediction
    {
       [Serializable]
-      public class Prediction
+      public sealed class Prediction
       {
          #region Properties
          /// <summary>
