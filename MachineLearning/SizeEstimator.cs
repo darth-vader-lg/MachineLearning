@@ -13,7 +13,7 @@ namespace MachineLearning
    /// <summary>
    /// Classe per la previsione delle taglie
    /// </summary>
-   public sealed partial class SizeRecognizer :
+   public sealed partial class SizeEstimator :
       IDataStorageProvider,
       IInputSchema,
       IModelStorageProvider,
@@ -56,7 +56,7 @@ namespace MachineLearning
       /// Costruttore
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
-      public SizeRecognizer(MachineLearningContext ml = default)
+      public SizeEstimator(MachineLearningContext ml = default)
       {
          _model = new Model(this, ml);
          SetSchema(0, "Size", "Data");
@@ -116,7 +116,7 @@ namespace MachineLearning
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class SizeRecognizer // Model
+   public sealed partial class SizeEstimator // Model
    {
       [Serializable]
       private sealed class Model :
@@ -133,7 +133,7 @@ namespace MachineLearning
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
-         private readonly SizeRecognizer _owner;
+         private readonly SizeEstimator _owner;
          /// <summary>
          /// Pipe di training
          /// </summary>
@@ -180,7 +180,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="ml">Contesto di machine learning</param>
-         internal Model(SizeRecognizer owner, MachineLearningContext ml) : base(ml) => _owner = owner;
+         internal Model(SizeEstimator owner, MachineLearningContext ml) : base(ml) => _owner = owner;
          /// <summary>
          /// Restituisce la pipe di training del modello
          /// </summary>
@@ -208,7 +208,7 @@ namespace MachineLearning
    /// <summary>
    /// Risultato della previsione
    /// </summary>
-   public sealed partial class SizeRecognizer // Prediction
+   public sealed partial class SizeEstimator // Prediction
    {
       [Serializable]
       public class Prediction

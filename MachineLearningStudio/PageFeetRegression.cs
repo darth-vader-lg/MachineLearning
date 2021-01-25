@@ -28,7 +28,7 @@ namespace MachineLearningStudio
       /// <summary>
       /// Previsore di significato testi
       /// </summary>
-      private SizeRecognizer predictor;
+      private SizeEstimator predictor;
       /// <summary>
       /// Task di previsione
       /// </summary>
@@ -121,7 +121,7 @@ namespace MachineLearningStudio
             // Crea il previsore
             var context = new MachineLearningContext { SyncLogs = true };
             context.Log += Log;
-            predictor = new SizeRecognizer(context)
+            predictor = new SizeEstimator(context)
             {
                DataStorage = new DataStorageTextFile(Path.Combine(Environment.CurrentDirectory, "Data", textBoxDataSetName.Text)),
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
