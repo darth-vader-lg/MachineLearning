@@ -273,14 +273,14 @@ namespace MachineLearning.Model
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La valutazione</returns>
-      protected IEvaluator GetEvaluation(IModelTrainer trainer, CancellationToken cancellation = default) => GetEvaluationAsync(trainer, cancellation).WaitSync();
+      protected IModelEvaluator GetEvaluation(IModelTrainer trainer, CancellationToken cancellation = default) => GetEvaluationAsync(trainer, cancellation).WaitSync();
       /// <summary>
       /// Restituisce la valutazione
       /// </summary>
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La valutazione</returns>
-      protected async Task<IEvaluator> GetEvaluationAsync(IModelTrainer trainer, CancellationToken cancellation = default)
+      protected async Task<IModelEvaluator> GetEvaluationAsync(IModelTrainer trainer, CancellationToken cancellation = default)
       {
          // Ottiene l'evaluator
          var evaluator = await GetEvaluatorAsync(trainer, cancellation);
@@ -308,7 +308,7 @@ namespace MachineLearning.Model
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      protected async Task<IEvaluator> GetEvaluatorAsync(IModelTrainer trainer, CancellationToken cancellation = default)
+      protected async Task<IModelEvaluator> GetEvaluatorAsync(IModelTrainer trainer, CancellationToken cancellation = default)
       {
          var currentEvaluator = default(Evaluator);
          var stopEvaluator = default(Evaluator);
@@ -899,7 +899,7 @@ namespace MachineLearning.Model
    /// </summary>
    public partial class ModelBase // Evaluator
    {
-      private class Evaluator : IDisposable, IEvaluator
+      private class Evaluator : IDisposable, IModelEvaluator
       {
          #region Properties
          /// <summary>
@@ -913,15 +913,15 @@ namespace MachineLearning.Model
          /// <summary>
          /// Membro di interfaccia Available
          /// </summary>
-         WaitHandle IEvaluator.Available => Available;
+         WaitHandle IModelEvaluator.Available => Available;
          /// <summary>
          /// Membro di interfaccia
          /// </summary>
-         CancellationToken IEvaluator.Cancellation => TaskTraining.CancellationToken;
+         CancellationToken IModelEvaluator.Cancellation => TaskTraining.CancellationToken;
          /// <summary>
          /// Membro di interfaccia
          /// </summary>
-         Task IEvaluator.Task => TaskTraining.Task;
+         Task IModelEvaluator.Task => TaskTraining.Task;
          /// <summary>
          /// Schema di input
          /// </summary>
@@ -979,76 +979,6 @@ namespace MachineLearning.Model
             }
             GC.SuppressFinalize(this);
          }
-         #endregion
-      }
-   }
-
-   /// <summary>
-   /// Interfaccia dei dati di valutazione
-   /// </summary>
-   public partial class ModelBase // Evaluator
-   {
-      public interface IEvaluator
-      {
-         #region Properties
-         /// <summary>
-         /// Valutazione disponibile
-         /// </summary>
-         WaitHandle Available { get; }
-         /// <summary>
-         /// Token di cancellazione
-         /// </summary>
-         CancellationToken Cancellation { get; }
-         /// <summary>
-         /// Storage di dati
-         /// </summary>
-         IDataStorage DataStorage { get; }
-         /// <summary>
-         /// Schema di input
-         /// </summary>
-         DataViewSchema InputSchema { get; }
-         /// <summary>
-         /// Modello
-         /// </summary>
-         ITransformer Model { get; }
-         /// <summary>
-         /// Abilitazione al commit automatico dei dati di training
-         /// </summary>
-         bool ModelAutoCommit { get; }
-         /// <summary>
-         /// Abilitazione al salvataggio automatico del modello
-         /// </summary>
-         bool ModelAutoSave { get; }
-         /// <summary>
-         /// Storage di dati
-         /// </summary>
-         IModelStorage ModelStorage { get; }
-         /// <summary>
-         /// Task di training
-         /// </summary>
-         Task Task { get; }
-         /// <summary>
-         /// Data e ora dell'evaluator
-         /// </summary>
-         DateTime Timestamp { get; }
-         /// <summary>
-         /// Tipo di trainer da utilizzare
-         /// </summary>
-         IModelTrainer Trainer { get; }
-         /// <summary>
-         /// Storage di dati di training
-         /// </summary>
-         IDataStorage TrainingStorage { get; }
-         /// <summary>
-         /// Contatore di training
-         /// </summary>
-         int TrainsCount { get; }
-         #endregion
-         #region Fields
-         /// <summary>
-         /// Funzione di cancellazione del task di valutazione
-         /// </summary>
-         void Cancel();
          #endregion
       }
    }

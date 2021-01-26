@@ -11,15 +11,14 @@ namespace MachineLearning.Model
       /// <summary>
       /// Task di training
       /// </summary>
-      public ModelBase.IEvaluator Evaluator { get; }
+      public IModelEvaluator Evaluator { get; }
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="evaluator">L'evaluator che ha generato l'evento</param>
-      /// <param name="cancellation">Token di cancellazione del training</param>
-      public ModelTrainingEventArgs(ModelBase.IEvaluator evaluator) => Evaluator = evaluator;
+      public ModelTrainingEventArgs(IModelEvaluator evaluator) => Evaluator = evaluator;
       #endregion
    }
 
