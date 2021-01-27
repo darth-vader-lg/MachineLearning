@@ -73,7 +73,8 @@ namespace MachineLearning.Data
 
       private DataViewMerged(IChannelProvider context, DataViewSchema schema, IDataAccess[] sources)
       {
-         Contracts.AssertValue((object)(_context = context), nameof(context));
+         Contracts.AssertValue(context, nameof(context));
+         _context = context;
          _context.AssertValueOrNull(schema);
          _context.AssertValue(sources);
          _context.Assert(sources.Length >= 2);

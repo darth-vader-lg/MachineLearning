@@ -44,7 +44,8 @@ namespace MachineLearning.Data
       private DataViewFiltered(IDataAccess data, DataViewRowFilter filter = null)
       {
          Contracts.AssertValue(data, nameof(data));
-         (this.data = data).AssertValueOrNull(filter);
+         data.AssertValueOrNull(filter);
+         this.data = data;
          this.filter = filter ?? (column => true);
       }
       /// <summary>

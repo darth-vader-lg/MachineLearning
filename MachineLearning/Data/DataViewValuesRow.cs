@@ -91,7 +91,8 @@ namespace MachineLearning.Data
       private DataViewValuesRow(IChannelProvider context, DataViewRowCursor cursor)
       {
          // Checks e inizializzazioni
-         Contracts.AssertValue((object)(_context = context), nameof(context));
+         Contracts.AssertValue(context, nameof(context));
+         _context = context;
          _context.AssertValue(cursor, nameof(cursor));
          _context.Assert(cursor.Position >= 0, "The cursor has an invalid position");
          _schema = cursor.Schema;
@@ -119,7 +120,8 @@ namespace MachineLearning.Data
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
       private DataViewValuesRow(IChannelProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
-         Contracts.AssertValue((object)(_context = context), nameof(context));
+         Contracts.AssertValue(context, nameof(context));
+         _context = context;
          _context.AssertValue(schema, nameof(schema));
          _context.AssertValue(values, nameof(values));
          _context.AssertNonEmpty(values, nameof(values));

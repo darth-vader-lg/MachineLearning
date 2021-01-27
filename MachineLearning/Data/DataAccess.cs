@@ -38,8 +38,9 @@ namespace MachineLearning.Data
       /// <param name="data">Vista di dati</param>
       public DataAccess(IChannelProvider context, IDataView data)
       {
-         Contracts.CheckValue(this.context = context, nameof(context));
+         Contracts.CheckValue(context, nameof(context));
          context.CheckValue(data, nameof(data));
+         this.context = context;
          this.data = data;
       }
       /// <summary>

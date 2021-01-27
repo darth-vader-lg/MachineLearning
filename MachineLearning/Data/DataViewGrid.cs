@@ -78,7 +78,8 @@ namespace MachineLearning.Data
       private DataViewGrid(IChannelProvider context, DataViewSchema schema, IDataAccess data)
       {
          // Check
-         Contracts.AssertValue((object)(_context = context), nameof(context));
+         Contracts.AssertValue(context, nameof(context));
+         _context = context;
          _context.Assert(schema != null || data != null, $"The parameter {nameof(schema)} or the parameter {nameof(data)} must be specified");
          if (schema != null && data != null) {
             _context.Assert(

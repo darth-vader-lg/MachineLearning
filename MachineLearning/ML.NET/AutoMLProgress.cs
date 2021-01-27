@@ -62,7 +62,8 @@ namespace Microsoft.ML.AutoML
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       public AutoMLProgress(IChannelProvider context, ReportRunDetails reportRunDetails = null, ReportCrossValidationRunDetails reportCrossValidationRunDetails = null)
       {
-         Contracts.CheckValue(this.context = context, nameof(context));
+         Contracts.CheckValue(context, nameof(context));
+         this.context = context;
          this.reportRunDetails = reportRunDetails;
          this.reportCrossValidationRunDetails = reportCrossValidationRunDetails;
       }
