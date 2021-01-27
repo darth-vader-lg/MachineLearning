@@ -668,176 +668,169 @@ namespace MachineLearning.Model
             var timestamp = validModel ? e.Timestamp : default;
             // Loop di training continuo
             while (!cancel.IsCancellationRequested) {
-               try {
-                  // Segnala lo start di un ciclo di training
-                  OnTrainingCycleStarted(new ModelTrainingEventArgs(e));
-                  // Primo giro
-                  if (firstRun) {
-                     firstRun = false;
-                     // Carica il modello
-                     var loadExistingModel =
-                        ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
-                        ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
-                        ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > e.Timestamp;
-                     if (loadExistingModel) {
-                        try {
-                           timestamp = DateTime.UtcNow;
-                           Channel.WriteLog("Loading the model");
-                           inputSchema = null;
-                           model = e.ModelStorage == null ? null : await Task.Run(() => LoadModel(e.ModelStorage, out inputSchema), cancel);
-                           if (e.InputSchema != null && inputSchema != null) {
-                              try {
-                                 CheckSchemaConsistence(e.InputSchema, inputSchema, "Inconsistent schema: input schema and stored model schema are different. The model will be discarded.");
-                              }
-                              catch (Exception) {
-                                 throw;
-                              }
+               // Segnala lo start di un ciclo di training
+               OnTrainingCycleStarted(new ModelTrainingEventArgs(e));
+               // Primo giro
+               if (firstRun) {
+                  firstRun = false;
+                  // Carica il modello
+                  var loadExistingModel =
+                     ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
+                     ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
+                     ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > e.Timestamp;
+                  if (loadExistingModel) {
+                     try {
+                        timestamp = DateTime.UtcNow;
+                        Channel.WriteLog("Loading the model");
+                        inputSchema = null;
+                        model = e.ModelStorage == null ? null : await Task.Run(() => LoadModel(e.ModelStorage, out inputSchema), cancel);
+                        if (e.InputSchema != null && inputSchema != null) {
+                           try {
+                              CheckSchemaConsistence(e.InputSchema, inputSchema, "Inconsistent schema: input schema and stored model schema are different. The model will be discarded.");
+                           }
+                           catch (Exception) {
+                              throw;
                            }
                         }
-                        catch (Exception exc) {
-                           Channel.WriteLog($"Error loading the model: {exc.Message}");
-                           model = null;
-                           inputSchema = null;
-                           timestamp = default;
-                        }
                      }
-                     cancel.ThrowIfCancellationRequested();
-                     if (!loadExistingModel && model == null)
-                        Channel.WriteLog("No model loaded. Retrain all");
-                     else if (model == null)
-                        Channel.WriteLog("No valid model present");
-                     else if (loadExistingModel && model != null)
-                        Channel.WriteLog("Model loaded");
-                     // Carica i dati
-                     data = LoadData();
-                     cancel.ThrowIfCancellationRequested();
-                     // Imposta la valutazione
-                     var prevModel = e.Model;
-                     SetEvaluation(e, model, e.InputSchema ?? inputSchema ?? data?.Schema, timestamp);
-                     if (prevModel != model)
-                        OnModelChanged(new ModelTrainingEventArgs(e));
-                     cancel.ThrowIfCancellationRequested();
-                     // Verifica l'esistenza di dati
-                     if (data == null)
-                        return;
-                     // Effettua eventuale commit automatico
-                     cancel.ThrowIfCancellationRequested();
-                     if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
-                        Channel.WriteLog("Committing the new data");
-                        await Task.Run(() => CommitTrainingData(e), cancel);
+                     catch (Exception exc) {
+                        Channel.WriteLog($"Error loading the model: {exc.Message}");
+                        model = null;
+                        inputSchema = null;
+                        timestamp = default;
                      }
-                     // Log della valutazione del modello
-                     cancel.ThrowIfCancellationRequested();
-                     if (loadExistingModel && model != null) {
-                        eval1 = GetModelEvaluation(model, data);
-                        cancel.ThrowIfCancellationRequested();
-                        var evalInfo = GetModelEvaluationInfo(eval1);
-                        if (!string.IsNullOrEmpty(evalInfo))
-                           Channel.WriteLog(evalInfo);
-                     }
-                     // Azzera il contatore di retraining
-                     cancel.ThrowIfCancellationRequested();
-                     e.TrainsCount = 0;
                   }
-                  // Ricarica i dati
-                  else {
-                     // Effettua eventuale commit automatico
-                     if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
-                        try {
-                           Channel.WriteLog("Committing the new data");
-                           await Task.Run(() => CommitTrainingData(e), cancel);
-                           cancel.ThrowIfCancellationRequested();
-                        }
-                        catch (OperationCanceledException) {
-                           throw;
-                        }
-                        catch (Exception exc) {
-                           Debug.WriteLine(exc);
-                        }
-                     }
-                     data = LoadData();
-                     // Verifica l'esistenza di dati
-                     if (data == null)
-                        return;
-                  }
-                  // Timestamp attuale
-                  timestamp = DateTime.UtcNow;
                   cancel.ThrowIfCancellationRequested();
-                  // Verifica se non e' necessario un altro training
-                  if (e.Trainer is IModelTrainerCycling cyclingTrainer) {
-                     if (e.Available.WaitOne(0)) {
-                        if (e.TrainsCount >= cyclingTrainer.MaxTrainingCycles)
-                           return;
-                     }
-                  }
-                  else if (e.Available.WaitOne(0))
+                  if (!loadExistingModel && model == null)
+                     Channel.WriteLog("No model loaded. Retrain all");
+                  else if (model == null)
+                     Channel.WriteLog("No valid model present");
+                  else if (loadExistingModel && model != null)
+                     Channel.WriteLog("Model loaded");
+                  // Carica i dati
+                  data = LoadData();
+                  cancel.ThrowIfCancellationRequested();
+                  // Imposta la valutazione
+                  var prevModel = e.Model;
+                  SetEvaluation(e, model, e.InputSchema ?? inputSchema ?? data?.Schema, timestamp);
+                  if (prevModel != model)
+                     OnModelChanged(new ModelTrainingEventArgs(e));
+                  cancel.ThrowIfCancellationRequested();
+                  // Verifica l'esistenza di dati
+                  if (data == null)
                      return;
-                  // Effettua la valutazione del modello corrente
-                  var currentModel = model;
-                  var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
-                  // Effettua il training
-                  var taskTrain = e.Trainer == null ? Task.FromResult(null as ITransformer) : Task.Run(() => GetTrainedModel(e.Trainer, data, out eval2, linkedCancellation.Token));
-                  // Messaggio di training ritardato
+                  // Effettua eventuale commit automatico
                   cancel.ThrowIfCancellationRequested();
-                  var taskTrainingMessage = Task.Run(async () =>
-                  {
-                     await Task.WhenAny(Task.Delay(250, cancel), taskTrain).ConfigureAwait(false);
-                     if (taskTrain.IsCompleted && taskTrain.Result == default)
-                        return;
+                  if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
+                     Channel.WriteLog("Committing the new data");
+                     await Task.Run(() => CommitTrainingData(e), cancel);
+                  }
+                  // Log della valutazione del modello
+                  cancel.ThrowIfCancellationRequested();
+                  if (loadExistingModel && model != null) {
+                     eval1 = GetModelEvaluation(model, data);
                      cancel.ThrowIfCancellationRequested();
-                     Channel.WriteLog(model == default ? "Training the model" : "Trying to find a better model");
-                  }, cancel);
-                  // Ottiene il risultato del training
-                  cancel.ThrowIfCancellationRequested();
-                  if ((model = await taskTrain) == null)
-                     return;
-                  // Incrementa contatore di traning
-                  e.TrainsCount++;
-                  // Attende output log
-                  await taskTrainingMessage;
-                  eval2 ??= await Task.Run(() => GetModelEvaluation(model, data));
-                  // Attende la valutazione del primo modello
-                  eval1 = await taskEvaluate1;
-                  // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
-                  if (GetBestModelEvaluation(eval1, eval2) == eval2 || e?.Model == null) {
-                     // Emette il log
-                     Channel.WriteLog("Found suitable model");
-                     var evalInfo = GetModelEvaluationInfo(eval2);
+                     var evalInfo = GetModelEvaluationInfo(eval1);
                      if (!string.IsNullOrEmpty(evalInfo))
                         Channel.WriteLog(evalInfo);
-                     cancel.ThrowIfCancellationRequested();
-                     // Eventuale salvataggio automatico modello
-                     if (model != default && e.ModelAutoSave) {
-                        Channel.WriteLog("Saving the new model");
-                        await taskSaveModel;
-                        cancel.ThrowIfCancellationRequested();
-                        taskSaveModel = Task.Run(() =>
-                        {
-                           if (e.ModelStorage != null) {
-                              SaveModel(e.ModelStorage, model, e.InputSchema);
-                              e.Timestamp = (e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? DateTime.UtcNow;
-                           }
-                        }, CancellationToken.None);
-                     }
-                     eval1 = eval2;
-                     // Aggiorna la valutazione
-                     cancel.ThrowIfCancellationRequested();
-                     var prevModel = e.Model;
-                     SetEvaluation(e, model, e.InputSchema, timestamp);
-                     if (prevModel != model)
-                        OnModelChanged(new ModelTrainingEventArgs(e));
-                     cancel.ThrowIfCancellationRequested();
-                     // Azzera coontatore retraining
-                     e.TrainsCount = 0;
                   }
-                  else
-                     Channel.WriteLog("The model is worst than the current one; discarded.");
+                  // Azzera il contatore di retraining
+                  cancel.ThrowIfCancellationRequested();
+                  e.TrainsCount = 0;
                }
-               catch (OperationCanceledException) { throw; }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-                  throw;
+               // Ricarica i dati
+               else {
+                  // Effettua eventuale commit automatico
+                  if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
+                     try {
+                        Channel.WriteLog("Committing the new data");
+                        await Task.Run(() => CommitTrainingData(e), cancel);
+                        cancel.ThrowIfCancellationRequested();
+                     }
+                     catch (OperationCanceledException) {
+                        throw;
+                     }
+                     catch (Exception exc) {
+                        Debug.WriteLine(exc);
+                     }
+                  }
+                  data = LoadData();
+                  // Verifica l'esistenza di dati
+                  if (data == null)
+                     return;
                }
+               // Timestamp attuale
+               timestamp = DateTime.UtcNow;
+               cancel.ThrowIfCancellationRequested();
+               // Verifica se non e' necessario un altro training
+               if (e.Trainer is IModelTrainerCycling cyclingTrainer) {
+                  if (e.Available.WaitOne(0)) {
+                     if (e.TrainsCount >= cyclingTrainer.MaxTrainingCycles)
+                        return;
+                  }
+               }
+               else if (e.Available.WaitOne(0))
+                  return;
+               // Effettua la valutazione del modello corrente
+               var currentModel = model;
+               var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
+               // Effettua il training
+               var taskTrain = e.Trainer == null ? Task.FromResult(null as ITransformer) : Task.Run(() => GetTrainedModel(e.Trainer, data, out eval2, linkedCancellation.Token));
+               // Messaggio di training ritardato
+               cancel.ThrowIfCancellationRequested();
+               var taskTrainingMessage = Task.Run(async () =>
+               {
+                  await Task.WhenAny(Task.Delay(250, cancel), taskTrain).ConfigureAwait(false);
+                  if (taskTrain.IsCompleted && taskTrain.Result == default)
+                     return;
+                  cancel.ThrowIfCancellationRequested();
+                  Channel.WriteLog(model == default ? "Training the model" : "Trying to find a better model");
+               }, cancel);
+               // Ottiene il risultato del training
+               cancel.ThrowIfCancellationRequested();
+               if ((model = await taskTrain) == null)
+                  return;
+               // Incrementa contatore di traning
+               e.TrainsCount++;
+               // Attende output log
+               await taskTrainingMessage;
+               eval2 ??= await Task.Run(() => GetModelEvaluation(model, data));
+               // Attende la valutazione del primo modello
+               eval1 = await taskEvaluate1;
+               // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
+               if (GetBestModelEvaluation(eval1, eval2) == eval2 || e?.Model == null) {
+                  // Emette il log
+                  Channel.WriteLog("Found suitable model");
+                  var evalInfo = GetModelEvaluationInfo(eval2);
+                  if (!string.IsNullOrEmpty(evalInfo))
+                     Channel.WriteLog(evalInfo);
+                  cancel.ThrowIfCancellationRequested();
+                  // Eventuale salvataggio automatico modello
+                  if (model != default && e.ModelAutoSave) {
+                     Channel.WriteLog("Saving the new model");
+                     await taskSaveModel;
+                     cancel.ThrowIfCancellationRequested();
+                     taskSaveModel = Task.Run(() =>
+                     {
+                        if (e.ModelStorage != null) {
+                           SaveModel(e.ModelStorage, model, e.InputSchema);
+                           e.Timestamp = (e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? DateTime.UtcNow;
+                        }
+                     }, CancellationToken.None);
+                  }
+                  eval1 = eval2;
+                  // Aggiorna la valutazione
+                  cancel.ThrowIfCancellationRequested();
+                  var prevModel = e.Model;
+                  SetEvaluation(e, model, e.InputSchema, timestamp);
+                  if (prevModel != model)
+                     OnModelChanged(new ModelTrainingEventArgs(e));
+                  cancel.ThrowIfCancellationRequested();
+                  // Azzera coontatore retraining
+                  e.TrainsCount = 0;
+               }
+               else
+                  Channel.WriteLog("The model is worst than the current one; discarded.");
                // Verifica se deve uscire dal training perche' sono cambiate le condizioni del modello 
                if (e.DataStorage != ((this as IDataStorageProvider)?.DataStorage ?? this as IDataStorage))
                   break;
@@ -856,6 +849,11 @@ namespace MachineLearning.Model
          catch (OperationCanceledException) { }
          catch (Exception exc) {
             Trace.WriteLine(exc);
+            try {
+               Channel.WriteLog(exc.ToString());
+            }
+            catch (Exception) {
+            }
             throw;
          }
          finally {

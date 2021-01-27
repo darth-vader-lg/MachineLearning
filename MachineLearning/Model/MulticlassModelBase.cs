@@ -101,6 +101,11 @@ namespace MachineLearning.Model
                }
                catch (Exception exc) {
                   Trace.WriteLine(exc);
+                  try {
+                     Channel.WriteLog(exc.ToString());
+                  }
+                  catch (Exception) {
+                  }
                }
             }
             // Progress dell'autotraining

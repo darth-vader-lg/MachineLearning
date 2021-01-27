@@ -6,7 +6,6 @@ using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -100,7 +99,11 @@ namespace MachineLearning.Model
                   }
                }
                catch (Exception exc) {
-                  Trace.WriteLine(exc);
+                  try {
+                     Channel.WriteLog(exc.ToString());
+                  }
+                  catch (Exception) {
+                  }
                }
             }
             // Progress dell'autotraining
