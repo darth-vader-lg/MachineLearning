@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System;
 using System.IO;
 
@@ -23,15 +24,15 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <returns>L'accesso ai dati</returns>
-      protected IDataAccess LoadBinaryData(IMachineLearningContext context)
+      protected IDataAccess LoadBinaryData(MLContext context)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
+         Contracts.CheckValue(context, nameof(context));
          using (var checkHeader = GetReadStream()) {
             if (checkHeader == null)
                return null;
             checkHeader.Close();
          }
-         return new DataAccess(context, context.ML.NET.Data.LoadFromBinary(this));
+         return new DataAccess(context, context.Data.LoadFromBinary(this));
       }
       /// <summary>
       /// Carica i dati
@@ -39,16 +40,16 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="textLoaderOptions">Opzioni di caricamento testuale (non utilizzate per i dati binari)</param>
       /// <returns>L'accesso ai dati</returns>
-      public virtual IDataAccess LoadData(IMachineLearningContext context, TextLoader.Options textLoaderOptions = default) => LoadBinaryData(context);
+      public virtual IDataAccess LoadData(MLContext context, TextLoader.Options textLoaderOptions = default) => LoadBinaryData(context);
       /// <summary>
       /// Salva i dati in formato binario
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="stream">Stream per la scrittura. Lo stream viene chiuso automaticamente al termine della scrittura</param>
-      protected void SaveBinaryData(IMachineLearningContext context, IDataView data, Stream stream)
+      protected void SaveBinaryData(MLContext context, IDataAccess data, Stream stream)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
+         Contracts.CheckValue(context, nameof(context));
          lock (this) {
             try {
                if (stream == null)
@@ -56,7 +57,7 @@ namespace MachineLearning.Data
                if (!stream.CanWrite)
                   throw new ArgumentException($"{nameof(stream)} must be writable");
                // Salva
-               context.ML.NET.Data.SaveAsBinary(data, stream, KeepHidden);
+               context.Data.SaveAsBinary(data, stream, KeepHidden);
             }
             finally {
                try {
@@ -73,7 +74,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="textLoaderOptions">Opzioni di caricamento testuale (non utilizzate per i dati binari)</param>
-      public abstract void SaveData(IMachineLearningContext context, IDataView data, TextLoader.Options textLoaderOptions = default);
+      public abstract void SaveData(MLContext context, IDataAccess data, TextLoader.Options textLoaderOptions = default);
       #endregion
    }
 }

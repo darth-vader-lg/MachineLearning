@@ -20,7 +20,7 @@ namespace MachineLearning.Trainers
       /// <summary>
       /// Contesto di machine learning
       /// </summary>
-      private readonly MachineLearningContext _ml;
+      private readonly IContextProvider<MLContext> contextProvider;
       #endregion
       #region Properties
       /// <summary>
@@ -37,19 +37,19 @@ namespace MachineLearning.Trainers
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      internal TrainerBase(MachineLearningContext ml, TOptions options = default)
+      /// <param name="context">Contesto di machine learning</param>
+      internal TrainerBase(IContextProvider<MLContext> provider, TOptions options = default)
       {
-         _ml = ml;
+         MachineLearningContext.AssertContext(contextProvider = provider, nameof(contextProvider));
          Options = options ?? new TOptions();
-         Trainer = CreateTrainer(ml);
+         Trainer = CreateTrainer(contextProvider.Context);
       }
       /// <summary>
       /// Funzione di creazione del trainer da implementare nelle classi derivate
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected abstract TTrainer CreateTrainer(MachineLearningContext ml);
+      protected abstract TTrainer CreateTrainer(MLContext context);
       /// <summary>
       /// Effettua il training e ritorna un transformer
       /// </summary>
@@ -66,7 +66,7 @@ namespace MachineLearning.Trainers
       /// Funzione di post deserializzazione
       /// </summary>
       /// <param name="sender"></param>
-      void IDeserializationCallback.OnDeserialization(object sender) => Trainer = CreateTrainer(_ml);
+      void IDeserializationCallback.OnDeserialization(object sender) => Trainer = CreateTrainer(contextProvider.Context);
       #endregion
    }
 }

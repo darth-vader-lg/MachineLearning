@@ -54,10 +54,10 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      public TextMeaningRecognizer(MachineLearningContext ml = default)
+      /// <param name="context">Contesto di machine learning</param>
+      public TextMeaningRecognizer(IContextProvider<MLContext> context = default)
       {
-         _model = new Model(this, ml);
+         _model = new Model(this, context);
          SetSchema(0, "Meaning", "Text");
       }
       /// <summary>
@@ -193,8 +193,8 @@ namespace MachineLearning
          /// Costruttore
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
-         /// <param name="ml">Contesto di machine learning</param>
-         internal Model(TextMeaningRecognizer owner, MachineLearningContext ml) : base(ml) => _owner = owner;
+         /// <param name="context">Contesto di machine learning</param>
+         internal Model(TextMeaningRecognizer owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
          /// <summary>
          /// Restituisce le pipe di training del modello
          /// </summary>
@@ -205,20 +205,20 @@ namespace MachineLearning
             return _pipes ??= new ModelPipes
             {
                Input =
-                  ML.NET.Transforms.Conversion.MapValueToKey(LabelColumnName)
-                  .Append(ML.NET.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in InputSchema
-                                                                                                                         where c.Name != LabelColumnName
-                                                                                                                         select c.Name).ToArray()))
-                  .Append(ML.NET.Transforms.CopyColumns("Features", "FeaturizeText"))
-                  .Append(ML.NET.Transforms.NormalizeMinMax("Features"))
-                  .AppendCacheCheckpoint(ML.NET),
+                  Context.Transforms.Conversion.MapValueToKey(LabelColumnName)
+                  .Append(Context.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in InputSchema
+                                                                                                                          where c.Name != LabelColumnName
+                                                                                                                          select c.Name).ToArray()))
+                  .Append(Context.Transforms.CopyColumns("Features", "FeaturizeText"))
+                  .Append(Context.Transforms.NormalizeMinMax("Features"))
+                  .AppendCacheCheckpoint(Context),
                Trainer =
                   Trainers.SdcaNonCalibrated(new Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options
                   {
                      LabelColumnName = LabelColumnName
                   }),
                Output =
-                  ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel")
+                  Context.Transforms.Conversion.MapKeyToValue("PredictedLabel")
             };
          }
          #endregion

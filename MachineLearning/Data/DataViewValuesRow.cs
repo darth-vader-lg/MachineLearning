@@ -14,9 +14,13 @@ namespace MachineLearning.Data
    /// <summary>
    /// Riga di vista di dati
    /// </summary>
-   public class DataViewValuesRow : DataViewRow, IEnumerable<DataViewValue>, IMachineLearningContext
+   public class DataViewValuesRow : DataViewRow, IChannelProvider, IEnumerable<DataViewValue>
    {
       #region Fields
+      /// <summary>
+      /// provider di canali di messaggistica
+      /// </summary>
+      private readonly IChannelProvider _context;
       /// <summary>
       /// Method info per l'ottenimento del getter
       /// </summary>
@@ -40,13 +44,13 @@ namespace MachineLearning.Data
       /// </summary>
       public override long Batch => 0;
       /// <summary>
+      /// Descrizione del contesto
+      /// </summary>
+      string IExceptionContext.ContextDescription => _context.ContextDescription;
+      /// <summary>
       /// Identificatore della riga
       /// </summary>
       public DataViewRowId Id { get; private set; }
-      /// <summary>
-      /// Contesto di machine learning
-      /// </summary>
-      public MachineLearningContext ML { get; private set; }
       /// <summary>
       /// La posizione della riga
       /// </summary>
@@ -84,13 +88,12 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="cursor">Cursore</param>
-      private DataViewValuesRow(IMachineLearningContext context, DataViewRowCursor cursor)
+      private DataViewValuesRow(IChannelProvider context, DataViewRowCursor cursor)
       {
          // Checks e inizializzazioni
-         MachineLearningContext.AssertMLNET(context, nameof(context));
-         ML = context.ML;
-         ML.NET.AssertValue(cursor, nameof(cursor));
-         ML.NET.Assert(cursor.Position >= 0, "The cursor has an invalid position");
+         Contracts.AssertValue((object)(_context = context), nameof(context));
+         _context.AssertValue(cursor, nameof(cursor));
+         _context.Assert(cursor.Position >= 0, "The cursor has an invalid position");
          _schema = cursor.Schema;
          _position = cursor.Position;
          var id = default(DataViewRowId);
@@ -114,16 +117,15 @@ namespace MachineLearning.Data
       /// <param name="id">Identificatore univoco</param>
       /// <param name="values">Valori</param>
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
-      private DataViewValuesRow(IMachineLearningContext context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
+      private DataViewValuesRow(IChannelProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
-         MachineLearningContext.AssertMLNET(context, nameof(context));
-         ML = context.ML;
-         ML.NET.AssertValue(schema, nameof(schema));
-         ML.NET.AssertValue(values, nameof(values));
-         ML.NET.AssertNonEmpty(values, nameof(values));
-         ML.NET.AssertValue(isColumnActive, nameof(isColumnActive));
-         ML.NET.AssertNonEmpty(isColumnActive, nameof(isColumnActive));
-         ML.NET.Assert(values.Length == isColumnActive.Length, $"The length of {nameof(values)} must be equal to the length of {nameof(isColumnActive)}");
+         Contracts.AssertValue((object)(_context = context), nameof(context));
+         _context.AssertValue(schema, nameof(schema));
+         _context.AssertValue(values, nameof(values));
+         _context.AssertNonEmpty(values, nameof(values));
+         _context.AssertValue(isColumnActive, nameof(isColumnActive));
+         _context.AssertNonEmpty(isColumnActive, nameof(isColumnActive));
+         _context.Assert(values.Length == isColumnActive.Length, $"The length of {nameof(values)} must be equal to the length of {nameof(isColumnActive)}");
          _schema = schema;
          _position = position;
          Id = id;
@@ -136,10 +138,10 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="cursor">Cursore</param>
       /// <returns>La griglia di dati</returns>
-      internal static DataViewValuesRow Create(IMachineLearningContext context, DataViewRowCursor cursor)
+      internal static DataViewValuesRow Create(IChannelProvider context, DataViewRowCursor cursor)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
-         context.ML.NET.CheckValue(cursor, nameof(cursor));
+         Contracts.CheckValue(context, nameof(context));
+         context.CheckValue(cursor, nameof(cursor));
          return new DataViewValuesRow(context, cursor);
       }
       /// <summary>
@@ -150,15 +152,15 @@ namespace MachineLearning.Data
       /// <param name="id">Identificatore univoco</param>
       /// <param name="values">Valori</param>
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
-      internal static DataViewValuesRow Create(IMachineLearningContext context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
+      internal static DataViewValuesRow Create(IChannelProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
-         context.ML.NET.CheckValue(schema, nameof(schema));
-         context.ML.NET.CheckValue(values, nameof(values));
-         context.ML.NET.CheckNonEmpty(values, nameof(values));
-         context.ML.NET.CheckValue(isColumnActive, nameof(isColumnActive));
-         context.ML.NET.CheckNonEmpty(isColumnActive, nameof(isColumnActive));
-         context.ML.NET.Check(values.Length == isColumnActive.Length, $"The length of {nameof(values)} must be equal to the length of {nameof(isColumnActive)}");
+         Contracts.CheckValue(context, nameof(context));
+         context.CheckValue(schema, nameof(schema));
+         context.CheckValue(values, nameof(values));
+         context.CheckNonEmpty(values, nameof(values));
+         context.CheckValue(isColumnActive, nameof(isColumnActive));
+         context.CheckNonEmpty(isColumnActive, nameof(isColumnActive));
+         context.Check(values.Length == isColumnActive.Length, $"The length of {nameof(values)} must be equal to the length of {nameof(isColumnActive)}");
          return new DataViewValuesRow(context, schema, position, id, values, isColumnActive);
       }
       /// <summary>
@@ -173,7 +175,7 @@ namespace MachineLearning.Data
       public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
       {
          if (!typeof(TValue).IsAssignableFrom(Values[column.Index].Value.GetType()))
-            throw ML.NET.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
+            throw _context.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
          return (ref TValue value) => value = (TValue)Values[column.Index].Value;
       }
       /// <summary>
@@ -196,6 +198,25 @@ namespace MachineLearning.Data
          getter(ref value);
          return value;
       }
+      /// <summary>
+      /// Avvia un canale standard di messaggistica
+      /// </summary>
+      /// <param name="name">Nome del canale</param>
+      /// <returns>Il cancle</returns>
+      IChannel IChannelProvider.Start(string name) => _context.Start(name);
+      /// <summary>
+      /// Avvia un pipe standard di messaggistica
+      /// </summary>
+      /// <param name="name">Nome del canale</param>
+      /// <returns>Il cancle</returns>
+      IPipe<TMessage> IChannelProvider.StartPipe<TMessage>(string name) => _context.StartPipe<TMessage>(name);
+      /// <summary>
+      /// Processo delle eccezioni
+      /// </summary>
+      /// <typeparam name="TException">Tipo di eccezione</typeparam>
+      /// <param name="ex">Eccezione</param>
+      /// <returns>L'eccezione</returns>
+      TException IExceptionContext.Process<TException>(TException ex) => _context.Process(ex);
       /// <summary>
       /// Enumeratore di valori
       /// </summary>

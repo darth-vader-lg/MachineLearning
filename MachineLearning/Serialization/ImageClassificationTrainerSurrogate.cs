@@ -69,9 +69,9 @@ namespace MachineLearning.Serialization
             info.AddValue(nameof(data.TestOnTrainSet), data.TestOnTrainSet);
             info.AddValue(nameof(data.TrainSetBottleneckCachedValuesFileName), data.TrainSetBottleneckCachedValuesFileName);
             if (data.ValidationSet != null) {
-               var ml = (context.Context as IMachineLearningContext)?.ML?.NET ?? MachineLearningContext.Default.NET;
+               var ml = (context.Context as IContextProvider<MLContext>) ?? MachineLearningContext.Default;
                using var ms = new MemoryStream();
-               ml.Data.SaveAsBinary(data.ValidationSet, ms, true);
+               ml.Context.Data.SaveAsBinary(data.ValidationSet, ms, true);
                info.AddValue(nameof(data.ValidationSet), ms.ToArray());
             }
             else
@@ -137,7 +137,8 @@ namespace MachineLearning.Serialization
             var validationSet = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[]));
             if (validationSet != null) {
                var storage = new DataStorageBinaryMemory() { BinaryData = (byte[])info.GetValue(nameof(data.ValidationSet), typeof(byte[])) };
-               data.ValidationSet = storage.LoadData(new MachineLearningContext());
+               var ml = (context.Context as IContextProvider<MLContext>) ?? MachineLearningContext.Default;
+               data.ValidationSet = storage.LoadData(ml.Context);
             }
             else
                data.ValidationSet = null;

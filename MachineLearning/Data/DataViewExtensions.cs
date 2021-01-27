@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -71,7 +72,7 @@ namespace MachineLearning.Data
       /// <param name="others">Altre viste di dati da concatenare</param>
       /// <returns>La vista di dati concatenata</returns>
       public static IDataAccess Merge(this IDataAccess data, params IDataAccess[] others) =>
-         DataViewMerged.Create(data.ML, data.Schema, new[] { data }.Concat(others).ToArray());
+         DataViewMerged.Create(data, data.Schema, new[] { data }.Concat(others).ToArray());
       /// <summary>
       /// Equivalent to calling Equals(ColumnType) for non-vector types. For vector type,
       /// returns true if current and other vector types have the same size and item type.
@@ -95,20 +96,22 @@ namespace MachineLearning.Data
       /// <param name="data">Dati</param>
       /// <param name="filter">Filtro</param>
       /// <returns>La vista di dati filtrata</returns>
-      public static DataViewFiltered ToDataViewFiltered(this IDataAccess data, DataViewRowFilter filter) => DataViewFiltered.Create(data, filter);
+      public static DataViewFiltered ToDataViewFiltered(this IDataAccess data, DataViewRowFilter filter) =>
+         DataViewFiltered.Create(data, filter);
       /// <summary>
       /// Trasforma la IDataAccess in una griglia di dati
       /// </summary>
       /// <param name="data">Dati</param>
       /// <returns>La vista di dati filtrata</returns>
-      public static DataViewGrid ToDataViewGrid(this IDataAccess data) => DataViewGrid.Create(data);
+      public static DataViewGrid ToDataViewGrid(this IDataAccess data) =>
+         DataViewGrid.Create(data);
       /// <summary>
       /// Trasforma un cursore di vista dati in una riga con valori
       /// </summary>
       /// <param name="cursor">Cursore</param>
       /// <param name="context">Contesto</param>
       /// <returns>La riga di dati</returns>
-      public static DataViewValuesRow ToDataViewValuesRow(this DataViewRowCursor cursor, IMachineLearningContext context) => DataViewValuesRow.Create(context, cursor);
+      public static DataViewValuesRow ToDataViewValuesRow(this DataViewRowCursor cursor, IChannelProvider context) => DataViewValuesRow.Create(context, cursor);
       #endregion
    }
 }

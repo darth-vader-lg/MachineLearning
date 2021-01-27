@@ -17,7 +17,7 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase : IMachineLearningContext, ITransformer
+   public abstract partial class ModelBase<T> : ContextProvider<T> where T : class, IChannelProvider
    {
       #region Fields
       /// <summary>
@@ -31,14 +31,6 @@ namespace MachineLearning.Model
       /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
       /// </summary>
       public bool IsRowToRowMapper => GetEvaluation(new ModelTrainerStandard()).Model?.IsRowToRowMapper ?? false;
-      /// <summary>
-      /// Contesto di machine learning
-      /// </summary>
-      public MachineLearningContext ML { get; }
-      /// <summary>
-      /// Nome del modello
-      /// </summary>
-      private string ModelName => (this as IModelName)?.ModelName;
       /// <summary>
       /// Gestore trainer modello
       /// </summary>
@@ -70,12 +62,8 @@ namespace MachineLearning.Model
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      public ModelBase(MachineLearningContext ml = default)
-      {
-         // Memorizza il contesto di machine learning
-         ML = ml ?? MachineLearningContext.Default;
-      }
+      /// <param name="contextProvider">Provider di contesto di machine learning</param>
+      public ModelBase(IContextProvider<T> contextProvider) : base(contextProvider) { }
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
@@ -83,7 +71,7 @@ namespace MachineLearning.Model
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      public Task AddTrainingDataAsync(IDataView data, bool checkForDuplicates, CancellationToken cancellation)
+      public Task AddTrainingDataAsync(IDataAccess data, bool checkForDuplicates, CancellationToken cancellation)
       {
          if (!checkForDuplicates) {
             return Task.Run(async () =>
@@ -180,8 +168,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
-      /// <param name="cancellation">Token di cancellazione</param>
-      public async Task ClearTrainingAsync(CancellationToken cancellation = default)
+      public async Task ClearTrainingAsync()
       {
          if (_evaluator is Evaluator evaluator && evaluator != null) {
             // Stoppa il training
@@ -205,10 +192,10 @@ namespace MachineLearning.Model
          errMsg ??= "Inconsistent schema: all source dataviews must have identical column names, sizes, and item types.";
          var colCount = schema1.Count;
          // Check if the column counts are identical.
-         ML.NET.Check(colCount == schema2.Count, errMsg);
+         Channel.Check(colCount == schema2.Count, errMsg);
          for (int c = 0; c < colCount; c++) {
-            ML.NET.Check(schema1[c].Name == schema2[c].Name, errMsg);
-            ML.NET.Check(schema1[c].Type.SameSizeAndItemType(schema2[c].Type), errMsg);
+            Channel.Check(schema1[c].Name == schema2[c].Name, errMsg);
+            Channel.Check(schema1[c].Type.SameSizeAndItemType(schema2[c].Type), errMsg);
          }
       }
       /// <summary>
@@ -398,12 +385,6 @@ namespace MachineLearning.Model
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
       /// <summary>
-      /// Restituisce lo schema di output dato lo schema di input
-      /// </summary>
-      /// <param name="inputSchema">Scema di input</param>
-      /// <returns>Lo schema di output</returns>
-      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => GetEvaluation(new ModelTrainerStandard()).Model?.GetOutputSchema(inputSchema);
-      /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
       /// <returns>Le pipe</returns>
@@ -438,32 +419,27 @@ namespace MachineLearning.Model
          }
       }
       /// <summary>
-      /// Restituisce il mapper riga a riga
+      /// Restituisce il modello sottoposto al training
       /// </summary>
-      /// <param name="inputSchema">Schema di input</param>
-      /// <returns>Il mappatore</returns>
-      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => GetEvaluation(new ModelTrainerStandard()).Model?.GetRowToRowMapper(inputSchema);
-      /// <summary>
-      /// Effettua il salvataggio del modello
-      /// </summary>
-      /// <param name="ctx">Contesto di salvataggio</param>
-      void ICanSaveModel.Save(ModelSaveContext ctx)
-      {
-         var evaluation = GetEvaluation(new ModelTrainerStandard());
-         if (evaluation.Model != null && evaluation.ModelStorage != null)
-            evaluation.ModelStorage.SaveModel(this, evaluation.Model, evaluation.InputSchema);
-      }
+      /// <param name="trainer">Il trainer da utilizzare</param>
+      /// <param name="data">Dati di training</param>
+      /// <param name="metrics">Eventuale metrica</param>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns></returns>
+      protected abstract ITransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation);
       /// <summary>
       /// Carica i dati da uno storage
       /// </summary>
       /// <param name="dataStorage">Storage di dati</param>
       /// <returns>La vista di dati</returns>
-      public IDataAccess LoadData(IDataStorage dataStorage)
-      {
-         ML.NET.CheckValue(dataStorage, nameof(dataStorage));
-         var options = (this as ITextLoaderOptions)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchema)?.InputSchema?.ToTextLoaderColumns() };
-         return dataStorage.LoadData(this, options);
-      }
+      public abstract IDataAccess LoadData(IDataStorage dataStorage);
+      /// <summary>
+      /// Carica il modello da uno storage
+      /// </summary>
+      /// <param name="modelStorage">Storage del modello</param>
+      /// <param name="schema">Lo schema del modello</param>
+      /// <returns>Il modello</returns>
+      public abstract ITransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema);
       /// <summary>
       /// Funzione di notifica della variazione del modello
       /// </summary>
@@ -497,7 +473,7 @@ namespace MachineLearning.Model
       protected virtual void OnTrainingCycleStarted(ModelTrainingEventArgs e)
       {
          try {
-            ML.NET.WriteLog($"Training cycle {e.Evaluator.TrainsCount}", ModelName);
+            Channel.WriteLog($"Training cycle {e.Evaluator.TrainsCount}");
             TrainingCycleStarted?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -511,8 +487,8 @@ namespace MachineLearning.Model
       protected virtual void OnTrainingEnded(ModelTrainingEventArgs e)
       {
          try {
-            ML.NET.WriteLog("Training ended", ModelName);
-            ML.NET.WriteLog("--------------", ModelName);
+            Channel.WriteLog("Training ended");
+            Channel.WriteLog("--------------");
             TrainingEnded?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -526,8 +502,8 @@ namespace MachineLearning.Model
       protected virtual void OnTrainingStarted(ModelTrainingEventArgs e)
       {
          try {
-            ML.NET.WriteLog("--------------", ModelName);
-            ML.NET.WriteLog("Training started", ModelName);
+            Channel.WriteLog("--------------");
+            Channel.WriteLog("Training started");
             TrainingStarted?.Invoke(this, e);
          }
          catch (Exception exc) {
@@ -539,13 +515,15 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="dataStorage">Storage di dati</param>
       /// <param name="data">Dati</param>
-      public void SaveData(IDataStorage dataStorage, IDataView data)
-      {
-         ML.NET.CheckValue(dataStorage, nameof(dataStorage));
-         ML.NET.CheckValue(data, nameof(data));
-         var options = (this as ITextLoaderOptions)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchema)?.InputSchema?.ToTextLoaderColumns() };
-         dataStorage.SaveData(this, data, options);
-      }
+      public abstract void SaveData(IDataStorage dataStorage, IDataAccess data);
+      /// <summary>
+      /// Salva il modello in uno storage
+      /// </summary>
+      /// <param name="modelStorage">Storage del modello</param>
+      /// <param name="model">Modello</param>
+      /// <param name="schema">Lo schema del modello</param>
+      /// <returns>Il modello</returns>
+      public abstract void SaveModel(IModelStorage modelStorage, ITransformer model, DataViewSchema schema);
       /// <summary>
       /// Imposta i dati di valutazione
       /// </summary>
@@ -564,7 +542,7 @@ namespace MachineLearning.Model
                evaluator.Timestamp = default;
                evaluator.Available.Reset();
                if (writeLog)
-                  ML.NET.WriteLog("Model cleared", ModelName);
+                  Channel.WriteLog("Model cleared");
             }
             // Imposta il modello
             else {
@@ -574,7 +552,7 @@ namespace MachineLearning.Model
                evaluator.Timestamp = timestamp;
                evaluator.Available.Set();
                if (writeLog)
-                  ML.NET.WriteLog("Model setted", ModelName);
+                  Channel.WriteLog("Model setted");
             }
          }
       }
@@ -601,11 +579,15 @@ namespace MachineLearning.Model
                      var task = default(Task);
                      using var cts = CancellationTokenSource.CreateLinkedTokenSource(c);
                      try {
-                        await ML.AddWorkingTask(task = TrainingAsync(evaluator, cts.Token), cts).ConfigureAwait(false);
+                        task = TrainingAsync(evaluator, cts.Token);
+                        if (Context is MachineLearningContext ml)
+                           await ml.AddWorkingTask(task, cts);
+                        else
+                           await task;
                      }
                      finally {
-                        if (task != null)
-                           ML.RemoveWorkingTask(task);
+                        if (task != null && Context is MachineLearningContext ml)
+                           ml.RemoveWorkingTask(task);
                      }
                   },
                   c,
@@ -700,8 +682,9 @@ namespace MachineLearning.Model
                      if (loadExistingModel) {
                         try {
                            timestamp = DateTime.UtcNow;
-                           ML.NET.WriteLog("Loading the model", ModelName);
-                           model = await Task.Run(() => e.ModelStorage?.LoadModel(this, out inputSchema), cancel);
+                           Channel.WriteLog("Loading the model");
+                           inputSchema = null;
+                           model = e.ModelStorage == null ? null : await Task.Run(() => LoadModel(e.ModelStorage, out inputSchema), cancel);
                            if (e.InputSchema != null && inputSchema != null) {
                               try {
                                  CheckSchemaConsistence(e.InputSchema, inputSchema, "Inconsistent schema: input schema and stored model schema are different. The model will be discarded.");
@@ -712,7 +695,7 @@ namespace MachineLearning.Model
                            }
                         }
                         catch (Exception exc) {
-                           ML.NET.WriteLog($"Error loading the model: {exc.Message}", ModelName);
+                           Channel.WriteLog($"Error loading the model: {exc.Message}");
                            model = null;
                            inputSchema = null;
                            timestamp = default;
@@ -720,11 +703,11 @@ namespace MachineLearning.Model
                      }
                      cancel.ThrowIfCancellationRequested();
                      if (!loadExistingModel && model == null)
-                        ML.NET.WriteLog("No model loaded. Retrain all", ModelName);
+                        Channel.WriteLog("No model loaded. Retrain all");
                      else if (model == null)
-                        ML.NET.WriteLog("No valid model present", ModelName);
+                        Channel.WriteLog("No valid model present");
                      else if (loadExistingModel && model != null)
-                        ML.NET.WriteLog("Model loaded", ModelName);
+                        Channel.WriteLog("Model loaded");
                      // Carica i dati
                      data = LoadData();
                      cancel.ThrowIfCancellationRequested();
@@ -740,7 +723,7 @@ namespace MachineLearning.Model
                      // Effettua eventuale commit automatico
                      cancel.ThrowIfCancellationRequested();
                      if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
-                        ML.NET.WriteLog("Committing the new data", ModelName);
+                        Channel.WriteLog("Committing the new data");
                         await Task.Run(() => CommitTrainingData(e), cancel);
                      }
                      // Log della valutazione del modello
@@ -750,7 +733,7 @@ namespace MachineLearning.Model
                         cancel.ThrowIfCancellationRequested();
                         var evalInfo = GetModelEvaluationInfo(eval1);
                         if (!string.IsNullOrEmpty(evalInfo))
-                           ML.NET.WriteLog(evalInfo, ModelName);
+                           Channel.WriteLog(evalInfo);
                      }
                      // Azzera il contatore di retraining
                      cancel.ThrowIfCancellationRequested();
@@ -761,7 +744,7 @@ namespace MachineLearning.Model
                      // Effettua eventuale commit automatico
                      if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
                         try {
-                           ML.NET.WriteLog("Committing the new data", ModelName);
+                           Channel.WriteLog("Committing the new data");
                            await Task.Run(() => CommitTrainingData(e), cancel);
                            cancel.ThrowIfCancellationRequested();
                         }
@@ -793,7 +776,7 @@ namespace MachineLearning.Model
                   var currentModel = model;
                   var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
                   // Effettua il training
-                  var taskTrain = Task.Run(() => e.Trainer?.GetTrainedModel(this, data, out eval2, linkedCancellation.Token));
+                  var taskTrain = e.Trainer == null ? Task.FromResult(null as ITransformer) : Task.Run(() => GetTrainedModel(e.Trainer, data, out eval2, linkedCancellation.Token));
                   // Messaggio di training ritardato
                   cancel.ThrowIfCancellationRequested();
                   var taskTrainingMessage = Task.Run(async () =>
@@ -802,11 +785,11 @@ namespace MachineLearning.Model
                      if (taskTrain.IsCompleted && taskTrain.Result == default)
                         return;
                      cancel.ThrowIfCancellationRequested();
-                     ML.NET.WriteLog(model == default ? "Training the model" : "Trying to find a better model", ModelName);
+                     Channel.WriteLog(model == default ? "Training the model" : "Trying to find a better model");
                   }, cancel);
                   // Ottiene il risultato del training
                   cancel.ThrowIfCancellationRequested();
-                  if ((model = await taskTrain) == default)
+                  if ((model = await taskTrain) == null)
                      return;
                   // Incrementa contatore di traning
                   e.TrainsCount++;
@@ -818,20 +801,20 @@ namespace MachineLearning.Model
                   // Verifica se c'e' un miglioramento; se affermativo aggiorna la valutazione
                   if (GetBestModelEvaluation(eval1, eval2) == eval2 || e?.Model == null) {
                      // Emette il log
-                     ML.NET.WriteLog("Found suitable model", ModelName);
+                     Channel.WriteLog("Found suitable model");
                      var evalInfo = GetModelEvaluationInfo(eval2);
                      if (!string.IsNullOrEmpty(evalInfo))
-                        ML.NET.WriteLog(evalInfo, ModelName);
+                        Channel.WriteLog(evalInfo);
                      cancel.ThrowIfCancellationRequested();
                      // Eventuale salvataggio automatico modello
                      if (model != default && e.ModelAutoSave) {
-                        ML.NET.WriteLog("Saving the new model", ModelName);
+                        Channel.WriteLog("Saving the new model");
                         await taskSaveModel;
                         cancel.ThrowIfCancellationRequested();
                         taskSaveModel = Task.Run(() =>
                         {
                            if (e.ModelStorage != null) {
-                              e.ModelStorage.SaveModel(this, model, e.InputSchema);
+                              SaveModel(e.ModelStorage, model, e.InputSchema);
                               e.Timestamp = (e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? DateTime.UtcNow;
                            }
                         }, CancellationToken.None);
@@ -848,7 +831,7 @@ namespace MachineLearning.Model
                      e.TrainsCount = 0;
                   }
                   else
-                     ML.NET.WriteLog("The model is worst than the current one; discarded.", ModelName);
+                     Channel.WriteLog("The model is worst than the current one; discarded.");
                }
                catch (OperationCanceledException) { throw; }
                catch (Exception exc) {
@@ -885,19 +868,13 @@ namespace MachineLearning.Model
                try { OnTrainingEnded(new ModelTrainingEventArgs(e)); } catch { }
          }
       }
-      /// <summary>
-      /// Trasforma i dati di input per il modello
-      /// </summary>
-      /// <param name="input">Vista di dati di input</param>
-      /// <returns>I dati trasformati</returns>
-      public IDataView Transform(IDataView input) => GetEvaluation(new ModelTrainerStandard()).Model?.Transform(input);
       #endregion
    }
 
    /// <summary>
    /// Dati di valutazione
    /// </summary>
-   public partial class ModelBase // Evaluator
+   public partial class ModelBase<T> // Evaluator
    {
       private class Evaluator : IDisposable, IModelEvaluator
       {

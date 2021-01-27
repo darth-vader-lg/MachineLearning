@@ -8,27 +8,27 @@ namespace MachineLearning.Data
    /// <summary>
    /// Vista di dati con contesto
    /// </summary>
-   public class DataAccess : IDataAccess
+   public class DataAccess : ChannelProvider, IDataAccess
    {
       #region Fields
       /// <summary>
+      /// Contesto
+      /// </summary>
+      private readonly IChannelProvider context;
+      /// <summary>
       /// Vista di dati
       /// </summary>
-      private readonly IDataView _data;
+      private readonly IDataView data;
       #endregion
       #region Properties
       /// <summary>
       /// Possibilita' di shuffle
       /// </summary>
-      public bool CanShuffle => _data.CanShuffle;
-      /// <summary>
-      /// Contesto
-      /// </summary>
-      public MachineLearningContext ML { get; }
+      public bool CanShuffle => data.CanShuffle;
       /// <summary>
       /// Lo schema dei dati
       /// </summary>
-      public DataViewSchema Schema => _data.Schema;
+      public DataViewSchema Schema => data.Schema;
       #endregion
       #region Methods
       /// <summary>
@@ -36,19 +36,23 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">Vista di dati</param>
-      public DataAccess(IMachineLearningContext context, IDataView data)
+      public DataAccess(IChannelProvider context, IDataView data)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
-         context.ML.NET.CheckValue(data, nameof(data));
-         ML = context.ML;
-         _data = data;
+         Contracts.CheckValue(this.context = context, nameof(context));
+         context.CheckValue(data, nameof(data));
+         this.data = data;
       }
+      /// <summary>
+      /// Funzione di ottenimento del provider di canali
+      /// </summary>
+      /// <returns>Il provider</returns>
+      protected sealed override IChannelProvider GetChannelProvider() => context;
       /// <summary>
       /// Restituisce il numero di righe
       /// </summary>
       /// <returns>Il numero di righe</returns>
       public long? GetRowCount() =>
-         _data.GetRowCount();
+         data.GetRowCount();
       /// <summary>
       /// Restituisce un cursore
       /// </summary>
@@ -56,7 +60,7 @@ namespace MachineLearning.Data
       /// <param name="rand">Eventuale generatore di numeri casuali</param>
       /// <returns>Il cursore</returns>
       public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand = null) =>
-         _data.GetRowCursor(columnsNeeded, rand);
+         data.GetRowCursor(columnsNeeded, rand);
       /// <summary>
       /// Restituisce un set di cursori
       /// </summary>
@@ -65,7 +69,7 @@ namespace MachineLearning.Data
       /// <param name="rand">Eventuale generatore di numeri casuali</param>
       /// <returns>I cursori</returns>
       public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand = null) =>
-         _data.GetRowCursorSet(columnsNeeded, n, rand);
+         data.GetRowCursorSet(columnsNeeded, n, rand);
       #endregion
    }
 }

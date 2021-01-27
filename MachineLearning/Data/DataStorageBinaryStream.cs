@@ -40,12 +40,12 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
       /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale (non utilizzate per il salvataggio binario)</param>
-      public override void SaveData(IMachineLearningContext context, IDataView data, TextLoader.Options textLoaderOptions = default)
+      public override void SaveData(MLContext context, IDataAccess data, TextLoader.Options textLoaderOptions = default)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
+         Contracts.CheckValue(context, nameof(context));
          var timestamp = DateTime.UtcNow;
          var stream = WriteStream?.Invoke();
-         context.ML.NET.CheckIO(stream != null, "Cannot write to the stream");
+         context.CheckIO(stream != null, "Cannot write to the stream");
          lock (this) {
             SaveBinaryData(context, data, stream);
             DataTimestamp = timestamp;

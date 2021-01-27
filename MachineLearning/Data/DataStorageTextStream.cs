@@ -45,13 +45,13 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
-      public override void SaveData(IMachineLearningContext context, IDataView data, TextLoader.Options textLoaderOptions = default)
+      /// <param name="textLoaderOptions">Opzioni di caricamento testuale</param>
+      public override void SaveData(MLContext context, IDataAccess data, TextLoader.Options textLoaderOptions)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
+         Contracts.CheckValue(context, nameof(context));
          var timestamp = DateTime.UtcNow;
          var stream = WriteStream?.Invoke();
-         context.ML.NET.CheckIO(stream != null, "Cannot write to the stream");
+         context.CheckIO(stream != null, "Cannot write to the stream");
          lock (this) {
             SaveTextData(context, data, textLoaderOptions, stream, true);
             DataTimestamp = timestamp;

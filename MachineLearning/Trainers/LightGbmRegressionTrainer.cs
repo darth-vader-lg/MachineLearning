@@ -15,14 +15,14 @@ namespace MachineLearning.Trainers
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      internal LightGbmRegressionTrainer(MachineLearningContext ml, MSTrainer.Options options = default) : base(ml, options) { }
+      /// <param name="contextProvider">Provider di contesto di machine learning</param>
+      internal LightGbmRegressionTrainer(IContextProvider<MLContext> contextProvider, MSTrainer.Options options = default) : base(contextProvider, options) { }
       /// <summary>
       /// Funzione di creazione del trainer
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="context">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected override MSTrainer CreateTrainer(MachineLearningContext ml) => ml.NET.Regression.Trainers.LightGbm(Options);
+      protected override MSTrainer CreateTrainer(MLContext context) => context.Regression.Trainers.LightGbm(Options);
       #endregion
    }
 }

@@ -58,10 +58,10 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      public ImageRecognizer(MachineLearningContext ml = default)
+      /// <param name="context">Contesto di machine learning</param>
+      public ImageRecognizer(IContextProvider<MLContext> context = default)
       {
-         _model = new Model(this, ml);
+         _model = new Model(this, context);
          SetSchema(0, 1, 2, "Label", "ImagePath", "ImageTimestamp");
       }
       /// <summary>
@@ -194,8 +194,8 @@ namespace MachineLearning
          /// Costruttore
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
-         /// <param name="ml">Contesto di machine learning</param>
-         internal Model(ImageRecognizer owner, MachineLearningContext ml) : base(ml) => _owner = owner;
+         /// <param name="context">Contesto di machine learning</param>
+         internal Model(ImageRecognizer owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
          /// <summary>
          /// Restituisce le pipe di training del modello
          /// </summary>
@@ -206,12 +206,12 @@ namespace MachineLearning
             return _pipes ??= new ModelPipes
             {
                Input =
-                  ML.NET.Transforms.Conversion.MapValueToKey("Label", LabelColumnName)
-                  .Append(ML.NET.Transforms.LoadRawImageBytes("Features", null, ImagePathColumnName)),
+                  Context.Transforms.Conversion.MapValueToKey("Label", LabelColumnName)
+                  .Append(Context.Transforms.LoadRawImageBytes("Features", null, ImagePathColumnName)),
                Trainer =
                   Trainers.ImageClassification(),
                Output =
-                  ML.NET.Transforms.Conversion.MapKeyToValue("PredictedLabel")
+                  Context.Transforms.Conversion.MapKeyToValue("PredictedLabel")
             };
          }
          /// <summary>
@@ -278,7 +278,7 @@ namespace MachineLearning
             // Ottiene i dati di training (l'elenco delle immagini classificate e datate)
             var trainingData = await GetTrainingDataFromPathAsync(dirs, cancellation);
             cancellation.ThrowIfCancellationRequested();
-            ML.NET.WriteLog("Updating image list", ModelName);
+            Channel.WriteLog("Updating image list");
             // Effettua l'aggiornamento dello storage di dati sincronizzandolo con lo stato delle immagini
             await Task.Run(async () =>
             {
@@ -346,10 +346,10 @@ namespace MachineLearning
                   // Salva il file temporaneo nello storage
                   mergedDataView = LoadData(mergedStorage);
                   SaveData(DataStorage, LoadData(mergedStorage));
-                  ML.NET.WriteLog("Image list updated", ModelName);
+                  Channel.WriteLog("Image list updated");
                }
                else
-                  ML.NET.WriteLog("Image list is still valid", ModelName);
+                  Channel.WriteLog("Image list is still valid");
             }, cancellation);
             cancellation.ThrowIfCancellationRequested();
          }

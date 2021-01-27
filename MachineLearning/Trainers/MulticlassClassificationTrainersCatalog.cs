@@ -1,36 +1,32 @@
-﻿namespace MachineLearning.Trainers
+﻿using Microsoft.ML;
+
+namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers multiclasse
    /// </summary>
-   public class MulticlassClassificationTrainersCatalog
+   public class MulticlassClassificationTrainersCatalog : ContextProvider<MLContext>
    {
-      #region Fields
-      /// <summary>
-      /// Contesto di machine learning
-      /// </summary>
-      private readonly MachineLearningContext _ml;
-      #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      internal MulticlassClassificationTrainersCatalog(MachineLearningContext ml) => _ml = ml;
+      /// <param name="context">Contesto di machine learning</param>
+      internal MulticlassClassificationTrainersCatalog(IContextProvider<MLContext> context) : base(context) { }
       /// <summary>
       /// Restituisce un trainer di tipo SdcaNonCalibratedMulticlass
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
       public SdcaNonCalibratedMulticlassTrainer SdcaNonCalibrated(Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options options = default) =>
-         new SdcaNonCalibratedMulticlassTrainer(_ml, options);
+         new SdcaNonCalibratedMulticlassTrainer(this, options);
       /// <summary>
       /// Restituisce un trainer di tipo ImageClassification
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
       public ImageClassificationTrainer ImageClassification(Microsoft.ML.Vision.ImageClassificationTrainer.Options options = default) =>
-         new ImageClassificationTrainer(_ml, options);
+         new ImageClassificationTrainer(this, options);
       #endregion
    }
 }

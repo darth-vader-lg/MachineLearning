@@ -13,7 +13,7 @@ namespace MachineLearning
    /// Contesto di machine learning
    /// </summary>
    [Serializable]
-   public class MachineLearningContext : IMachineLearningContext, IDeserializationCallback
+   public class MachineLearningContext : IContextProvider<MLContext>, IDeserializationCallback
    {
       #region Fields
       /// <summary>
@@ -55,13 +55,18 @@ namespace MachineLearning
       /// </summary>
       public static MachineLearningContext Default { get; } = new MachineLearningContext();
       /// <summary>
-      /// Contesto di machine learning
+      /// Descrizione contesto ML.NET
       /// </summary>
-      MachineLearningContext IMachineLearningContext.ML => this;
+      string IExceptionContext.ContextDescription => ((IExceptionContext)MLNET).ContextDescription;
       /// <summary>
       /// Contesto ML.NET
       /// </summary>
-      public MLContext NET { get; private set; }
+      MLContext IContextProvider<MLContext>.Context => MLNET;
+      /// <summary>
+      /// Contesto ML.NET
+      /// </summary>
+      [field: NonSerialized]
+      public MLContext MLNET { get; private set; }
       /// <summary>
       /// Indica necessita' di postare un azione nel thread di creazione dal momento che ci si trova in un altro
       /// </summary>
@@ -99,27 +104,45 @@ namespace MachineLearning
          }
       }
       /// <summary>
-      /// Verifica che un provider di contesto sia valido per l'ML.NET
+      /// Asserisce se un contesto e' valido
       /// </summary>
       /// <param name="provider">Il provider</param>
       /// <param name="name">Nome del parametro</param>
-      public static void AssertMLNET(IMachineLearningContext provider, string name)
+      public static void AssertContext<T>(IContextProvider<T> provider, string name) where T : class
       {
          Contracts.AssertValue(provider, name);
-         Contracts.AssertValue(provider.ML, $"{name}.{nameof(IMachineLearningContext.ML)}");
-         Contracts.AssertValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContext.ML.NET)}");
+         Contracts.AssertValue(provider.Context, $"{name}.{nameof(IContextProvider<T>.Context)}");
       }
       /// <summary>
       /// Verifica che un provider di contesto sia valido per l'ML.NET
       /// </summary>
       /// <param name="provider">Il provider</param>
       /// <param name="name">Nome del parametro</param>
-      public static void CheckMLNET(IMachineLearningContext provider, string name)
+      public static void CheckContext<T>(IContextProvider<T> provider, string name) where T : class
       {
          Contracts.CheckValue(provider, name);
-         Contracts.CheckValue(provider.ML, $"{name}.{nameof(IMachineLearningContext.ML)}");
-         Contracts.CheckValue(provider.ML.NET, $"{name}.{nameof(IMachineLearningContext.ML.NET)}");
+         Contracts.CheckValue(provider.Context, $"{name}.{nameof(IContextProvider<T>.Context)}");
       }
+      /// <summary>
+      /// Avvia un canale di messaggistica
+      /// </summary>
+      /// <param name="name">Nome del canale</param>
+      /// <returns>Il canale</returns>
+      IChannel IChannelProvider.Start(string name) => ((IChannelProvider)MLNET).Start(name);
+      /// <summary>
+      /// Avvia una pipe di messaggistica
+      /// </summary>
+      /// <typeparam name="TMessage">Tipo di messaggio</typeparam>
+      /// <param name="name">Nome della pipe</param>
+      /// <returns>La pipe</returns>
+      IPipe<TMessage> IChannelProvider.StartPipe<TMessage>(string name) => ((IChannelProvider)MLNET).StartPipe<TMessage>(name);
+      /// <summary>
+      /// Processa un'eccezione
+      /// </summary>
+      /// <typeparam name="TException">Tipo di eccezione</typeparam>
+      /// <param name="ex">Eccezione</param>
+      /// <returns>L'eccezione processata</returns>
+      TException IExceptionContext.Process<TException>(TException ex) => ((IExceptionContext)MLNET).Process(ex);
       /// <summary>
       /// Log della ML.NET
       /// </summary>
@@ -169,8 +192,8 @@ namespace MachineLearning
          if (SynchronizationContext.Current != null)
             _creationTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
          // Inizializza il contesto ML.NET
-         NET = new MLContext(_seed);
-         NET.Log += NET_Log;
+         MLNET = new MLContext(_seed);
+         MLNET.Log += NET_Log;
       }
       /// <summary>
       /// Funzione di log di un messaggio

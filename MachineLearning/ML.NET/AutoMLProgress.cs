@@ -9,17 +9,21 @@ namespace Microsoft.ML.AutoML
    /// Gestore del progress di auto machine learning
    /// </summary>
    /// <typeparam name="TMetrics">Tipo di metrica</typeparam>
-   public class AutoMLProgress<TMetrics> : Progress<CrossValidationRunDetail<TMetrics>>, IProgress<RunDetail<TMetrics>>
+   public class AutoMLProgress<TMetrics> : Progress<CrossValidationRunDetail<TMetrics>>, IDisposable, IProgress<RunDetail<TMetrics>>
    {
       #region Fields
       /// <summary>
-      /// Nome del contesto
+      /// Canale di messaggistica
       /// </summary>
-      private readonly string contextName;
+      private IChannel channel;
       /// <summary>
       /// Contesto ML
       /// </summary>
-      private readonly MLContext ml;
+      private readonly IChannelProvider context;
+      /// <summary>
+      /// Indicatore di oggetto disposed
+      /// </summary>
+      private bool disposed;
       /// <summary>
       /// Delegato al report
       /// </summary>
@@ -28,6 +32,12 @@ namespace Microsoft.ML.AutoML
       /// Delegato al report
       /// </summary>
       private readonly ReportCrossValidationRunDetails reportCrossValidationRunDetails;
+      #endregion
+      #region Properties
+      /// <summary>
+      /// Canale di messaggistica
+      /// </summary>
+      protected IChannel Channel => channel ??= context.Start(context.ContextDescription);
       #endregion
       #region Events and delegates
       /// <summary>
@@ -47,16 +57,36 @@ namespace Microsoft.ML.AutoML
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto ML</param>
-      /// <param name="contextName">Nome del contesto</param>
+      /// <param name="context">Contesto</param>
       /// <param name="reportRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
       /// <param name="reportCrossValidationRunDetails">Delegato al report. Se null il report viene loggato nel contesto ML</param>
-      public AutoMLProgress(MLContext ml, string contextName, ReportRunDetails reportRunDetails = null, ReportCrossValidationRunDetails reportCrossValidationRunDetails = null)
+      public AutoMLProgress(IChannelProvider context, ReportRunDetails reportRunDetails = null, ReportCrossValidationRunDetails reportCrossValidationRunDetails = null)
       {
-         this.ml = ml;
-         this.contextName = contextName ?? "AutoML";
+         Contracts.CheckValue(this.context = context, nameof(context));
          this.reportRunDetails = reportRunDetails;
          this.reportCrossValidationRunDetails = reportCrossValidationRunDetails;
+      }
+      /// <summary>
+      /// Dispose da programma
+      /// </summary>
+      public void Dispose()
+      {
+         Dispose(disposing: true);
+         GC.SuppressFinalize(this);
+      }
+      /// <summary>
+      /// Funzione di dispose
+      /// </summary>
+      /// <param name="disposing">Indicatore di Dispose da programma</param>
+      protected virtual void Dispose(bool disposing)
+      {
+         if (!disposed) {
+            if (disposing) {
+               channel?.Dispose();
+               channel = null;
+            }
+            disposed = true;
+         }
       }
       /// <summary>
       /// Funzione di report del progresso
@@ -88,11 +118,11 @@ namespace Microsoft.ML.AutoML
       {
          try {
             if (runDetail.Exception == null) {
-               ml.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs", contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs");
                WriteValidationMetrics(runDetail.ValidationMetrics);
             }
             else
-               ml.WriteLog($"Exception: {runDetail.Exception.Message}", contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog($"Exception: {runDetail.Exception.Message}");
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -105,12 +135,12 @@ namespace Microsoft.ML.AutoML
       public void WriteLog(CrossValidationRunDetail<TMetrics> runDetail)
       {
          try {
-            ml.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs", contextName, MessageSensitivity.Unknown);
+            Channel.WriteLog($"Trainer: {runDetail.TrainerName}\t{runDetail.RuntimeInSeconds:0.#} secs");
             foreach (var result in runDetail.Results) {
                if (result.Exception == null)
                   WriteValidationMetrics(result.ValidationMetrics);
                else
-                  ml.WriteLog($"Exception: {result.Exception.Message}", contextName, MessageSensitivity.Unknown);
+                  Channel.WriteLog($"Exception: {result.Exception.Message}");
             }
          }
          catch (Exception exc) {
@@ -125,17 +155,17 @@ namespace Microsoft.ML.AutoML
       {
          try {
             if (metrics is AnomalyDetectionMetrics anomaly)
-               ml.WriteLog(anomaly.ToText(), contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog(anomaly.ToText());
             else if (metrics is BinaryClassificationMetrics binary)
-               ml.WriteLog(binary.ToText(), contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog(binary.ToText());
             else if (metrics is ClusteringMetrics clustering)
-               ml.WriteLog(clustering.ToText(), contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog(clustering.ToText());
             else if (metrics is MulticlassClassificationMetrics multiclass)
-               ml.WriteLog(multiclass.ToText(), contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog(multiclass.ToText());
             else if (metrics is RankingMetrics ranking)
-               ml.WriteLog(ranking.ToText(), contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog(ranking.ToText());
             else if (metrics is RegressionMetrics regression)
-               ml.WriteLog(regression.ToText(), contextName, MessageSensitivity.Unknown);
+               Channel.WriteLog(regression.ToText());
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);

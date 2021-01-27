@@ -18,7 +18,7 @@ namespace MachineLearning.Model
    /// Classe base per i previsori di tipo multiclasse
    /// </summary>
    [Serializable]
-   public abstract class MulticlassModelBase : ModelBase
+   public abstract class MulticlassModelBase : ModelBaseMLNet
    {
       #region Fields
       /// <summary>
@@ -56,8 +56,9 @@ namespace MachineLearning.Model
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      public MulticlassModelBase(MachineLearningContext ml = default) : base(ml) => Trainers = new MulticlassClassificationTrainersCatalog(ML);
+      /// <param name="contextProvider">Provider di contesto di machine learning</param>
+      public MulticlassModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
+         Trainers = new MulticlassClassificationTrainersCatalog(contextProvider);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>
@@ -93,7 +94,7 @@ namespace MachineLearning.Model
                      metrics = (MulticlassClassificationMetrics)GetModelEvaluation(model, data);
                   }
                   lock (queue) {
-                     ML.NET.WriteLog($"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs", (this as IModelName)?.ModelName);
+                     Channel.WriteLog($"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs");
                      queue.Enqueue((model, metrics));
                      availableEvent.Set();
                   }
@@ -103,7 +104,7 @@ namespace MachineLearning.Model
                }
             }
             // Progress dell'autotraining
-            var progress = new AutoMLProgress<MulticlassClassificationMetrics>(ML.NET, (this as IModelName)?.ModelName,
+            var progress = new AutoMLProgress<MulticlassClassificationMetrics>(this,
                (sender, e) =>
                {
                   cancellation.ThrowIfCancellationRequested();
@@ -130,7 +131,7 @@ namespace MachineLearning.Model
                   MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds),
                };
                // Crea l'esperimento
-               var experiment = ML.NET.Auto().CreateMulticlassClassificationExperiment(settings);
+               var experiment = Context.Auto().CreateMulticlassClassificationExperiment(settings);
                // Avvia
                if (numberOfFolds > 1)
                   experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
@@ -174,7 +175,7 @@ namespace MachineLearning.Model
          string samplingKeyColumnName = null,
          int? seed = null)
       {
-         var results = ML.NET.MulticlassClassification.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
+         var results = Context.MulticlassClassification.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
          var best = (from r in results select(r.Model, r.Metrics)).Best();
          metrics = best.Metrics;
          return best.Model;
@@ -201,7 +202,7 @@ namespace MachineLearning.Model
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
       protected override object GetModelEvaluation(ITransformer model, IDataAccess data) =>
-         ML.NET.MulticlassClassification.Evaluate(model.Transform(data), LabelColumnName ?? "Label");
+         Context.MulticlassClassification.Evaluate(model.Transform(data), LabelColumnName ?? "Label");
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>

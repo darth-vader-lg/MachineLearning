@@ -1,5 +1,6 @@
 ﻿using MachineLearning.Data;
 using Microsoft.ML;
+using Microsoft.ML.Runtime;
 using System;
 using System.IO;
 
@@ -35,26 +36,24 @@ namespace MachineLearning.Model
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
-      /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(IMachineLearningContext context, out DataViewSchema inputSchema)
+      public ITransformer LoadModel(MLContext context, out DataViewSchema inputSchema)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
-         return context.ML.NET.Model.Load(FilePath, out inputSchema);
+         Contracts.CheckValue(context, nameof(context));
+         return context.Model.Load(FilePath, out inputSchema);
       }
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
-      /// <typeparam name="T">Il tipo di contesto</typeparam>
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
       /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(IMachineLearningContext context, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(MLContext context, ITransformer model, DataViewSchema inputSchema)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
-         context.ML.NET.Model.Save(model, inputSchema, FilePath);
+         Contracts.CheckValue(context, nameof(context));
+         context.Model.Save(model, inputSchema, FilePath);
       }
       #endregion
    }

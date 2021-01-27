@@ -55,10 +55,10 @@ namespace MachineLearning
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
-      public SizeEstimator(MachineLearningContext ml = default)
+      /// <param name="context">Contesto di machine learning</param>
+      public SizeEstimator(IContextProvider<MLContext> context = default)
       {
-         _model = new Model(this, ml);
+         _model = new Model(this, context);
          SetSchema(0, "Size", "Data");
       }
       /// <summary>
@@ -179,8 +179,8 @@ namespace MachineLearning
          /// Costruttore
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
-         /// <param name="ml">Contesto di machine learning</param>
-         internal Model(SizeEstimator owner, MachineLearningContext ml) : base(ml) => _owner = owner;
+         /// <param name="context">Contesto di machine learning</param>
+         internal Model(SizeEstimator owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
          /// <summary>
          /// Restituisce la pipe di training del modello
          /// </summary>
@@ -191,9 +191,9 @@ namespace MachineLearning
             return _pipes ??= new ModelPipes
             {
                Input =
-                  ML.NET.Transforms.Concatenate("Features", (from c in InputSchema
-                                                             where c.Name != LabelColumnName
-                                                             select c.Name).ToArray()),
+                  Context.Transforms.Concatenate("Features", (from c in InputSchema
+                                                              where c.Name != LabelColumnName
+                                                              select c.Name).ToArray()),
                Trainer =
                   Trainers.LightGbm(new Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options
                   {

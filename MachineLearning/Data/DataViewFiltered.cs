@@ -9,31 +9,31 @@ namespace MachineLearning.Data
    /// <summary>
    /// Vista di dati filtrata
    /// </summary>
-   public sealed partial class DataViewFiltered : IDataAccess, IDataViewRowFilter
+   public sealed partial class DataViewFiltered : ChannelProvider, IDataAccess, IDataViewRowFilter
    {
       #region Fields
       /// <summary>
       /// Data view sorgente
       /// </summary>
-      private readonly IDataAccess _data;
+      private readonly IDataAccess data;
       /// <summary>
       /// Filtro di righe
       /// </summary>
-      private readonly DataViewRowFilter _filter;
+      private readonly DataViewRowFilter filter;
       #endregion
       #region Properties
       /// <summary>
       /// Indica se la dataview ha la capacita' di shuffling
       /// </summary>
-      public bool CanShuffle => _data.CanShuffle;
+      public bool CanShuffle => data.CanShuffle;
       /// <summary>
-      /// Contesto di machine learning
+      /// Descrizione del contesto
       /// </summary>
-      public MachineLearningContext ML => _data.ML;
+      string IExceptionContext.ContextDescription => data.ContextDescription;
       /// <summary>
       /// Lo schema della dataview
       /// </summary>
-      public DataViewSchema Schema => _data.Schema;
+      public DataViewSchema Schema => data.Schema;
       #endregion
       #region Methods
       /// <summary>
@@ -43,11 +43,9 @@ namespace MachineLearning.Data
       /// <param name="filter">Eventuale filtro di riga esterno</param>
       private DataViewFiltered(IDataAccess data, DataViewRowFilter filter = null)
       {
-         MachineLearningContext.AssertMLNET(data, nameof(data));
-         data.ML.NET.AssertValue(data, nameof(data));
-         data.ML.NET.AssertValueOrNull(filter);
-         _data = data;
-         _filter = filter ?? (column => true);
+         Contracts.AssertValue(data, nameof(data));
+         (this.data = data).AssertValueOrNull(filter);
+         this.filter = filter ?? (column => true);
       }
       /// <summary>
       /// Crea una vista di dati filtrata
@@ -57,16 +55,21 @@ namespace MachineLearning.Data
       /// <returns>La vista di dati filtrata</returns>
       public static DataViewFiltered Create(IDataAccess data, DataViewRowFilter filter = null)
       {
-         MachineLearningContext.CheckMLNET(data, nameof(data));
-         data.ML.NET.CheckValue(data, nameof(data));
-         data.ML.NET.CheckValueOrNull(filter);
+         Contracts.CheckValue(data, nameof(data));
+         data.CheckValue(data, nameof(data));
+         data.CheckValueOrNull(filter);
          return new DataViewFiltered(data, filter);
       }
+      /// <summary>
+      /// Funzione di ottenimento del provider di canali
+      /// </summary>
+      /// <returns>Il provider</returns>
+      protected sealed override IChannelProvider GetChannelProvider() => data;
       /// <summary>
       /// Numero di righe
       /// </summary>
       /// <returns>Il numero di righe</returns>
-      public long? GetRowCount() => _data.GetRowCount();
+      public long? GetRowCount() => data.GetRowCount();
       /// <summary>
       /// Restituisce un cursore
       /// </summary>
@@ -87,7 +90,26 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="cursor">Cursore</param>
       /// <returns>La validita'</returns>
-      bool IDataViewRowFilter.IsValidRow(DataViewRowCursor cursor) => _filter(cursor);
+      bool IDataViewRowFilter.IsValidRow(DataViewRowCursor cursor) => filter(cursor);
+      /// <summary>
+      /// Avvia un canale standard di messaggistica
+      /// </summary>
+      /// <param name="name">Nome del canale</param>
+      /// <returns>Il cancle</returns>
+      IChannel IChannelProvider.Start(string name) => data.Start(name);
+      /// <summary>
+      /// Avvia un pipe standard di messaggistica
+      /// </summary>
+      /// <param name="name">Nome del canale</param>
+      /// <returns>Il cancle</returns>
+      IPipe<TMessage> IChannelProvider.StartPipe<TMessage>(string name) => data.StartPipe<TMessage>(name);
+      /// <summary>
+      /// Processo delle eccezioni
+      /// </summary>
+      /// <typeparam name="TException">Tipo di eccezione</typeparam>
+      /// <param name="ex">Eccezione</param>
+      /// <returns>L'eccezione</returns>
+      TException IExceptionContext.Process<TException>(TException ex) => data.Process(ex);
       #endregion
    }
 
@@ -102,25 +124,25 @@ namespace MachineLearning.Data
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
-         private readonly DataViewFiltered _owner;
+         private readonly DataViewFiltered owner;
          /// <summary>
          /// Cursore
          /// </summary>
-         private readonly DataViewRowCursor _cursor;
+         private readonly DataViewRowCursor cursor;
          #endregion
          #region Properties
          /// <summary>
          /// Posizione
          /// </summary>
-         public override long Position => _cursor.Position;
+         public override long Position => cursor.Position;
          /// <summary>
          /// Batch
          /// </summary>
-         public override long Batch => _cursor.Batch;
+         public override long Batch => cursor.Batch;
          /// <summary>
          /// Schema della IDataView
          /// </summary>
-         public override DataViewSchema Schema => _cursor.Schema;
+         public override DataViewSchema Schema => cursor.Schema;
          #endregion
          #region Methods
          /// <summary>
@@ -131,8 +153,8 @@ namespace MachineLearning.Data
          /// <param name="rand">Generatore di numeri casuali</param>
          public RowCursor(DataViewFiltered owner, IEnumerable<DataViewSchema.Column> columnsNeeded, Random rand = null)
          {
-            _owner = owner;
-            _cursor = _owner._data.GetRowCursor(columnsNeeded, rand);
+            this.owner = owner;
+            cursor = this.owner.data.GetRowCursor(columnsNeeded, rand);
          }
          /// <summary>
          /// Restituzione del Getter
@@ -140,26 +162,26 @@ namespace MachineLearning.Data
          /// <typeparam name="TValue">Tipo del valore</typeparam>
          /// <param name="column">Colonna</param>
          /// <returns>Il getter</returns>
-         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column) => _cursor.GetGetter<TValue>(column);
+         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column) => cursor.GetGetter<TValue>(column);
          /// <summary>
          /// Restituzione del Getter di identificativo riga
          /// </summary>
          /// <returns>Il Getter dell'identificativo di riga</returns>
-         public override ValueGetter<DataViewRowId> GetIdGetter() => _cursor.GetIdGetter();
+         public override ValueGetter<DataViewRowId> GetIdGetter() => cursor.GetIdGetter();
          /// <summary>
          /// Indicatore di colonna attiva
          /// </summary>
          /// <param name="column">La colonna da verificare</param>
          /// <returns>true se attiva</returns>
-         public override bool IsColumnActive(DataViewSchema.Column column) => _cursor.IsColumnActive(column);
+         public override bool IsColumnActive(DataViewSchema.Column column) => cursor.IsColumnActive(column);
          /// <summary>
          /// Funzione di avanzamento cursore
          /// </summary>
          /// <returns>true se il cursore e' puntato su una nuova riga</returns>
          public override bool MoveNext()
          {
-            while (_cursor.MoveNext()) {
-               if ((_owner as IDataViewRowFilter).IsValidRow(_cursor))
+            while (cursor.MoveNext()) {
+               if ((owner as IDataViewRowFilter).IsValidRow(cursor))
                   return true;
             }
             return false;

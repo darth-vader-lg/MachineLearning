@@ -17,6 +17,10 @@ namespace MachineLearning.Data
    {
       #region Fields
       /// <summary>
+      /// provider di canali di messaggistica
+      /// </summary>
+      private readonly IChannelProvider _context;
+      /// <summary>
       /// Method info per l'ottenimento del getter
       /// </summary>
       private static readonly MethodInfo _getterMethodInfo = typeof(DataViewGrid).GetMethod(nameof(GetValue), BindingFlags.NonPublic | BindingFlags.Static);
@@ -35,9 +39,9 @@ namespace MachineLearning.Data
       /// </summary>
       public ReadOnlyCollection<Col> Cols { get; private set; }
       /// <summary>
-      /// Contesto di machine learning
+      /// Descrizione del contesto
       /// </summary>
-      public MachineLearningContext ML { get; private set; }
+      string IExceptionContext.ContextDescription => _context.ContextDescription;
       /// <summary>
       /// Righe della tabella
       /// </summary>
@@ -71,14 +75,13 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="schema">Lo schema della vista di dati</param>
       /// <param name="data">Vista di dati</param>
-      private DataViewGrid(IMachineLearningContext context, DataViewSchema schema, IDataAccess data)
+      private DataViewGrid(IChannelProvider context, DataViewSchema schema, IDataAccess data)
       {
          // Check
-         MachineLearningContext.AssertMLNET(context, nameof(context));
-         ML = context.ML;
-         ML.NET.Assert(schema != null || data != null, $"The parameter {nameof(schema)} or the parameter {nameof(data)} must be specified");
+         Contracts.AssertValue((object)(_context = context), nameof(context));
+         _context.Assert(schema != null || data != null, $"The parameter {nameof(schema)} or the parameter {nameof(data)} must be specified");
          if (schema != null && data != null) {
-            ML.NET.Assert(
+            _context.Assert(
                schema.Zip(data.Schema).All(item => item.First.Type.SameSizeAndItemType(item.Second.Type)),
                $"The {nameof(schema)} and the {nameof(data)}.{nameof(data.Schema)} are different");
          }
@@ -110,7 +113,7 @@ namespace MachineLearning.Data
                var id = default(DataViewRowId);
                if (cursor.GetIdGetter() is var idGetter && idGetter != null)
                   idGetter(ref id);
-               _rows.Add(DataViewValuesRow.Create(context, cursor.Schema, cursor.Position, id, objects, active));
+               _rows.Add(DataViewValuesRow.Create(_context, cursor.Schema, cursor.Position, id, objects, active));
             }
          }
          // Memorizza righe
@@ -122,13 +125,13 @@ namespace MachineLearning.Data
       /// <param name="values">Valori</param>
       public void Add(params object[] values)
       {
-         ML.NET.AssertNonEmpty(values);
-         ML.NET.Assert(values.Length == Schema.Count, $"The length of {nameof(values)} must be equal to the length of schema");
+         _context.AssertNonEmpty(values);
+         _context.Assert(values.Length == Schema.Count, $"The length of {nameof(values)} must be equal to the length of schema");
          var dataViewValues = new object[values.Length];
          for (var i = 0; i < values.Length; i++) {
             if (values[i] == null)
                values[i] = Activator.CreateInstance(Schema[i].Type.RawType);
-            ML.NET.Assert(DataViewValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
+            _context.Assert(DataViewValue.CanConvert(values[i].GetType(), Schema[i].Type.RawType), $"Expected {Schema[i].Type.RawType} convertible value, got {values[i].GetType()} in column {Schema[i].Name}");
             dataViewValues[i] = DataViewValue.Convert(values[i], Schema[i].Type.RawType);
          }
          _rows.Add(DataViewValuesRow.Create(this, Schema, _rows.Count, default, dataViewValues, Enumerable.Range(0, dataViewValues.Length).Select(i => true).ToArray()));
@@ -144,12 +147,12 @@ namespace MachineLearning.Data
       /// <param name="values">Valori</param>
       public void Add(params (string Name, object Value)[] values)
       {
-         ML.NET.CheckNonEmpty(values, nameof(values));
+         _context.CheckNonEmpty(values, nameof(values));
          var orderedValues = new object[Schema.Count];
          for (var i = 0; i < orderedValues.Length; i++) {
-            ML.NET.CheckNonEmpty(values[i].Name, $"{nameof(values)}[{i}]", "The name cannot be null");
+            _context.CheckNonEmpty(values[i].Name, $"{nameof(values)}[{i}]", "The name cannot be null");
             var col = Schema.FirstOrDefault(c => c.Name == values[i].Name);
-            ML.NET.CheckNonEmpty(col.Name, $"{nameof(values)}[{i}]", $"The schema doesn't contain the column {values[i].Name}");
+            _context.CheckNonEmpty(col.Name, $"{nameof(values)}[{i}]", $"The schema doesn't contain the column {values[i].Name}");
             orderedValues[i] = values[i].Value;
          }
          Add(orderedValues);
@@ -161,8 +164,7 @@ namespace MachineLearning.Data
       /// <returns>La griglia di dati</returns>
       public static DataViewGrid Create(IDataAccess data)
       {
-         MachineLearningContext.CheckMLNET(data, nameof(data));
-         data.ML.NET.CheckValue(data, nameof(data));
+         Contracts.CheckValue(data, nameof(data));
          return new DataViewGrid(data, null, data);
       }
       /// <summary>
@@ -171,10 +173,10 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="schema">Schema</param>
       /// <returns>La griglia di dati</returns>
-      public static DataViewGrid Create(IMachineLearningContext context, DataViewSchema schema)
+      public static DataViewGrid Create(IChannelProvider context, DataViewSchema schema)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
-         context.ML.NET.CheckValue(schema, nameof(schema));
+         Contracts.CheckValue(context, nameof(context));
+         context.CheckValue(schema, nameof(schema));
          return new DataViewGrid(context, schema, null);
       }
       /// <summary>
@@ -219,10 +221,32 @@ namespace MachineLearning.Data
       public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand) =>
          Enumerable.Range(0, n).Select(i => new Cursor(this, columnsNeeded)).ToArray();
       /// <summary>
+      /// Avvia un canale standard di messaggistica
+      /// </summary>
+      /// <param name="name">Nome del canale</param>
+      /// <returns>Il cancle</returns>
+      IChannel IChannelProvider.Start(string name) =>
+         _context.Start(name);
+      /// <summary>
+      /// Avvia un pipe standard di messaggistica
+      /// </summary>
+      /// <param name="name">Nome del canale</param>
+      /// <returns>Il cancle</returns>
+      IPipe<TMessage> IChannelProvider.StartPipe<TMessage>(string name) =>
+         _context.StartPipe<TMessage>(name);
+      /// <summary>
       /// Enumeratore di righe
       /// </summary>
       /// <returns>L'enumeratore</returns>
       IEnumerator IEnumerable.GetEnumerator() => _rows.GetEnumerator();
+      /// <summary>
+      /// Processo delle eccezioni
+      /// </summary>
+      /// <typeparam name="TException">Tipo di eccezione</typeparam>
+      /// <param name="ex">Eccezione</param>
+      /// <returns>L'eccezione</returns>
+      TException IExceptionContext.Process<TException>(TException ex) =>
+         _context.Process(ex);
    }
 
    public partial class DataViewGrid // Cursor
@@ -284,7 +308,7 @@ namespace MachineLearning.Data
          public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
          {
             if (!typeof(TValue).IsAssignableFrom(column.Type.RawType))
-               throw _owner.ML.NET.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
+               throw _owner._context.Except($"Invalid TValue in GetGetter: '{typeof(TValue)}', expected type: '{column.Type.RawType}'.");
             return (ref TValue value) => value = (TValue)_owner.Rows[(int)Position].Values[column.Index].Value;
          }
          /// <summary>

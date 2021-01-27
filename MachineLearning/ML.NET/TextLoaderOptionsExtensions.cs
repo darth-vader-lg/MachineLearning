@@ -55,7 +55,7 @@ namespace Microsoft.ML.Data
       /// <param name="textLoaderOptions">Opzioni di caricamento testi</param>
       /// <returns>Lo schema di vista dati</returns>
       public static DataViewSchema ToDataViewSchema(this TextLoader.Options textLoaderOptions) =>
-         MachineLearningContext.Default.NET.Data.CreateTextLoader(textLoaderOptions).GetOutputSchema();
+         MachineLearningContext.Default.MLNET.Data.CreateTextLoader(textLoaderOptions).GetOutputSchema();
       #endregion
    }
 }

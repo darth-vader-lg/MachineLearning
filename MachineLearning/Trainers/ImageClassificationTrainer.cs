@@ -1,7 +1,7 @@
 ﻿using Microsoft.ML;
-using Microsoft.ML.Vision;
 using System;
-using ML = Microsoft.ML.Vision;
+using MSModel = Microsoft.ML.Vision.ImageClassificationModelParameters;
+using MSTrainer = Microsoft.ML.Vision.ImageClassificationTrainer;
 
 namespace MachineLearning.Trainers
 {
@@ -10,20 +10,20 @@ namespace MachineLearning.Trainers
    /// </summary>
    [Serializable]
    public sealed class ImageClassificationTrainer :
-      TrainerBase<ImageClassificationModelParameters, ML.ImageClassificationTrainer, ML.ImageClassificationTrainer.Options>
+      TrainerBase<MSModel, MSTrainer, MSTrainer.Options>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="ml"></param>
-      internal ImageClassificationTrainer(MachineLearningContext ml, ML.ImageClassificationTrainer.Options options = default) : base(ml, options) { }
+      /// <param name="contextProvider">Provider di contesto</param>
+      internal ImageClassificationTrainer(IContextProvider<MLContext> contextProvider, MSTrainer.Options options = default) : base(contextProvider, options) { }
       /// <summary>
       /// Funzione di creazione del trainer
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="context">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected override ML.ImageClassificationTrainer CreateTrainer(MachineLearningContext ml) => ml.NET.MulticlassClassification.Trainers.ImageClassification(Options);
+      protected override MSTrainer CreateTrainer(MLContext context) => context.MulticlassClassification.Trainers.ImageClassification(Options);
       #endregion
    }
 }

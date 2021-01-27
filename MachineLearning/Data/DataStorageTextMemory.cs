@@ -1,5 +1,6 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using System;
 using System.IO;
 using System.Text;
@@ -39,10 +40,10 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="data">L'accesso ai dati</param>
-      /// <param name="textLoaderOptions">Eventuali opzioni di caricamento testuale</param>
-      public override void SaveData(IMachineLearningContext context, IDataView data, TextLoader.Options textLoaderOptions = default)
+      /// <param name="textLoaderOptions">Opzioni di caricamento testuale</param>
+      public override void SaveData(MLContext context, IDataAccess data, TextLoader.Options textLoaderOptions)
       {
-         MachineLearningContext.CheckMLNET(context, nameof(context));
+         Contracts.CheckValue(context, nameof(context));
          // Data e ora
          var timestamp = DateTime.UtcNow;
          lock (this) {
