@@ -33,7 +33,7 @@ namespace MachineLearning.Model
       /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      ITransformer IModelTrainer.GetTrainedModel(ModelBase<MLContext> model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
+      ITransformer IModelTrainer.GetTrainedModel(ModelBaseMLNet model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
       {
          evaluationMetrics = null;
          var result = model.GetPipes().Merged.Fit(data.CanShuffle ? model.Context.Data.ShuffleRows(data, _trainingSeed++) : data);

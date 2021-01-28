@@ -18,7 +18,7 @@ namespace MachineLearning.Model
       /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      ITransformer GetTrainedModel(ModelBase<MLContext> model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation);
+      ITransformer GetTrainedModel(ModelBaseMLNet model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation);
       #endregion
    }
 }

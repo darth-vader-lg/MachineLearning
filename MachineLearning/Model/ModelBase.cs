@@ -147,21 +147,6 @@ namespace MachineLearning.Model
          }
       }
       /// <summary>
-      /// Effettua il training con la ricerca automatica del miglior trainer
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="maxTimeInSeconds">Numero massimo di secondi di training</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il modello migliore</returns>
-      public abstract ITransformer AutoTraining(
-         IDataAccess data,
-         int maxTimeInSeconds,
-         out object metrics,
-         int numberOfFolds = 1,
-         CancellationToken cancellation = default);
-      /// <summary>
       /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
       public void ClearModel() => ClearTrainingAsync().WaitSync();
@@ -231,21 +216,6 @@ namespace MachineLearning.Model
             }
          }
       }
-      /// <summary>
-      /// Effettua il training con validazione incrociata del modello
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni</param>
-      /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
-      /// <param name="seed">Seme per le operazioni random</param>
-      /// <returns>Il modello migliore</returns>
-      public abstract ITransformer CrossValidateTraining(
-         IDataAccess data,
-         out object metrics,
-         int numberOfFolds = 5,
-         string samplingKeyColumnName = null,
-         int? seed = null);
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
@@ -384,11 +354,6 @@ namespace MachineLearning.Model
       /// <param name="modelEvaluation">Il risultato della valutazione di un modello</param>
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected virtual string GetModelEvaluationInfo(object modelEvaluation) => null;
-      /// <summary>
-      /// Restituisce le pipe di training del modello
-      /// </summary>
-      /// <returns>Le pipe</returns>
-      public abstract ModelPipes GetPipes();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>

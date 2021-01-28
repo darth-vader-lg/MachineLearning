@@ -67,7 +67,7 @@ namespace MachineLearning.Model
       /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il modello migliore</returns>
-      public override ITransformer AutoTraining(
+      public override sealed ITransformer AutoTraining(
          IDataAccess data,
          int maxTimeInSeconds,
          out object metrics,
@@ -174,7 +174,7 @@ namespace MachineLearning.Model
       /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
       /// <param name="seed">Seme per le operazioni random</param>
       /// <returns>Il modello migliore</returns>
-      public override ITransformer CrossValidateTraining(
+      public override sealed ITransformer CrossValidateTraining(
          IDataAccess data,
          out object metrics,
          int numberOfFolds = 5,
