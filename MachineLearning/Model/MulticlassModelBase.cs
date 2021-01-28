@@ -87,14 +87,14 @@ namespace MachineLearning.Model
             void Enqueue(string trainerName, double runtimeInSeconds, ITransformer model, MulticlassClassificationMetrics metrics)
             {
                try {
-                  if (pipes.Output != null) {
+                  if (model != null && pipes.Output != null) {
                      var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
                      var outputTransformer = pipes.Output.Fit(dataFirstRow);
                      model = new TransformerChain<ITransformer>(model, outputTransformer);
                      metrics = (MulticlassClassificationMetrics)GetModelEvaluation(model, data);
                   }
                   lock (queue) {
-                     Channel.WriteLog($"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs");
+                     Channel.WriteLog(model == null ? $"Autotraining complete" : $"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs");
                      queue.Enqueue((model, metrics));
                      availableEvent.Set();
                   }
@@ -129,26 +129,33 @@ namespace MachineLearning.Model
             _autoTrainingTask.StartNew(cancellation => Task.Factory.StartNew(() =>
             {
                // Impostazioni dell'esperimento
-               var settings = new MulticlassExperimentSettings
-               {
-                  CancellationToken = cancellation,
-                  OptimizingMetric = BestModelSelectionMetric,
-                  MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds),
-               };
-               // Crea l'esperimento
-               var experiment = Context.Auto().CreateMulticlassClassificationExperiment(settings);
-               // Avvia
-               if (numberOfFolds > 1)
-                  experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
-               else
-                  experiment.Execute(data, LabelColumnName, null, pipes.Input, progress);
+               try {
+                  var settings = new MulticlassExperimentSettings
+                  {
+                     CancellationToken = cancellation,
+                     OptimizingMetric = BestModelSelectionMetric,
+                     MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds),
+                  };
+                  // Crea l'esperimento
+                  var experiment = Context.Auto().CreateMulticlassClassificationExperiment(settings);
+                  // Avvia
+                  if (numberOfFolds > 1)
+                     experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
+                  else
+                     experiment.Execute(data, LabelColumnName, null, pipes.Input, progress);
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+                  Channel.WriteLog(exc.ToString());
+               }
+               Enqueue(null, 0.0, null, null);
             },
             cancellation,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default), cancellation);
          }
          // Attende un risultato dal training automatico o la cancellazione
-         WaitHandle.WaitAny(new[] { _autoTrainingModelAvailable, cancellation.WaitHandle });
+         var waitResult = WaitHandle.WaitAny(new[] { _autoTrainingModelAvailable, cancellation.WaitHandle });
          cancellation.ThrowIfCancellationRequested();
          // Preleva dalla coda
          lock (_autoTrainingModels) {
@@ -187,6 +194,37 @@ namespace MachineLearning.Model
          var best = (from r in results select(r.Model, r.Metrics)).Best();
          metrics = best.Metrics;
          return best.Model;
+      }
+      /// <summary>
+      /// Funzione di dispose
+      /// </summary>
+      /// <param name="disposing"></param>
+      protected override void Dispose(bool disposing)
+      {
+         base.Dispose(disposing);
+         if (disposing) {
+            if (!_autoTrainingTask.Task.IsCompleted) {
+               _autoTrainingTask.Task.ContinueWith(t =>
+               {
+                  try {
+                     _autoTrainingModelAvailable?.Dispose();
+                     _autoTrainingModelAvailable = null;
+                  }
+                  catch (Exception exc) {
+                     Trace.WriteLine(exc);
+                  }
+               });
+            }
+            else {
+               try {
+                  _autoTrainingModelAvailable?.Dispose();
+                  _autoTrainingModelAvailable = null;
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+               }
+            }
+         }
       }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
