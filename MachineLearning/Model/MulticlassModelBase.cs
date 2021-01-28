@@ -126,7 +126,7 @@ namespace MachineLearning.Model
                      Enqueue(e.TrainerName, e.RuntimeInSeconds, best.Model, best.Metrics);
                });
             // Avvia il task di esperimenti di autotraining
-            _autoTrainingTask.StartNew(cancellation => Task.Run(() =>
+            _autoTrainingTask.StartNew(cancellation => Task.Factory.StartNew(() =>
             {
                // Impostazioni dell'esperimento
                var settings = new MulticlassExperimentSettings
@@ -142,7 +142,10 @@ namespace MachineLearning.Model
                   experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), LabelColumnName, null, pipes.Input, progress);
                else
                   experiment.Execute(data, LabelColumnName, null, pipes.Input, progress);
-            }, cancellation), cancellation);
+            },
+            cancellation,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default), cancellation);
          }
          // Attende un risultato dal training automatico o la cancellazione
          WaitHandle.WaitAny(new[] { _autoTrainingModelAvailable, cancellation.WaitHandle });
