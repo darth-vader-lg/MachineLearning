@@ -178,6 +178,7 @@ namespace MachineLearningStudio
          this.textBoxOutput.Multiline = true;
          this.textBoxOutput.Name = "textBoxOutput";
          this.textBoxOutput.ReadOnly = true;
+         this.textBoxOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
          this.textBoxOutput.Size = new System.Drawing.Size(687, 485);
          this.textBoxOutput.TabIndex = 1;
          // 

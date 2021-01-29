@@ -127,6 +127,7 @@ namespace MachineLearningStudio
                ModelStorage = new ModelStorageFile(Path.Combine(Environment.CurrentDirectory, "Data", Path.ChangeExtension(textBoxDataSetName.Text, "model.zip"))),
                Name = "Predictor",
                TrainingData = new DataStorageBinaryMemory(),
+               ModelTrainer = new ModelTrainerAuto()
             };
             predictor.SetSchema(0, "Number", "Length", "Instep");
             // Indicatore di inizializzazione ok
