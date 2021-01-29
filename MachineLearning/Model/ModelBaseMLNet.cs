@@ -1,15 +1,22 @@
 ﻿using MachineLearning.Data;
+using MachineLearning.Util;
 using Microsoft.ML;
+using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MachineLearning.Model
 {
    /// <summary>
    /// Classe base per i modeli ML.NET
    /// </summary>
-   public abstract class ModelBaseMLNet : ModelBase<MLContext>, ITransformer
+   public abstract partial class ModelBaseMLNet : ModelBase<MLContext>, ITransformer
    {
       #region Methods
       /// <summary>
@@ -136,5 +143,205 @@ namespace MachineLearning.Model
       /// <returns>I dati trasformati</returns>
       public IDataView Transform(IDataView input) => GetEvaluation(new ModelTrainerStandard()).Model?.Transform(input);
       #endregion
+   }
+
+   /// <summary>
+   /// Helper di autotraining
+   /// </summary>
+   partial class ModelBaseMLNet // AutoTrainingTask
+   {
+      internal protected class AutoTrainingTask<TMetrics, TExperimentSettings> : IDisposable where TMetrics : class where TExperimentSettings : ExperimentSettings
+      {
+         #region Fields
+         /// <summary>
+         /// Evento di modello di autotraining disponibile
+         /// </summary>
+         private ManualResetEvent autoTrainingModelAvailable;
+         /// <summary>
+         /// Coda di modelli di autotraining
+         /// </summary>
+         private Queue<(ITransformer Model, TMetrics Metrics)> autoTrainingModels = new Queue<(ITransformer Model, TMetrics Metrics)>();
+         /// <summary>
+         /// Task di autotraining
+         /// </summary>
+         private readonly CancellableTask autoTrainingTask = new CancellableTask(cancellation => Task.CompletedTask);
+         /// <summary>
+         /// Oggetto di appartenenza
+         /// </summary>
+         private readonly ModelBaseMLNet owner;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// Stato di running del task
+         /// </summary>
+         public bool IsRunning => !autoTrainingTask.Task.IsCompleted && !autoTrainingTask.CancellationToken.IsCancellationRequested;
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="owner">Oggetto di appartenenza</param>
+         public AutoTrainingTask(ModelBaseMLNet owner) => this.owner = owner;
+         /// <summary>
+         /// Finalizzatore
+         /// </summary>
+         ~AutoTrainingTask() => Dispose(disposing: false);
+         /// <summary>
+         /// Dispose da programma
+         /// </summary>
+         public void Dispose()
+         {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+         }
+         /// <summary>
+         /// Funzione di dispose
+         /// </summary>
+         /// <param name="disposing"></param>
+         protected virtual void Dispose(bool disposing)
+         {
+            if (disposing) {
+               if (!autoTrainingTask.Task.IsCompleted) {
+                  autoTrainingTask.Task.ContinueWith(t =>
+                  {
+                     try {
+                        autoTrainingModelAvailable?.Dispose();
+                        autoTrainingModelAvailable = null;
+                     }
+                     catch (Exception exc) {
+                        Trace.WriteLine(exc);
+                     }
+                  });
+               }
+               else {
+                  try {
+                     autoTrainingModelAvailable?.Dispose();
+                     autoTrainingModelAvailable = null;
+                  }
+                  catch (Exception exc) {
+                     Trace.WriteLine(exc);
+                  }
+               }
+            }
+            else if (autoTrainingTask.Task.IsCompleted) {
+               autoTrainingModelAvailable?.Dispose();
+               autoTrainingModelAvailable = null;
+            }
+         }
+         /// <summary>
+         /// Effettua il training con la ricerca automatica del miglior trainer
+         /// </summary>
+         /// <param name="ExperimentCreator">Creatore di esperimenti</param>
+         /// <param name="BestModelEvaluator">Evaluator del miglior modello</param>
+         /// <param name="data">Dati</param>
+         /// <param name="labelColumnName">Nome colonna label</param>
+         /// <param name="metrics">La metrica del modello migliore</param>
+         /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
+         /// <param name="cancellation">Token di cancellazione</param>
+         /// <returns>Il modello migliore</returns>
+         public ITransformer WaitResult(
+            Func<ExperimentBase<TMetrics, TExperimentSettings>> ExperimentCreator,
+            Func<IEnumerable<(ITransformer Model, TMetrics Metrics)>, (ITransformer Model, TMetrics Metrics)> BestModelEvaluator,
+            IDataAccess data,
+            string labelColumnName,
+            out TMetrics metrics,
+            int numberOfFolds = 1,
+            CancellationToken cancellation = default)
+         {
+            // Avvia il task di autotraining se necessario
+            if (autoTrainingModels.Count == 0 && (autoTrainingTask.Task.IsCompleted || autoTrainingTask.CancellationToken.IsCancellationRequested)) {
+               // Ottiene le pipe
+               var pipes = owner.GetPipes();
+               // Coda dei modelli di training calcolati
+               var queue = autoTrainingModels = new Queue<(ITransformer Model, TMetrics Metrics)>();
+               // Evento di modello disponibile
+               var availableEvent = autoTrainingModelAvailable = new ManualResetEvent(false);
+               // Funzione di accodamento modelli
+               void Enqueue(string trainerName, double runtimeInSeconds, ITransformer model, TMetrics metrics)
+               {
+                  try {
+                     if (model != null && pipes.Output != null) {
+                        var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
+                        var outputTransformer = pipes.Output.Fit(dataFirstRow);
+                        model = new TransformerChain<ITransformer>(model, outputTransformer);
+                        metrics = (TMetrics)owner.GetModelEvaluation(model, data);
+                     }
+                     lock (queue) {
+                        owner.Channel.WriteLog(model == null ? $"Autotraining complete" : $"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs");
+                        queue.Enqueue((model, metrics));
+                        availableEvent.Set();
+                     }
+                  }
+                  catch (Exception exc) {
+                     Trace.WriteLine(exc);
+                     try {
+                       owner. Channel.WriteLog(exc.ToString());
+                     }
+                     catch (Exception) {
+                     }
+                  }
+               }
+               // Progress dell'autotraining
+               var progress = new AutoMLProgress<TMetrics>(owner,
+                  (sender, e) =>
+                  {
+                     cancellation.ThrowIfCancellationRequested();
+                     if (e.Exception != null)
+                        sender.WriteLog(e);
+                     else
+                        Enqueue(e.TrainerName, e.RuntimeInSeconds, e.Model, e.ValidationMetrics);
+                  },
+                  (sender, e) =>
+                  {
+                     cancellation.ThrowIfCancellationRequested();
+                     var best = BestModelEvaluator(from r in e.Results where r.Exception == null select (r.Model, r.ValidationMetrics));
+                     if (best != default)
+                        Enqueue(e.TrainerName, e.RuntimeInSeconds, best.Model, best.Metrics);
+                  });
+               // Avvia il task di esperimenti di autotraining
+               autoTrainingTask.StartNew(cancellation => Task.Factory.StartNew(() =>
+               {
+                  // Impostazioni dell'esperimento
+                  try {
+                     // Crea l'esperimento
+                     var experiment = ExperimentCreator();
+                     // Avvia
+                     if (numberOfFolds > 1)
+                        experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), labelColumnName, null, pipes.Input, progress);
+                     else
+                        experiment.Execute(data, labelColumnName, null, pipes.Input, progress);
+                  }
+                  catch (Exception exc) {
+                     Trace.WriteLine(exc);
+                     owner.Channel.WriteLog(exc.ToString());
+                  }
+                  Enqueue(null, 0.0, null, default);
+               },
+               cancellation,
+               TaskCreationOptions.LongRunning,
+               TaskScheduler.Default), cancellation);
+            }
+            // Attende un risultato dal training automatico o la cancellazione
+            var waitResult = WaitHandle.WaitAny(new[] { autoTrainingModelAvailable, cancellation.WaitHandle });
+            cancellation.ThrowIfCancellationRequested();
+            // Preleva dalla coda
+            lock (autoTrainingModels) {
+               // Verifica presenza elementi
+               if (autoTrainingModels.Count < 1) {
+                  metrics = default;
+                  return null;
+               }
+               // Preleva elemento
+               var item = autoTrainingModels.Dequeue();
+               // Resetta l'evento se la coda e' vuota
+               if (autoTrainingModels.Count == 0)
+                  autoTrainingModelAvailable.Reset();
+               // Restituisce il risultato
+               metrics = item.Metrics;
+               return item.Model;
+            }
+         }
+         #endregion
+      }
    }
 }

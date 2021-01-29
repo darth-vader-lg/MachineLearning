@@ -805,9 +805,9 @@ namespace MachineLearning.Model
                   break;
                else if (e.InputSchema != (this as IInputSchema)?.InputSchema)
                   break;
-               else if (e.ModelAutoCommit != (this as IModelAutoCommit)?.ModelAutoCommit)
+               else if (e.ModelAutoCommit != ((this as IModelAutoCommit)?.ModelAutoCommit ?? false))
                   break;
-               else if (e.ModelAutoSave != (this as IModelAutoSave)?.ModelAutoSave)
+               else if (e.ModelAutoSave != ((this as IModelAutoSave)?.ModelAutoSave ?? false))
                   break;
             }
          }

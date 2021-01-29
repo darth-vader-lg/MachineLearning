@@ -123,6 +123,8 @@ namespace MachineLearning
          RegressionModelBase,
          IDataStorageProvider,
          IInputSchema,
+         IModelAutoCommit,
+         IModelAutoSave,
          IModelName,
          IModelStorageProvider,
          IModelTrainerProvider,
@@ -149,6 +151,14 @@ namespace MachineLearning
          /// Schema di input del modello
          /// </summary>
          public DataViewSchema InputSchema => ((IInputSchema)_owner).InputSchema;
+         /// <summary>
+         /// Abilitazione salvataggio automatico modello
+         /// </summary>
+         public bool ModelAutoCommit => true;
+         /// <summary>
+         /// Abilitazione commit automatico dei dati di training
+         /// </summary>
+         public bool ModelAutoSave => true;
          /// <summary>
          /// Storage del modello
          /// </summary>
