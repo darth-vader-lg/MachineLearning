@@ -47,7 +47,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="contextProvider">Provider di contesto di machine learning</param>
       public MulticlassModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
-         Trainers = new TCatalog(contextProvider);
+         Trainers = new TCatalog(this);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>
