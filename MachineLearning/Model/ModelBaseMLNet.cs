@@ -16,6 +16,7 @@ namespace MachineLearning.Model
    /// <summary>
    /// Classe base per i modeli ML.NET
    /// </summary>
+   [Serializable]
    public abstract partial class ModelBaseMLNet : ModelBase<MLContext>, ITransformer
    {
       #region Methods
