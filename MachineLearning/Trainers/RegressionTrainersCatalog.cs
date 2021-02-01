@@ -28,6 +28,13 @@ namespace MachineLearning.Trainers
       public FastTreeRegressionTrainer FastTree(Microsoft.ML.Trainers.FastTree.FastTreeRegressionTrainer.Options options = default) =>
          new FastTreeRegressionTrainer(this, options);
       /// <summary>
+      /// Restituisce un trainer di tipo FastTreeRegression
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public FastTreeTweedieTrainer FastTreeTweedie(Microsoft.ML.Trainers.FastTree.FastTreeTweedieTrainer.Options options = default) =>
+         new FastTreeTweedieTrainer(this, options);
+      /// <summary>
       /// Restituisce un trainer di tipo LightGbmRegression
       /// </summary>
       /// <param name="options">Opzioni</param>
