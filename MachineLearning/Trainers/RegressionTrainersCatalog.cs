@@ -56,6 +56,13 @@ namespace MachineLearning.Trainers
       public LightGbmRegressionTrainer LightGbm(Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options options = default) =>
          new LightGbmRegressionTrainer(this, options);
       /// <summary>
+      /// Restituisce un trainer di tipo Ols
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public OlsTrainer Ols(Microsoft.ML.Trainers.OlsTrainer.Options options = default) =>
+         new OlsTrainer(this, options);
+      /// <summary>
       /// Restituisce un trainer di tipo SdcaRegression
       /// </summary>
       /// <param name="options">Opzioni</param>
