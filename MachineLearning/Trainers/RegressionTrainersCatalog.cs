@@ -63,6 +63,13 @@ namespace MachineLearning.Trainers
       public OlsTrainer Ols(Microsoft.ML.Trainers.OlsTrainer.Options options = default) =>
          new OlsTrainer(this, options);
       /// <summary>
+      /// Restituisce un trainer di tipo OnlineGradientDescent
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public OnlineGradientDescentTrainer OnlineGradientDescentTrainer(Microsoft.ML.Trainers.OnlineGradientDescentTrainer.Options options = default) =>
+         new OnlineGradientDescentTrainer(this, options);
+      /// <summary>
       /// Restituisce un trainer di tipo SdcaRegression
       /// </summary>
       /// <param name="options">Opzioni</param>
