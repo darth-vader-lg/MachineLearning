@@ -16,7 +16,7 @@ namespace MachineLearning.Serialization
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
             var data = new SdcaNonCalibratedMulticlassTrainer.Options();
-            SetObjectData(obj = data, info);
+            SetObjectData(data, info);
             info.Set(nameof(data.Loss), () => data.Loss, value => { if (value != null) data.Loss = value; });
             return data;
          }
