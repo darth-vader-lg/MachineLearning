@@ -25,8 +25,15 @@ namespace MachineLearning.Trainers
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
-      public LbfgsMaximumEntropyMulticlassTrainer SdcaNonCalibrated(Microsoft.ML.Trainers.LbfgsMaximumEntropyMulticlassTrainer.Options options = default) =>
+      public LbfgsMaximumEntropyMulticlassTrainer LbfgsMaximumEntropy(Microsoft.ML.Trainers.LbfgsMaximumEntropyMulticlassTrainer.Options options = default) =>
          new LbfgsMaximumEntropyMulticlassTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo LightGbmMulticlassTrainer
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public LightGbmMulticlassTrainer LightGbm(Microsoft.ML.Trainers.LightGbm.LightGbmMulticlassTrainer.Options options = default) =>
+         new LightGbmMulticlassTrainer(this, options);
       /// <summary>
       /// Restituisce un trainer di tipo SdcaNonCalibratedMulticlass
       /// </summary>
