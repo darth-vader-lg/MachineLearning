@@ -21,7 +21,7 @@ namespace MachineLearning.Serialization
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
             var data = new LightGbmMulticlassTrainer.Options();
-            SetObjectData(obj = data, info);
+            SetObjectData(data, info);
             info.Set(nameof(data.UnbalancedSets), out data.UnbalancedSets);
             info.Set(nameof(data.UseSoftmax), out data.UseSoftmax);
             info.Set(nameof(data.Sigmoid), out data.Sigmoid);

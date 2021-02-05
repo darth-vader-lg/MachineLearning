@@ -17,7 +17,7 @@ namespace MachineLearning.Serialization
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
             var data = new LbfgsMaximumEntropyMulticlassTrainer.Options();
-            SetObjectData(obj = data, info);
+            SetObjectData(data, info);
             info.Set(nameof(data.ShowTrainingStatistics), out data.ShowTrainingStatistics);
             return data;
          }

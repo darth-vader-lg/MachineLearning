@@ -14,7 +14,7 @@ namespace MachineLearning.Trainers
    public abstract class TrainerBase<TModel, TTrainer, TOptions> : IDeserializationCallback, IEstimator<ISingleFeaturePredictionTransformer<TModel>>
       where TModel : class
       where TTrainer : IEstimator<ISingleFeaturePredictionTransformer<TModel>>
-      where TOptions : class, new()
+      where TOptions : new()
    {
       #region Fields
       /// <summary>
