@@ -17,7 +17,7 @@ namespace MachineLearning.Serialization
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
             var data = new OlsTrainer.Options();
-            SetObjectData(obj = data, info);
+            SetObjectData(data, info);
             info.Set(nameof(data.L2Regularization), out data.L2Regularization);
             info.Set(nameof(data.CalculateStatistics), out data.CalculateStatistics);
             return data;
