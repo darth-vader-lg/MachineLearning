@@ -12,39 +12,42 @@ namespace Microsoft.ML.Data
    public static class BinaryClassificationExtensions
    {
       /// <summary>
-      /// Estrae il migliore da un elenco di risultati
+      /// Estrae il migliore da un elenco di modelli e metriche
       /// </summary>
-      /// <param name="results">Elenco di risultati</param>
+      /// <param name="models">Elenco di modelli e metriche</param>
       /// <returns>Il risultato migliore</returns>
-      public static TrainCatalogBase.CrossValidationResult<BinaryClassificationMetrics> Best(this IEnumerable<TrainCatalogBase.CrossValidationResult<BinaryClassificationMetrics>> results)
+      public static (ITransformer Model, BinaryClassificationMetrics Metrics) Best(this IEnumerable<(ITransformer Model, BinaryClassificationMetrics Metrics)> models)
       {
          try {
-            var result = (from item in results
+            var result = (from item in models
                           orderby item.Metrics.Accuracy descending
                           select item).First();
             return result;
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            return null;
+            return default;
          }
       }
       /// <summary>
-      /// Estrae il migliore da un elenco di risultati
+      /// Estrae il migliore da un elenco di modelli e metriche
       /// </summary>
-      /// <param name="results">Elenco di risultati</param>
+      /// <param name="models">Elenco di modelli e metriche</param>
       /// <returns>Il risultato migliore</returns>
-      public static TrainCatalogBase.CrossValidationResult<CalibratedBinaryClassificationMetrics> Best(this IEnumerable<TrainCatalogBase.CrossValidationResult<CalibratedBinaryClassificationMetrics>> results)
+      public static (ITransformer Model, CalibratedBinaryClassificationMetrics Metrics) Best(this IEnumerable<(ITransformer Model, CalibratedBinaryClassificationMetrics Metrics)> models)
       {
          try {
-            var result = (from item in results
-                          orderby item.Metrics.Accuracy descending
+            var result = (from item in (from item in models
+                                        group item by item.Metrics.Accuracy into grps
+                                        orderby grps.Key descending
+                                        select grps).First()
+                          orderby item.Metrics.LogLoss
                           select item).First();
             return result;
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            return null;
+            return default;
          }
       }
       /// <summary>
