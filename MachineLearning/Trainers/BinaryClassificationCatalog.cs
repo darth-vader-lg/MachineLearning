@@ -20,6 +20,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public AveragedPerceptronTrainer AveragedPerceptron(Microsoft.ML.Trainers.AveragedPerceptronTrainer.Options options = default) =>
          new AveragedPerceptronTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo AveragedPerceptron
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public FastForestBinaryTrainer FastForest(Microsoft.ML.Trainers.FastTree.FastForestBinaryTrainer.Options options = default) =>
+         new FastForestBinaryTrainer(this, options);
       #endregion
    }
 }
