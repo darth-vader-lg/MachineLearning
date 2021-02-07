@@ -76,6 +76,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public LinearSvmTrainer LinearSvm(Microsoft.ML.Trainers.LinearSvmTrainer.Options options = default) =>
          new LinearSvmTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo LightGbm
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public PriorTrainer Prior((string LabelColumnName, string FeaturesColumnName) options = default) =>
+         new PriorTrainer(this, options);
       #endregion
    }
 }
