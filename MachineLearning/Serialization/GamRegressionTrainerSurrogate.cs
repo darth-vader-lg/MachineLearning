@@ -20,7 +20,6 @@ namespace MachineLearning.Serialization
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
             var data = new GamRegressionTrainer.Options();
-            obj = data;
             SetObjectData(obj, info);
             info.Set(nameof(data.PruningMetrics), out data.PruningMetrics);
             return data;

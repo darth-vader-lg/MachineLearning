@@ -21,26 +21,33 @@ namespace MachineLearning.Trainers
       public AveragedPerceptronTrainer AveragedPerceptron(Microsoft.ML.Trainers.AveragedPerceptronTrainer.Options options = default) =>
          new AveragedPerceptronTrainer(this, options);
       /// <summary>
-      /// Restituisce un trainer di tipo AveragedPerceptron
+      /// Restituisce un trainer di tipo FastForest
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
       public FastForestBinaryTrainer FastForest(Microsoft.ML.Trainers.FastTree.FastForestBinaryTrainer.Options options = default) =>
          new FastForestBinaryTrainer(this, options);
       /// <summary>
-      /// Restituisce un trainer di tipo AveragedPerceptron
+      /// Restituisce un trainer di tipo FastTree
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
       public FastTreeBinaryTrainer FastTree(Microsoft.ML.Trainers.FastTree.FastTreeBinaryTrainer.Options options = default) =>
          new FastTreeBinaryTrainer(this, options);
       /// <summary>
-      /// Restituisce un trainer di tipo AveragedPerceptron
+      /// Restituisce un trainer di tipo FieldAwareFactorizationMachine
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
       public FieldAwareFactorizationMachineTrainer FieldAwareFactorizationMachine(Microsoft.ML.Trainers.FieldAwareFactorizationMachineTrainer.Options options = default) =>
          new FieldAwareFactorizationMachineTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo Gam
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public GamBinaryTrainer Gam(Microsoft.ML.Trainers.FastTree.GamBinaryTrainer.Options options = default) =>
+         new GamBinaryTrainer(this, options);
       #endregion
    }
 }
