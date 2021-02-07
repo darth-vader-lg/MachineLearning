@@ -5,14 +5,14 @@ namespace MachineLearning.Trainers
    /// <summary>
    /// Catalogo di trainers di regressione
    /// </summary>
-   public class RegressionTrainersCatalog : ContextProvider<MLContext>
+   public class RegressionTrainers : ContextProvider<MLContext>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      internal RegressionTrainersCatalog(IContextProvider<MLContext> context) : base(context) { }
+      internal RegressionTrainers(IContextProvider<MLContext> context) : base(context) { }
       /// <summary>
       /// Restituisce un trainer di tipo FastForestRegression
       /// </summary>

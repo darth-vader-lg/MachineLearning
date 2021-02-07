@@ -2,7 +2,7 @@
 using Microsoft.ML;
 using System;
 using System.Threading;
-using TCatalog = MachineLearning.Trainers.ForecastingCatalog;
+using TTrainers = MachineLearning.Trainers.ForecastingTrainers;
 
 namespace MachineLearning.Model
 {
@@ -17,7 +17,7 @@ namespace MachineLearning.Model
       /// Catalogo di trainers
       /// </summary>
       [field: NonSerialized]
-      public TCatalog Trainers { get; private set; }
+      public TTrainers Trainers { get; private set; }
       #endregion
       #region Methods
       /// <summary>
@@ -25,7 +25,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="contextProvider">Provider contesto di machine learning</param>
       public ForecastingModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
-         Trainers = new TCatalog(this);
+         Trainers = new TTrainers(this);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>

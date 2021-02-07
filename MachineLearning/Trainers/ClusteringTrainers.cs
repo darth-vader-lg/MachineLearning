@@ -3,23 +3,23 @@
 namespace MachineLearning.Trainers
 {
    /// <summary>
-   /// Catalogo di trainers di previsione
+   /// Catalogo di trainers di clustering
    /// </summary>
-   public class ForecastingCatalog : ContextProvider<MLContext>
+   public class CusteringTrainers : ContextProvider<MLContext>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      internal ForecastingCatalog(IContextProvider<MLContext> context) : base(context) { }
+      internal CusteringTrainers(IContextProvider<MLContext> context) : base(context) { }
       /// <summary>
-      /// Restituisce un trainer di tipo ForecastBySsa
+      /// Restituisce un trainer di tipo KMeans
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
-      public ForecastBySsaTrainer ForecastBySsa(ForecastBySsaTrainer.TrainerOptions options = default) =>
-         new ForecastBySsaTrainer(this, options);
+      public KMeansTrainer AveragedPerceptron(Microsoft.ML.Trainers.KMeansTrainer.Options options = default) =>
+         new KMeansTrainer(this, options);
       #endregion
    }
 }

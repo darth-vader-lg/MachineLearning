@@ -7,10 +7,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using TCalibratedMetrics = Microsoft.ML.Data.CalibratedBinaryClassificationMetrics;
-using TCatalog = MachineLearning.Trainers.BinaryClassificationCatalog;
 using TExperimentSettings = Microsoft.ML.AutoML.BinaryExperimentSettings;
 using TMetric = Microsoft.ML.AutoML.BinaryClassificationMetric;
 using TMetrics = Microsoft.ML.Data.BinaryClassificationMetrics;
+using TTrainers = MachineLearning.Trainers.BinaryClassificationTrainers;
 
 namespace MachineLearning.Model
 {
@@ -40,7 +40,7 @@ namespace MachineLearning.Model
       /// Catalogo di trainers
       /// </summary>
       [field: NonSerialized]
-      public TCatalog Trainers { get; private set; }
+      public TTrainers Trainers { get; private set; }
       #endregion
       #region Methods
       /// <summary>
@@ -48,7 +48,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="contextProvider">Provider contesto di machine learning</param>
       public BinaryModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
-         Trainers = new TCatalog(this);
+         Trainers = new TTrainers(this);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
       /// </summary>

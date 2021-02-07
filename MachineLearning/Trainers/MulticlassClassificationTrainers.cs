@@ -5,14 +5,14 @@ namespace MachineLearning.Trainers
    /// <summary>
    /// Catalogo di trainers multiclasse
    /// </summary>
-   public class MulticlassClassificationTrainersCatalog : ContextProvider<MLContext>
+   public class MulticlassClassificationTrainers : ContextProvider<MLContext>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      internal MulticlassClassificationTrainersCatalog(IContextProvider<MLContext> context) : base(context) { }
+      internal MulticlassClassificationTrainers(IContextProvider<MLContext> context) : base(context) { }
       /// <summary>
       /// Restituisce un trainer di tipo ImageClassification
       /// </summary>
