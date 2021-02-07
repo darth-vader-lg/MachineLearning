@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.FastTree.GamBinaryModelParameters;
 using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Calibrators.CalibratedModelParametersBase<Microsoft.ML.Trainers.FastTree.GamBinaryModelParameters, Microsoft.ML.Calibrators.PlattCalibrator>>;
 using TTrainer = Microsoft.ML.Trainers.FastTree.GamBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.GamBinaryTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe GamBinaryTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class GamBinaryTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class GamBinaryTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

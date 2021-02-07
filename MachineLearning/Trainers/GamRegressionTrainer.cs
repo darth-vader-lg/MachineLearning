@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.FastTree.GamRegressionModelParameters;
 using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.FastTree.GamRegressionModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.FastTree.GamRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.GamRegressionTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe GamRegressionTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class GamRegressionTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class GamRegressionTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

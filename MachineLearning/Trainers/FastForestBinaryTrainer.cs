@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.FastTree.FastForestBinaryModelParameters;
 using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.FastTree.FastForestBinaryModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.FastTree.FastForestBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.FastForestBinaryTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe FastForestBinaryTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class FastForestBinaryTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class FastForestBinaryTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

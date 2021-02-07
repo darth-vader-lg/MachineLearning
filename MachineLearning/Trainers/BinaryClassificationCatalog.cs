@@ -12,7 +12,7 @@ namespace MachineLearning.Trainers
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      internal BinaryClassificationCatalog(IContextProvider<MLContext> context) : base(context) { }
+      internal BinaryClassificationCatalog(IContextProvider<MLContext> context) : base(context) { /*Context.BinaryClassification.Trainers.LinearSvm*/ }
       /// <summary>
       /// Restituisce un trainer di tipo AveragedPerceptron
       /// </summary>

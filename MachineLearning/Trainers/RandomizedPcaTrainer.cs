@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.PcaModelParameters;
 using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.PcaModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.RandomizedPcaTrainer;
 using TOptions = Microsoft.ML.Trainers.RandomizedPcaTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe RandomizedPcaTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class RandomizedPcaTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class RandomizedPcaTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

@@ -7,13 +7,11 @@ namespace MachineLearning.Trainers
    /// <summary>
    /// Classe base dei trainers parametrizzati
    /// </summary>
-   /// <typeparam name="TModel">Tipo di parametri del modello</typeparam>
    /// <typeparam name="TTransformer">Tipo di transformer</typeparam>
    /// <typeparam name="TTrainer">Tipo di trainer</typeparam>
    /// <typeparam name="TOptions">Tipo di opzioni</typeparam>
    [Serializable]
-   public abstract class TrainerBase<TModel, TTransformer, TTrainer, TOptions> : IDeserializationCallback, IEstimator<TTransformer>
-      where TModel : class
+   public abstract class TrainerBase<TTransformer, TTrainer, TOptions> : IDeserializationCallback, IEstimator<TTransformer>
       where TTransformer : ITransformer
       where TTrainer : IEstimator<ITransformer>
       where TOptions : new()
@@ -49,7 +47,7 @@ namespace MachineLearning.Trainers
       /// <summary>
       /// Funzione di creazione del trainer da implementare nelle classi derivate
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="context">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
       protected abstract TTrainer CreateTrainer(MLContext context);
       /// <summary>

@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.FieldAwareFactorizationMachineModelParameters;
 using TTransformer = Microsoft.ML.Trainers.FieldAwareFactorizationMachinePredictionTransformer;
 using TTrainer = Microsoft.ML.Trainers.FieldAwareFactorizationMachineTrainer;
 using TOptions = Microsoft.ML.Trainers.FieldAwareFactorizationMachineTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe FieldAwareFactorizationMachineTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class FieldAwareFactorizationMachineTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class FieldAwareFactorizationMachineTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

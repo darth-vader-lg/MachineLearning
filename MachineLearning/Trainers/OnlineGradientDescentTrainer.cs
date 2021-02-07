@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LinearRegressionModelParameters;
 using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearRegressionModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.OnlineGradientDescentTrainer;
 using TOptions = Microsoft.ML.Trainers.OnlineGradientDescentTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe SdcaRegressionTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class OnlineGradientDescentTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class OnlineGradientDescentTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

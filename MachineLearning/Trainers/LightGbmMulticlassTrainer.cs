@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.OneVersusAllModelParameters;
 using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Trainers.OneVersusAllModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.LightGbm.LightGbmMulticlassTrainer;
 using TOptions = Microsoft.ML.Trainers.LightGbm.LightGbmMulticlassTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LightGbmMulticlassTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed partial class LightGbmMulticlassTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed partial class LightGbmMulticlassTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

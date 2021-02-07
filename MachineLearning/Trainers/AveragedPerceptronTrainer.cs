@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LinearBinaryModelParameters;
 using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.AveragedPerceptronTrainer;
 using TOptions = Microsoft.ML.Trainers.AveragedPerceptronTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe AveragedPerceptronTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class AveragedPerceptronTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class AveragedPerceptronTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

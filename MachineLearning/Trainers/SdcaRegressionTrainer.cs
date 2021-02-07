@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LinearMulticlassModelParameters;
 using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearMulticlassModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.SdcaRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.SdcaRegressionTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe SdcaRegressionTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class SdcaRegressionTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class SdcaRegressionTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LdSvmModelParameters;
 using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LdSvmModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.LdSvmTrainer;
 using TOptions = Microsoft.ML.Trainers.LdSvmTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LbfgsLogisticRegressionBinaryTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class LdSvmTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class LdSvmTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

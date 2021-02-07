@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.MaximumEntropyModelParameters;
 using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Trainers.MaximumEntropyModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.LbfgsMaximumEntropyMulticlassTrainer;
 using TOptions = Microsoft.ML.Trainers.LbfgsMaximumEntropyMulticlassTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LbfgsMaximumEntropyMulticlassTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed partial class LbfgsMaximumEntropyMulticlassTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed partial class LbfgsMaximumEntropyMulticlassTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

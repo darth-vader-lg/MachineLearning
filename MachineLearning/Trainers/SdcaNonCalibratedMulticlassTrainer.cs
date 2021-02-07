@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LinearMulticlassModelParameters;
 using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearMulticlassModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer;
 using TOptions = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe SdcaNonCalibratedMulticlassTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed partial class SdcaNonCalibratedMulticlassTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed partial class SdcaNonCalibratedMulticlassTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

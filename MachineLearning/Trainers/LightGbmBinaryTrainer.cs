@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LightGbm.LightGbmBinaryModelParameters;
 using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Calibrators.CalibratedModelParametersBase<Microsoft.ML.Trainers.LightGbm.LightGbmBinaryModelParameters, Microsoft.ML.Calibrators.PlattCalibrator>>;
 using TTrainer = Microsoft.ML.Trainers.LightGbm.LightGbmBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.LightGbm.LightGbmBinaryTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LightGbmBinaryTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class LightGbmBinaryTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class LightGbmBinaryTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

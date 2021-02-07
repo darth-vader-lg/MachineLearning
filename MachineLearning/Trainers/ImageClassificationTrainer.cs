@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Vision.ImageClassificationModelParameters;
 using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Vision.ImageClassificationModelParameters>;
 using TTrainer = Microsoft.ML.Vision.ImageClassificationTrainer;
 using TOptions = Microsoft.ML.Vision.ImageClassificationTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe SdcaNonCalibratedMulticlassTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class ImageClassificationTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class ImageClassificationTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

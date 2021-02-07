@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.FastTree.FastForestRegressionModelParameters;
 using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.FastTree.FastForestRegressionModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.FastTree.FastForestRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.FastForestRegressionTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe FastForestRegressionTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class FastForestRegressionTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class FastForestRegressionTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

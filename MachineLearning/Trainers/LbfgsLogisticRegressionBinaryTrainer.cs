@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LinearBinaryModelParameters;
 using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.LbfgsLogisticRegressionBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.LbfgsLogisticRegressionBinaryTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LbfgsLogisticRegressionBinaryTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class LbfgsLogisticRegressionBinaryTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class LbfgsLogisticRegressionBinaryTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

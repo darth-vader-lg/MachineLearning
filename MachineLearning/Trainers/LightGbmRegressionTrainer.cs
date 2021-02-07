@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.LightGbm.LightGbmRegressionModelParameters;
 using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.LightGbm.LightGbmRegressionModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LightGbmRegressionTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class LightGbmRegressionTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class LightGbmRegressionTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>

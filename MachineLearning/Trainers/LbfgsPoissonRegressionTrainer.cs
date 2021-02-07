@@ -1,6 +1,5 @@
 ﻿using Microsoft.ML;
 using System;
-using TModel = Microsoft.ML.Trainers.PoissonRegressionModelParameters;
 using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.PoissonRegressionModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.LbfgsPoissonRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.LbfgsPoissonRegressionTrainer.Options;
@@ -11,7 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LightGbmRegressionTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class LbfgsPoissonRegressionTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
+   public sealed class LbfgsPoissonRegressionTrainer : TrainerBase<TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>
