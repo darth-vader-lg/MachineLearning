@@ -18,7 +18,6 @@ namespace MachineLearning.Serialization
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
             var data = new LbfgsPoissonRegressionTrainer.Options();
-            obj = data;
             SetObjectData(obj, info);
             return data;
          }

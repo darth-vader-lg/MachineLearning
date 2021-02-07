@@ -48,6 +48,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public GamBinaryTrainer Gam(Microsoft.ML.Trainers.FastTree.GamBinaryTrainer.Options options = default) =>
          new GamBinaryTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo LbfgsLogisticRegression
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public LbfgsLogisticRegressionBinaryTrainer LbfgsLogisticRegression(Microsoft.ML.Trainers.LbfgsLogisticRegressionBinaryTrainer.Options options = default) =>
+         new LbfgsLogisticRegressionBinaryTrainer(this, options);
       #endregion
    }
 }
