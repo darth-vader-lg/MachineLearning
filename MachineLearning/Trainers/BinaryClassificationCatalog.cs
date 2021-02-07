@@ -104,6 +104,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public SgdCalibratedTrainer SgdCalibrated(Microsoft.ML.Trainers.SgdCalibratedTrainer.Options options = default) =>
          new SgdCalibratedTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo SgdCalibratedTrainer
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public SgdNonCalibratedTrainer SgdNonCalibrated(Microsoft.ML.Trainers.SgdNonCalibratedTrainer.Options options = default) =>
+         new SgdNonCalibratedTrainer(this, options);
       #endregion
    }
 }
