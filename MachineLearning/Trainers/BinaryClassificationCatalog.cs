@@ -12,7 +12,7 @@ namespace MachineLearning.Trainers
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      internal BinaryClassificationCatalog(IContextProvider<MLContext> context) : base(context) { /*Context.BinaryClassification.Trainers.LinearSvm*/ }
+      internal BinaryClassificationCatalog(IContextProvider<MLContext> context) : base(context) { }
       /// <summary>
       /// Restituisce un trainer di tipo AveragedPerceptron
       /// </summary>
@@ -105,12 +105,19 @@ namespace MachineLearning.Trainers
       public SgdCalibratedTrainer SgdCalibrated(Microsoft.ML.Trainers.SgdCalibratedTrainer.Options options = default) =>
          new SgdCalibratedTrainer(this, options);
       /// <summary>
-      /// Restituisce un trainer di tipo SgdCalibratedTrainer
+      /// Restituisce un trainer di tipo SgdNonCalibratedTrainer
       /// </summary>
       /// <param name="options">Opzioni</param>
       /// <returns>Il trainer</returns>
       public SgdNonCalibratedTrainer SgdNonCalibrated(Microsoft.ML.Trainers.SgdNonCalibratedTrainer.Options options = default) =>
          new SgdNonCalibratedTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo SymbolicSgdLogisticRegressionBinary
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public SymbolicSgdLogisticRegressionBinaryTrainer SymbolicSgdLogisticRegression(Microsoft.ML.Trainers.SymbolicSgdLogisticRegressionBinaryTrainer.Options options = default) =>
+         new SymbolicSgdLogisticRegressionBinaryTrainer(this, options);
       #endregion
    }
 }
