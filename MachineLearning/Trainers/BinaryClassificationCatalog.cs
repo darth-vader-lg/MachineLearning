@@ -34,6 +34,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public FastTreeBinaryTrainer FastTree(Microsoft.ML.Trainers.FastTree.FastTreeBinaryTrainer.Options options = default) =>
          new FastTreeBinaryTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo AveragedPerceptron
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public FieldAwareFactorizationMachineTrainer FieldAwareFactorizationMachine(Microsoft.ML.Trainers.FieldAwareFactorizationMachineTrainer.Options options = default) =>
+         new FieldAwareFactorizationMachineTrainer(this, options);
       #endregion
    }
 }
