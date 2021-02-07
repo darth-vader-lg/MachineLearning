@@ -97,6 +97,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public SdcaNonCalibratedBinaryTrainer SdcaNonCalibrated(Microsoft.ML.Trainers.SdcaNonCalibratedBinaryTrainer.Options options = default) =>
          new SdcaNonCalibratedBinaryTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo SgdCalibratedTrainer
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public SgdCalibratedTrainer SgdCalibrated(Microsoft.ML.Trainers.SgdCalibratedTrainer.Options options = default) =>
+         new SgdCalibratedTrainer(this, options);
       #endregion
    }
 }
