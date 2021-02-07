@@ -55,6 +55,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public LbfgsLogisticRegressionBinaryTrainer LbfgsLogisticRegression(Microsoft.ML.Trainers.LbfgsLogisticRegressionBinaryTrainer.Options options = default) =>
          new LbfgsLogisticRegressionBinaryTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo LdSvm
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public LdSvmTrainer LdSvm(Microsoft.ML.Trainers.LdSvmTrainer.Options options = default) =>
+         new LdSvmTrainer(this, options);
       #endregion
    }
 }
