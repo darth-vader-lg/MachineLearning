@@ -1,7 +1,9 @@
 ﻿using Microsoft.ML;
 using System;
-using MSModel = Microsoft.ML.Trainers.LinearMulticlassModelParameters;
-using MSTrainer = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer;
+using TModel = Microsoft.ML.Trainers.LinearMulticlassModelParameters;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearMulticlassModelParameters>;
+using TTrainer = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer;
+using TOptions = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options;
 
 namespace MachineLearning.Trainers
 {
@@ -9,21 +11,20 @@ namespace MachineLearning.Trainers
    /// Classe SdcaNonCalibratedMulticlassTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed partial class SdcaNonCalibratedMulticlassTrainer :
-      TrainerBase<MSModel, MSTrainer, MSTrainer.Options>
+   public sealed partial class SdcaNonCalibratedMulticlassTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="contextProvider">Provider di contesto</param>
-      internal SdcaNonCalibratedMulticlassTrainer(IContextProvider<MLContext> contextProvider, MSTrainer.Options options = default) : base(contextProvider, options) { }
+      internal SdcaNonCalibratedMulticlassTrainer(IContextProvider<MLContext> contextProvider, TOptions options = default) : base(contextProvider, options) { }
       /// <summary>
       /// Funzione di creazione del trainer
       /// </summary>
-      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="context">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected override MSTrainer CreateTrainer(MLContext context) => context.MulticlassClassification.Trainers.SdcaNonCalibrated(Options);
+      protected override TTrainer CreateTrainer(MLContext context) => context.MulticlassClassification.Trainers.SdcaNonCalibrated(Options);
       #endregion
    }
 }

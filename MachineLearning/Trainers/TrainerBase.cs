@@ -8,12 +8,14 @@ namespace MachineLearning.Trainers
    /// Classe base dei trainers parametrizzati
    /// </summary>
    /// <typeparam name="TModel">Tipo di parametri del modello</typeparam>
+   /// <typeparam name="TTransformer">Tipo di transformer</typeparam>
    /// <typeparam name="TTrainer">Tipo di trainer</typeparam>
    /// <typeparam name="TOptions">Tipo di opzioni</typeparam>
    [Serializable]
-   public abstract class TrainerBase<TModel, TTrainer, TOptions> : IDeserializationCallback, IEstimator<ISingleFeaturePredictionTransformer<TModel>>
+   public abstract class TrainerBase<TModel, TTransformer, TTrainer, TOptions> : IDeserializationCallback, IEstimator<TTransformer>
       where TModel : class
-      where TTrainer : IEstimator<ISingleFeaturePredictionTransformer<TModel>>
+      where TTransformer : ITransformer
+      where TTrainer : IEstimator<ITransformer>
       where TOptions : new()
    {
       #region Fields
@@ -55,7 +57,7 @@ namespace MachineLearning.Trainers
       /// </summary>
       /// <param name="input">I dati di input</param>
       /// <returns>Il transformer</returns>
-      public ISingleFeaturePredictionTransformer<TModel> Fit(IDataView input) => Trainer.Fit(input);
+      public TTransformer Fit(IDataView input) => (TTransformer)Trainer.Fit(input);
       /// <summary>
       /// Restituisce lo schema di output dato uno schema di input
       /// </summary>

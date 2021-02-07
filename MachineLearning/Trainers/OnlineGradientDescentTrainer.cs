@@ -1,7 +1,9 @@
 ﻿using Microsoft.ML;
 using System;
-using MSModel = Microsoft.ML.Trainers.LinearRegressionModelParameters;
-using MSTrainer = Microsoft.ML.Trainers.OnlineGradientDescentTrainer;
+using TModel = Microsoft.ML.Trainers.LinearRegressionModelParameters;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearRegressionModelParameters>;
+using TTrainer = Microsoft.ML.Trainers.OnlineGradientDescentTrainer;
+using TOptions = Microsoft.ML.Trainers.OnlineGradientDescentTrainer.Options;
 
 namespace MachineLearning.Trainers
 {
@@ -9,20 +11,20 @@ namespace MachineLearning.Trainers
    /// Classe SdcaRegressionTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class OnlineGradientDescentTrainer : TrainerBase<MSModel, MSTrainer, MSTrainer.Options>
+   public sealed class OnlineGradientDescentTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="contextProvider">Provider di contesto di machine learning</param>
-      internal OnlineGradientDescentTrainer(IContextProvider<MLContext> contextProvider, MSTrainer.Options options = default) : base(contextProvider, options) { }
+      internal OnlineGradientDescentTrainer(IContextProvider<MLContext> contextProvider, TOptions options = default) : base(contextProvider, options) { }
       /// <summary>
       /// Funzione di creazione del trainer
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected override MSTrainer CreateTrainer(MLContext context) => context.Regression.Trainers.OnlineGradientDescent(Options);
+      protected override TTrainer CreateTrainer(MLContext context) => context.Regression.Trainers.OnlineGradientDescent(Options);
       #endregion
    }
 }

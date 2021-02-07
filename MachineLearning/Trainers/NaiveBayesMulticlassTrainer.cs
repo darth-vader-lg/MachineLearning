@@ -1,7 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using MSModel = Microsoft.ML.Trainers.NaiveBayesMulticlassModelParameters;
-using MSTrainer = Microsoft.ML.Trainers.NaiveBayesMulticlassTrainer;
+using TModel = Microsoft.ML.Trainers.NaiveBayesMulticlassModelParameters;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.NaiveBayesMulticlassModelParameters>;
+using TTrainer = Microsoft.ML.Trainers.NaiveBayesMulticlassTrainer;
 
 namespace MachineLearning.Trainers
 {
@@ -9,8 +10,7 @@ namespace MachineLearning.Trainers
    /// Classe LightGbmMulticlassTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed partial class NaiveBayesMulticlassTrainer :
-      TrainerBase<MSModel, MSTrainer, (string LabelColumnName, string FeaturesColumnName)>
+   public sealed partial class NaiveBayesMulticlassTrainer : TrainerBase<TModel, TTransformer, TTrainer, (string LabelColumnName, string FeaturesColumnName)>
    {
       #region Methods
       /// <summary>
@@ -23,7 +23,7 @@ namespace MachineLearning.Trainers
       /// </summary>
       /// <param name="ml">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected override MSTrainer CreateTrainer(MLContext context) =>
+      protected override TTrainer CreateTrainer(MLContext context) =>
          context.MulticlassClassification.Trainers.NaiveBayes(Options.LabelColumnName ?? "Label", Options.FeaturesColumnName ?? "Features");
       #endregion
    }

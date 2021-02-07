@@ -1,7 +1,9 @@
 ﻿using Microsoft.ML;
 using System;
-using MSModel = Microsoft.ML.Trainers.LinearBinaryModelParameters;
-using MSTrainer = Microsoft.ML.Trainers.AveragedPerceptronTrainer;
+using TModel = Microsoft.ML.Trainers.LinearBinaryModelParameters;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
+using TTrainer = Microsoft.ML.Trainers.AveragedPerceptronTrainer;
+using TOptions = Microsoft.ML.Trainers.AveragedPerceptronTrainer.Options;
 
 namespace MachineLearning.Trainers
 {
@@ -9,20 +11,20 @@ namespace MachineLearning.Trainers
    /// Classe AveragedPerceptronTrainer con opzioni
    /// </summary>
    [Serializable]
-   public sealed class AveragedPerceptronTrainer : TrainerBase<MSModel, MSTrainer, MSTrainer.Options>
+   public sealed class AveragedPerceptronTrainer : TrainerBase<TModel, TTransformer, TTrainer, TOptions>
    {
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="contextProvider">Provider di contesto di machine learning</param>
-      internal AveragedPerceptronTrainer(IContextProvider<MLContext> contextProvider, MSTrainer.Options options = default) : base(contextProvider, options) { }
+      internal AveragedPerceptronTrainer(IContextProvider<MLContext> contextProvider, TOptions options = default) : base(contextProvider, options) { }
       /// <summary>
       /// Funzione di creazione del trainer
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
       /// <returns>Il trainer</returns>
-      protected override MSTrainer CreateTrainer(MLContext context) => context.BinaryClassification.Trainers.AveragedPerceptron(Options);
+      protected override TTrainer CreateTrainer(MLContext context) => context.BinaryClassification.Trainers.AveragedPerceptron(Options);
       #endregion
    }
 }
