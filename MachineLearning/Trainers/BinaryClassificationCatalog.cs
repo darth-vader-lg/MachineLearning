@@ -90,6 +90,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public SdcaLogisticRegressionBinaryTrainer SdcaLogisticRegression(Microsoft.ML.Trainers.SdcaLogisticRegressionBinaryTrainer.Options options = default) =>
          new SdcaLogisticRegressionBinaryTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo SdcaLogisticRegression
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public SdcaNonCalibratedBinaryTrainer SdcaNonCalibrated(Microsoft.ML.Trainers.SdcaNonCalibratedBinaryTrainer.Options options = default) =>
+         new SdcaNonCalibratedBinaryTrainer(this, options);
       #endregion
    }
 }
