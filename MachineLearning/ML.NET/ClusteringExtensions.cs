@@ -12,21 +12,21 @@ namespace Microsoft.ML.Data
    public static class ClusteringExtensions
    {
       /// <summary>
-      /// Estrae il migliore da un elenco di risultati di validazione incrociata
+      /// Estrae il migliore da un elenco di modelli e metriche
       /// </summary>
-      /// <param name="results">Elenco di risultati</param>
+      /// <param name="models">Elenco di modelli e metriche</param>
       /// <returns>Il risultato migliore</returns>
-      public static TrainCatalogBase.CrossValidationResult<ClusteringMetrics> Best(this IEnumerable<TrainCatalogBase.CrossValidationResult<ClusteringMetrics>> results)
+      public static (ITransformer Model, ClusteringMetrics Metrics) Best(this IEnumerable<(ITransformer Model, ClusteringMetrics Metrics)> models)
       {
          try {
-            var result = (from item in results
+            var result = (from item in models
                           orderby item.Metrics.AverageDistance
                           select item).First();
             return result;
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            return null;
+            return default;
          }
       }
       /// <summary>

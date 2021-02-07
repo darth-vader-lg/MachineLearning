@@ -294,8 +294,9 @@ namespace MachineLearningStudio
                   // Crea il modello di training
                   var crossValidationResults = ml.Clustering.CrossValidate(dataView, pipeline);
                   ml.WriteLog(crossValidationResults.ToText(), "Cross validation average metrics");
-                  ml.WriteLog(crossValidationResults.Best().ToText(), "Best model metrics");
-                  model = crossValidationResults.Best().Model;
+                  var best = (from r in crossValidationResults select (r.Model, r.Metrics)).Best();
+                  ml.WriteLog(best.Metrics.ToText(), "Best model metrics");
+                  model = best.Model;
                   // Salva il modello
                   if (SaveModel) {
                      cancel.ThrowIfCancellationRequested();

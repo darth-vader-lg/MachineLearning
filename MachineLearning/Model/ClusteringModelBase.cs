@@ -6,11 +6,8 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using TCatalog = MachineLearning.Trainers.BinaryClassificationCatalog;
-using TExperimentSettings = Microsoft.ML.AutoML.BinaryExperimentSettings;
-using TMetric = Microsoft.ML.AutoML.BinaryClassificationMetric;
-using TMetrics = Microsoft.ML.Data.BinaryClassificationMetrics;
-using TCalibratedMetrics = Microsoft.ML.Data.CalibratedBinaryClassificationMetrics;
+using TCatalog = MachineLearning.Trainers.CusteringCatalog;
+using TMetrics = Microsoft.ML.Data.ClusteringMetrics;
 
 namespace MachineLearning.Model
 {
@@ -18,20 +15,13 @@ namespace MachineLearning.Model
    /// Classe base per i classificatori binari
    /// </summary>
    [Serializable]
-   public abstract class BinaryModelBase : ModelBaseMLNet
+   public abstract class ClusteringModelBase : ModelBaseMLNet
    {
-      #region Fields
-      /// <summary>
-      /// Evento di modello di autotraining disponibile
-      /// </summary>
-      [NonSerialized]
-      private AutoTrainingTask<TMetrics, TExperimentSettings> autoTrainingTask;
-      #endregion
       #region Properties
       /// <summary>
-      /// Metrica di scelta del miglior modello
+      /// Nome colonna features
       /// </summary>
-      public TMetric BestModelSelectionMetric { get; set; }
+      public string FeaturesColumnName { get; set; } = "Features";
       /// <summary>
       /// Nome colonna label
       /// </summary>
@@ -47,7 +37,7 @@ namespace MachineLearning.Model
       /// Costruttore
       /// </summary>
       /// <param name="contextProvider">Provider contesto di machine learning</param>
-      public BinaryModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
+      public ClusteringModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
          Trainers = new TCatalog(this);
       /// <summary>
       /// Effettua il training con la ricerca automatica del miglior trainer
@@ -63,25 +53,7 @@ namespace MachineLearning.Model
          int maxTimeInSeconds,
          out object metrics,
          int numberOfFolds = 1,
-         CancellationToken cancellation = default)
-      {
-         autoTrainingTask ??= new AutoTrainingTask<TMetrics, TExperimentSettings>(this);
-         var result = autoTrainingTask.WaitResult(
-            () => Context.Auto().CreateBinaryClassificationExperiment(new TExperimentSettings
-            {
-               CancellationToken = cancellation,
-               OptimizingMetric = BestModelSelectionMetric,
-               MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds),
-            }),
-            models => models.Best(),
-            data,
-            LabelColumnName,
-            out var m,
-            numberOfFolds,
-            cancellation);
-         metrics = m;
-         return result;
-      }
+         CancellationToken cancellation = default) => throw new NotImplementedException("Autotraining is not implemented in the clustering");
       /// <summary>
       /// Effettua il training con validazione incrociata del modello
       /// </summary>
@@ -98,7 +70,7 @@ namespace MachineLearning.Model
          string samplingKeyColumnName = null,
          int? seed = null)
       {
-         var results = Context.BinaryClassification.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
+         var results = Context.Clustering.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", FeaturesColumnName ?? "Features", samplingKeyColumnName, seed);
          var best = (from r in results select (r.Model, r.Metrics)).Best();
          metrics = best.Metrics;
          return best.Model;
@@ -113,10 +85,8 @@ namespace MachineLearning.Model
       protected override object GetBestModelEvaluation(object modelEvaluation1, object modelEvaluation2)
       {
          var best = modelEvaluation2;
-         if (modelEvaluation1 is TCalibratedMetrics calibratedMetrics1 && modelEvaluation2 is TCalibratedMetrics calibratedMetrics2)
-            best = calibratedMetrics2.Accuracy >= calibratedMetrics1.Accuracy && calibratedMetrics2.LogLoss < calibratedMetrics1.LogLoss ? modelEvaluation2 : modelEvaluation1;
-         else if (modelEvaluation1 is TMetrics metrics1 && modelEvaluation2 is TMetrics metrics2)
-            best = metrics2.Accuracy >= metrics1.Accuracy ? modelEvaluation2 : modelEvaluation1;
+         if (modelEvaluation1 is TMetrics metrics1 && modelEvaluation2 is TMetrics metrics2)
+            best = metrics2.AverageDistance <= metrics1.AverageDistance ? modelEvaluation2 : modelEvaluation1;
          return best;
       }
       /// <summary>
@@ -127,7 +97,7 @@ namespace MachineLearning.Model
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
       protected override object GetModelEvaluation(ITransformer model, IDataAccess data) =>
-         Context.BinaryClassification.Evaluate(model.Transform(data), LabelColumnName ?? "Label");
+         Context.Clustering.Evaluate(model.Transform(data), LabelColumnName ?? "Label", "Score", FeaturesColumnName = "Features");
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -135,12 +105,7 @@ namespace MachineLearning.Model
       /// <returns>Il risultato della valutazione in formato testo</returns>
       protected override string GetModelEvaluationInfo(object modelEvaluation)
       {
-         if (modelEvaluation is TCalibratedMetrics calibratedMetrics) {
-            var sb = new StringBuilder();
-            sb.AppendLine(calibratedMetrics.ToText());
-            return sb.ToString();
-         }
-         else if (modelEvaluation is TMetrics metrics) {
+         if (modelEvaluation is TMetrics metrics) {
             var sb = new StringBuilder();
             sb.AppendLine(metrics.ToText());
             return sb.ToString();
