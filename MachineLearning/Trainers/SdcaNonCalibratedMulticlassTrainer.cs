@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearMulticlassModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer;
 using TOptions = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearMulticlassModelParameters>;
 
 namespace MachineLearning.Trainers
 {

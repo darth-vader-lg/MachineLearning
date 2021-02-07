@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.LightGbm.LightGbmRegressionModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer;
+using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.LightGbm.LightGbmRegressionModelParameters>;
 
 namespace MachineLearning.Trainers
 {

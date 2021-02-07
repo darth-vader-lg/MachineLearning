@@ -1,7 +1,7 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.PriorModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.PriorTrainer;
+using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.PriorModelParameters>;
 
 namespace MachineLearning.Trainers
 {

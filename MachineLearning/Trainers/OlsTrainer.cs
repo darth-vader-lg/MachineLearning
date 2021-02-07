@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.OlsModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.OlsTrainer;
 using TOptions = Microsoft.ML.Trainers.OlsTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.OlsTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.OlsModelParameters>;
 
 namespace MachineLearning.Trainers
 {

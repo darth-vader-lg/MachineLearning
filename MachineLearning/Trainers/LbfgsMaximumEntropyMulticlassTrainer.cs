@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Trainers.MaximumEntropyModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.LbfgsMaximumEntropyMulticlassTrainer;
 using TOptions = Microsoft.ML.Trainers.LbfgsMaximumEntropyMulticlassTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.LbfgsMaximumEntropyMulticlassTrainer;
+using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Trainers.MaximumEntropyModelParameters>;
 
 namespace MachineLearning.Trainers
 {

@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.ClusteringPredictionTransformer<Microsoft.ML.Trainers.KMeansModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.KMeansTrainer;
 using TOptions = Microsoft.ML.Trainers.KMeansTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.KMeansTrainer;
+using TTransformer = Microsoft.ML.Data.ClusteringPredictionTransformer<Microsoft.ML.Trainers.KMeansModelParameters>;
 
 namespace MachineLearning.Trainers
 {

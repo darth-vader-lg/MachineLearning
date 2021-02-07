@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.PcaModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.RandomizedPcaTrainer;
 using TOptions = Microsoft.ML.Trainers.RandomizedPcaTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.RandomizedPcaTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.PcaModelParameters>;
 
 namespace MachineLearning.Trainers
 {

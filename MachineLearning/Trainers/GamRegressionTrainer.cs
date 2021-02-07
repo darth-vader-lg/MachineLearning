@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.FastTree.GamRegressionModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.FastTree.GamRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.GamRegressionTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.FastTree.GamRegressionTrainer;
+using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.FastTree.GamRegressionModelParameters>;
 
 namespace MachineLearning.Trainers
 {

@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Trainers.OneVersusAllModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.LightGbm.LightGbmMulticlassTrainer;
 using TOptions = Microsoft.ML.Trainers.LightGbm.LightGbmMulticlassTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.LightGbm.LightGbmMulticlassTrainer;
+using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Trainers.OneVersusAllModelParameters>;
 
 namespace MachineLearning.Trainers
 {

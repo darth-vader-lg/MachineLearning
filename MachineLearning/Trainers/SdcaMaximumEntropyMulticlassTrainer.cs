@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.MaximumEntropyModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.SdcaMaximumEntropyMulticlassTrainer;
 using TOptions = Microsoft.ML.Trainers.SdcaMaximumEntropyMulticlassTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.SdcaMaximumEntropyMulticlassTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.MaximumEntropyModelParameters>;
 
 namespace MachineLearning.Trainers
 {

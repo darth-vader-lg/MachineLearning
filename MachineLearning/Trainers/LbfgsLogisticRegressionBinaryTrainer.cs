@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.LbfgsLogisticRegressionBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.LbfgsLogisticRegressionBinaryTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.LbfgsLogisticRegressionBinaryTrainer;
+using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
 
 namespace MachineLearning.Trainers
 {

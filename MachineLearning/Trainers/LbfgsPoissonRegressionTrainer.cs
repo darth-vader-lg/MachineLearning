@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.PoissonRegressionModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.LbfgsPoissonRegressionTrainer;
 using TOptions = Microsoft.ML.Trainers.LbfgsPoissonRegressionTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.LbfgsPoissonRegressionTrainer;
+using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.PoissonRegressionModelParameters>;
 
 namespace MachineLearning.Trainers
 {

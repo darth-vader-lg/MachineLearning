@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Vision.ImageClassificationModelParameters>;
-using TTrainer = Microsoft.ML.Vision.ImageClassificationTrainer;
 using TOptions = Microsoft.ML.Vision.ImageClassificationTrainer.Options;
+using TTrainer = Microsoft.ML.Vision.ImageClassificationTrainer;
+using TTransformer = Microsoft.ML.Data.MulticlassPredictionTransformer<Microsoft.ML.Vision.ImageClassificationModelParameters>;
 
 namespace MachineLearning.Trainers
 {

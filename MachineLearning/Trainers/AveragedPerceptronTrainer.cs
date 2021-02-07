@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.AveragedPerceptronTrainer;
 using TOptions = Microsoft.ML.Trainers.AveragedPerceptronTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.AveragedPerceptronTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
 
 namespace MachineLearning.Trainers
 {

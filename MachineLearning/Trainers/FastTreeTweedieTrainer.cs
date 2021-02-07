@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.FastTree.FastTreeTweedieModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.FastTree.FastTreeTweedieTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.FastTreeTweedieTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.FastTree.FastTreeTweedieTrainer;
+using TTransformer = Microsoft.ML.Data.RegressionPredictionTransformer<Microsoft.ML.Trainers.FastTree.FastTreeTweedieModelParameters>;
 
 namespace MachineLearning.Trainers
 {

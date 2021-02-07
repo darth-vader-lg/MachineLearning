@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.SdcaNonCalibratedBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.SdcaNonCalibratedBinaryTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.SdcaNonCalibratedBinaryTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
 
 namespace MachineLearning.Trainers
 {

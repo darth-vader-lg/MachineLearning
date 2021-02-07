@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.SgdNonCalibratedTrainer;
 using TOptions = Microsoft.ML.Trainers.SgdNonCalibratedTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.SgdNonCalibratedTrainer;
+using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.LinearBinaryModelParameters>;
 
 namespace MachineLearning.Trainers
 {

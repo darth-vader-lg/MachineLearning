@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Calibrators.CalibratedModelParametersBase<Microsoft.ML.Trainers.LinearBinaryModelParameters, Microsoft.ML.Calibrators.PlattCalibrator>>;
-using TTrainer = Microsoft.ML.Trainers.SymbolicSgdLogisticRegressionBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.SymbolicSgdLogisticRegressionBinaryTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.SymbolicSgdLogisticRegressionBinaryTrainer;
+using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Calibrators.CalibratedModelParametersBase<Microsoft.ML.Trainers.LinearBinaryModelParameters, Microsoft.ML.Calibrators.PlattCalibrator>>;
 
 namespace MachineLearning.Trainers
 {

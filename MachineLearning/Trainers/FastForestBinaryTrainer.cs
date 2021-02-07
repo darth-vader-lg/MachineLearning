@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.FastTree.FastForestBinaryModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.FastTree.FastForestBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.FastForestBinaryTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.FastTree.FastForestBinaryTrainer;
+using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Trainers.FastTree.FastForestBinaryModelParameters>;
 
 namespace MachineLearning.Trainers
 {

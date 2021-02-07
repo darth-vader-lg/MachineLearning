@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Calibrators.CalibratedModelParametersBase<Microsoft.ML.Trainers.FastTree.GamBinaryModelParameters, Microsoft.ML.Calibrators.PlattCalibrator>>;
-using TTrainer = Microsoft.ML.Trainers.FastTree.GamBinaryTrainer;
 using TOptions = Microsoft.ML.Trainers.FastTree.GamBinaryTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.FastTree.GamBinaryTrainer;
+using TTransformer = Microsoft.ML.Data.BinaryPredictionTransformer<Microsoft.ML.Calibrators.CalibratedModelParametersBase<Microsoft.ML.Trainers.FastTree.GamBinaryModelParameters, Microsoft.ML.Calibrators.PlattCalibrator>>;
 
 namespace MachineLearning.Trainers
 {

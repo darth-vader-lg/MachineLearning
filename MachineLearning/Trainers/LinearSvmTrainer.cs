@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearSvmTrainer>;
-using TTrainer = Microsoft.ML.Trainers.LinearSvmTrainer;
 using TOptions = Microsoft.ML.Trainers.LinearSvmTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.LinearSvmTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearSvmTrainer>;
 
 namespace MachineLearning.Trainers
 {

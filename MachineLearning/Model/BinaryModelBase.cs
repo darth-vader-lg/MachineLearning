@@ -6,11 +6,11 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using TCalibratedMetrics = Microsoft.ML.Data.CalibratedBinaryClassificationMetrics;
 using TCatalog = MachineLearning.Trainers.BinaryClassificationCatalog;
 using TExperimentSettings = Microsoft.ML.AutoML.BinaryExperimentSettings;
 using TMetric = Microsoft.ML.AutoML.BinaryClassificationMetric;
 using TMetrics = Microsoft.ML.Data.BinaryClassificationMetrics;
-using TCalibratedMetrics = Microsoft.ML.Data.CalibratedBinaryClassificationMetrics;
 
 namespace MachineLearning.Model
 {

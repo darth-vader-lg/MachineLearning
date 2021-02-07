@@ -1,7 +1,7 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.NaiveBayesMulticlassModelParameters>;
 using TTrainer = Microsoft.ML.Trainers.NaiveBayesMulticlassTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.NaiveBayesMulticlassModelParameters>;
 
 namespace MachineLearning.Trainers
 {

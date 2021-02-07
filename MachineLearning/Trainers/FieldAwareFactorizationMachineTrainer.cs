@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.Trainers.FieldAwareFactorizationMachinePredictionTransformer;
-using TTrainer = Microsoft.ML.Trainers.FieldAwareFactorizationMachineTrainer;
 using TOptions = Microsoft.ML.Trainers.FieldAwareFactorizationMachineTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.FieldAwareFactorizationMachineTrainer;
+using TTransformer = Microsoft.ML.Trainers.FieldAwareFactorizationMachinePredictionTransformer;
 
 namespace MachineLearning.Trainers
 {

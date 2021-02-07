@@ -1,8 +1,8 @@
 ﻿using Microsoft.ML;
 using System;
-using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearRegressionModelParameters>;
-using TTrainer = Microsoft.ML.Trainers.OnlineGradientDescentTrainer;
 using TOptions = Microsoft.ML.Trainers.OnlineGradientDescentTrainer.Options;
+using TTrainer = Microsoft.ML.Trainers.OnlineGradientDescentTrainer;
+using TTransformer = Microsoft.ML.ISingleFeaturePredictionTransformer<Microsoft.ML.Trainers.LinearRegressionModelParameters>;
 
 namespace MachineLearning.Trainers
 {
