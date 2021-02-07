@@ -83,6 +83,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public PriorTrainer Prior((string LabelColumnName, string FeaturesColumnName) options = default) =>
          new PriorTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo SdcaLogisticRegression
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public SdcaLogisticRegressionBinaryTrainer SdcaLogisticRegression(Microsoft.ML.Trainers.SdcaLogisticRegressionBinaryTrainer.Options options = default) =>
+         new SdcaLogisticRegressionBinaryTrainer(this, options);
       #endregion
    }
 }
