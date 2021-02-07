@@ -62,6 +62,13 @@ namespace MachineLearning.Trainers
       /// <returns>Il trainer</returns>
       public LdSvmTrainer LdSvm(Microsoft.ML.Trainers.LdSvmTrainer.Options options = default) =>
          new LdSvmTrainer(this, options);
+      /// <summary>
+      /// Restituisce un trainer di tipo LightGbm
+      /// </summary>
+      /// <param name="options">Opzioni</param>
+      /// <returns>Il trainer</returns>
+      public LightGbmBinaryTrainer LightGbm(Microsoft.ML.Trainers.LightGbm.LightGbmBinaryTrainer.Options options = default) =>
+         new LightGbmBinaryTrainer(this, options);
       #endregion
    }
 }

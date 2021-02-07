@@ -20,8 +20,7 @@ namespace MachineLearning.Serialization
          public object SetObjectData(object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector)
          {
             var data = new LightGbmRegressionTrainer.Options();
-            obj = data;
-            SetObjectData(obj, info);
+            SetObjectData(data, info);
             data.EvaluationMetric = (LightGbmRegressionTrainer.Options.EvaluateMetricType)info.Set(nameof(data.EvaluationMetric), out byte _);
             return data;
          }
