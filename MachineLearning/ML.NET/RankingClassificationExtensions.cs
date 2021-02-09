@@ -12,21 +12,21 @@ namespace Microsoft.ML.Data
    public static class RankingClassificationExtensions
    {
       /// <summary>
-      /// Estrae il migliore da un elenco di risultati di validazione incrociata
+      /// Estrae il migliore da un elenco di modelli e metriche
       /// </summary>
-      /// <param name="results">Elenco di risultati</param>
+      /// <param name="models">Elenco di modelli e metriche</param>
       /// <returns>Il risultato migliore</returns>
-      public static TrainCatalogBase.CrossValidationResult<RankingMetrics> Best(this IEnumerable<TrainCatalogBase.CrossValidationResult<RankingMetrics>> results)
+      public static (ITransformer Model, RankingMetrics Metrics) Best(this IEnumerable<(ITransformer Model, RankingMetrics Metrics)> models)
       {
          try {
-            var result = (from item in results
+            var result = (from item in models
                           orderby DcgScore(item.Metrics.NormalizedDiscountedCumulativeGains) descending
                           select item).First();
             return result;
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
-            return null;
+            return default;
          }
       }
       /// <summary>
