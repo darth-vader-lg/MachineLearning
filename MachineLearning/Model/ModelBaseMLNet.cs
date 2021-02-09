@@ -143,6 +143,12 @@ namespace MachineLearning.Model
       /// <param name="input">Vista di dati di input</param>
       /// <returns>I dati trasformati</returns>
       public IDataView Transform(IDataView input) => GetEvaluation(new ModelTrainerStandard()).Model?.Transform(input);
+      /// <summary>
+      /// Trasforma i dati di input per il modello
+      /// </summary>
+      /// <param name="data">Dati di input</param>
+      /// <returns>I dati trasformati</returns>
+      public sealed override IDataAccess Transform(IDataAccess data) => new DataAccess(this, Transform(data));
       #endregion
    }
 

@@ -17,7 +17,7 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase<T> : ContextProvider<T> where T : class, IChannelProvider
+   public abstract partial class ModelBase<T> : ContextProvider<T>, IDataTransformer where T : class, IChannelProvider
    {
       #region Fields
       /// <summary>
@@ -831,6 +831,12 @@ namespace MachineLearning.Model
                try { OnTrainingEnded(new ModelTrainingEventArgs(e)); } catch { }
          }
       }
+      /// <summary>
+      /// Trasforma i dati
+      /// </summary>
+      /// <param name="data">Dati in ingresso</param>
+      /// <returns>I dati trasformati</returns>
+      public virtual IDataAccess Transform(IDataAccess data) => new DataAccess(this, data);
       #endregion
    }
 
