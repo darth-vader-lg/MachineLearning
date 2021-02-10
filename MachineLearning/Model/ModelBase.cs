@@ -17,7 +17,7 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase : ChannelProvider
+   public abstract partial class ModelBase : ChannelProvider, IDataTransformer
    {
       #region Fields
       /// <summary>
@@ -843,6 +843,19 @@ namespace MachineLearning.Model
             if (!cancel.IsCancellationRequested)
                try { OnTrainingEnded(new ModelTrainingEventArgs(e)); } catch { }
          }
+      }
+      /// <summary>
+      /// Trasforma i dati di input per il modello
+      /// </summary>
+      /// <param name="data">Dati di input</param>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
+      /// <returns>I dati trasformati</returns>
+      public IDataAccess Transform(IDataAccess data, CancellationToken cancellation = default)
+      {
+         if (cancellation != default)
+            return new DataAccess(this, GetEvaluationAsync((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).ConfigureAwait(false).GetAwaiter().GetResult().Model?.Transform(data, cancellation));
+         else
+            return new DataAccess(this, GetEvaluation((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).Model?.Transform(data, cancellation));
       }
       #endregion
    }

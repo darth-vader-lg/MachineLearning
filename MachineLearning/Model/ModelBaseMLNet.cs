@@ -17,7 +17,7 @@ namespace MachineLearning.Model
    /// Classe base per i modeli ML.NET
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBaseMLNet : ModelBase, IContextProvider<MLContext>, IDataTransformer, IModelTrainingShuffle, IModelTrainingStandard, ITransformer
+   public abstract partial class ModelBaseMLNet : ModelBase, IContextProvider<MLContext>, IModelTrainingShuffle, IModelTrainingStandard, ITransformer
    {
       #region Properties
       /// <summary>
@@ -153,19 +153,6 @@ namespace MachineLearning.Model
       /// <param name="input">Vista di dati di input</param>
       /// <returns>I dati trasformati</returns>
       public IDataView Transform(IDataView input) => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.Transform(input);
-      /// <summary>
-      /// Trasforma i dati di input per il modello
-      /// </summary>
-      /// <param name="data">Dati di input</param>
-      /// <param name="cancellation">Eventuale token di cancellazione</param>
-      /// <returns>I dati trasformati</returns>
-      public IDataAccess Transform(IDataAccess data, CancellationToken cancellation = default)
-      {
-         if (cancellation != default)
-            return new DataAccess(this, GetEvaluationAsync((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).ConfigureAwait(false).GetAwaiter().GetResult().Model?.Transform(data, cancellation));
-         else
-            return new DataAccess(this, GetEvaluation((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).Model?.Transform(data, cancellation));
-      }
       #endregion
    }
 
