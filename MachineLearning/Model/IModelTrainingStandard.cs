@@ -4,20 +4,19 @@ using System.Threading;
 namespace MachineLearning.Model
 {
    /// <summary>
-   /// Interfaccia per i trainer dei modelli
+   /// Interfaccia per il trainer standard dei modelli
    /// </summary>
-   public interface IModelTrainer
+   public interface IModelTrainingStandard
    {
       #region Methods
       /// <summary>
-      /// Restituisce il modello effettuando il training
+      /// Restituisce il modello effettuando il training standard
       /// </summary>
-      /// <param name="model">Modello con cui effettuare il training</param>
       /// <param name="data">Dati di training</param>
       /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      IDataTransformer GetTrainedModel(ModelBase model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation);
+      IDataTransformer StandardTraining(IDataAccess data, out object evaluationMetrics, CancellationToken cancellation = default);
       #endregion
    }
 }

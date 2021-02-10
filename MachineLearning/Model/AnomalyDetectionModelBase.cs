@@ -3,7 +3,6 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
 using System.Text;
-using System.Threading;
 using TMetrics = Microsoft.ML.Data.AnomalyDetectionMetrics;
 using TTrainers = MachineLearning.Trainers.AnomalyDetectionTrainers;
 
@@ -34,36 +33,6 @@ namespace MachineLearning.Model
       public AnomalyDetectionModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
          Trainers = new TTrainers(this);
       /// <summary>
-      /// Effettua il training con la ricerca automatica del miglior trainer
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="maxTimeInSeconds">Numero massimo di secondi di training</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il modello migliore</returns>
-      public override sealed ITransformer AutoTraining(
-         IDataAccess data,
-         int maxTimeInSeconds,
-         out object metrics,
-         int numberOfFolds = 1,
-         CancellationToken cancellation = default) => throw new NotImplementedException("Autotraining is not implemented in the anomaly detection");
-      /// <summary>
-      /// Effettua il training con validazione incrociata del modello
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni</param>
-      /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
-      /// <param name="seed">Seme per le operazioni random</param>
-      /// <returns>Il modello migliore</returns>
-      public override sealed ITransformer CrossValidateTraining(
-         IDataAccess data,
-         out object metrics,
-         int numberOfFolds = 5,
-         string samplingKeyColumnName = null,
-         int? seed = null) => throw new NotImplementedException("Cross validation is not implemented in the anomaly detection");
-      /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
       /// <param name="modelEvaluation1">Prima valutazione</param>
@@ -84,7 +53,7 @@ namespace MachineLearning.Model
       /// <param name="data">Dati attuali caricati</param>
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected override object GetModelEvaluation(ITransformer model, IDataAccess data) =>
+      protected override object GetModelEvaluation(IDataTransformer model, IDataAccess data) =>
          Context.AnomalyDetection.Evaluate(model.Transform(data), LabelColumnName ?? "Label");
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)

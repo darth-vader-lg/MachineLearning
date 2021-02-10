@@ -31,7 +31,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Modello
       /// </summary>
-      ITransformer Model { get; }
+      IDataTransformer Model { get; }
       /// <summary>
       /// Abilitazione al commit automatico dei dati di training
       /// </summary>

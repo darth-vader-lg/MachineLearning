@@ -17,20 +17,20 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase<T> : ContextProvider<T>, IDataTransformer where T : class, IChannelProvider
+   public abstract partial class ModelBase : ChannelProvider
    {
       #region Fields
+      /// <summary>
+      /// Contesto
+      /// </summary>
+      private readonly IChannelProvider context;
       /// <summary>
       /// Valutazione
       /// </summary>
       [NonSerialized]
-      private Evaluator _evaluator;
+      private Evaluator evaluator;
       #endregion
       #region Properties
-      /// <summary>
-      /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
-      /// </summary>
-      public bool IsRowToRowMapper => GetEvaluation(new ModelTrainerStandard()).Model?.IsRowToRowMapper ?? false;
       /// <summary>
       /// Gestore trainer modello
       /// </summary>
@@ -62,8 +62,12 @@ namespace MachineLearning.Model
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="contextProvider">Provider di contesto di machine learning</param>
-      public ModelBase(IContextProvider<T> contextProvider) : base(contextProvider) { }
+      /// <param name="context">Contesto</param>
+      public ModelBase(IChannelProvider context)
+      {
+         Contracts.CheckValue(context, nameof(context));
+         this.context = context;
+      }
       /// <summary>
       /// Aggiunge un elenco di dati di training
       /// </summary>
@@ -155,7 +159,7 @@ namespace MachineLearning.Model
       /// </summary>
       public async Task ClearTrainingAsync()
       {
-         if (_evaluator is Evaluator evaluator && evaluator != null) {
+         if (this.evaluator is Evaluator evaluator && evaluator != null) {
             // Stoppa il training
             await StopTrainingInternalAsync(evaluator);
             // Invalida la valutazione
@@ -225,6 +229,11 @@ namespace MachineLearning.Model
       /// <remarks>Tenere conto che le valutazioni potrebbero essere null</remarks>
       protected virtual object GetBestModelEvaluation(object modelEvaluation1, object modelEvaluation2) => modelEvaluation1;
       /// <summary>
+      /// Funzione di ottenimento del provider di canali
+      /// </summary>
+      /// <returns>Il provider</returns>
+      protected override sealed IChannelProvider GetChannelProvider() => context;
+      /// <summary>
       /// Restituisce la valutazione
       /// </summary>
       /// <param name="trainer">Il trainer</param>
@@ -272,7 +281,7 @@ namespace MachineLearning.Model
          var startEvaluator = default(Evaluator);
          lock (this) {
             // Avvia il task di training se necessario
-            currentEvaluator = _evaluator;
+            currentEvaluator = evaluator;
             var startCurrentEvaluator = false;
             var createEvaluator = false;
             var _dataStorage = (this as IDataStorageProvider)?.DataStorage ?? this as IDataStorage;
@@ -314,7 +323,7 @@ namespace MachineLearning.Model
                   if (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested)
                      stopEvaluator = currentEvaluator;
                }
-               startEvaluator = currentEvaluator = _evaluator = new Evaluator
+               startEvaluator = currentEvaluator = evaluator = new Evaluator
                {
                   DataStorage = _dataStorage,
                   InputSchema = _inputSchema,
@@ -347,7 +356,7 @@ namespace MachineLearning.Model
       /// <param name="data">Dati attuali caricati</param>
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected virtual object GetModelEvaluation(ITransformer model, IDataAccess data) => null;
+      protected virtual object GetModelEvaluation(IDataTransformer model, IDataAccess data) => null;
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
       /// </summary>
@@ -378,7 +387,7 @@ namespace MachineLearning.Model
             dataViewGrid.Add(data.ToArray());
             cancellation.ThrowIfCancellationRequested();
             // Effettua la predizione
-            var prediction = new DataAccess(this, evaluation.Model.Transform(dataViewGrid));
+            var prediction = new DataAccess(this, evaluation.Model.Transform(dataViewGrid, cancellation));
             cancellation.ThrowIfCancellationRequested();
             return prediction;
          }
@@ -391,7 +400,11 @@ namespace MachineLearning.Model
       /// <param name="metrics">Eventuale metrica</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns></returns>
-      protected abstract ITransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation);
+      protected virtual IDataTransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
+      {
+         metrics = null;
+         return null;
+      }
       /// <summary>
       /// Carica i dati da uno storage
       /// </summary>
@@ -404,7 +417,7 @@ namespace MachineLearning.Model
       /// <param name="modelStorage">Storage del modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public abstract ITransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema);
+      public abstract IDataTransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema);
       /// <summary>
       /// Funzione di notifica della variazione del modello
       /// </summary>
@@ -488,7 +501,7 @@ namespace MachineLearning.Model
       /// <param name="model">Modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public abstract void SaveModel(IModelStorage modelStorage, ITransformer model, DataViewSchema schema);
+      public abstract void SaveModel(IModelStorage modelStorage, IDataTransformer model, DataViewSchema schema);
       /// <summary>
       /// Imposta i dati di valutazione
       /// </summary>
@@ -496,7 +509,7 @@ namespace MachineLearning.Model
       /// <param name="schema">Lo schema</param>
       /// <param name="timestamp">L'istante</param>
       /// <remarks>Se la valutazione e' nulla annulla la validita' dei dati</remarks>
-      private void SetEvaluation(Evaluator evaluator, ITransformer model, DataViewSchema schema, DateTime timestamp)
+      private void SetEvaluation(Evaluator evaluator, IDataTransformer model, DataViewSchema schema, DateTime timestamp)
       {
          lock (evaluator) {
             // Annulla il modello
@@ -511,7 +524,7 @@ namespace MachineLearning.Model
             }
             // Imposta il modello
             else {
-               var writeLog = _evaluator.Model != model;
+               var writeLog = this.evaluator.Model != model;
                evaluator.Model = model;
                evaluator.InputSchema = schema;
                evaluator.Timestamp = timestamp;
@@ -545,13 +558,13 @@ namespace MachineLearning.Model
                      using var cts = CancellationTokenSource.CreateLinkedTokenSource(c);
                      try {
                         task = TrainingAsync(evaluator, cts.Token);
-                        if (Context is MachineLearningContext ml)
+                        if (context is MachineLearningContext ml)
                            await ml.AddWorkingTask(task, cts);
                         else
                            await task;
                      }
                      finally {
-                        if (task != null && Context is MachineLearningContext ml)
+                        if (task != null && context is MachineLearningContext ml)
                            ml.RemoveWorkingTask(task);
                      }
                   },
@@ -570,7 +583,7 @@ namespace MachineLearning.Model
       public virtual async Task StopTrainingAsync(CancellationToken cancellation = default)
       {
          try {
-            if (_evaluator is Evaluator evaluator && evaluator != null)
+            if (this.evaluator is Evaluator evaluator && evaluator != null)
                await StopTrainingInternalAsync(evaluator);
          }
          catch (OperationCanceledException) {
@@ -740,7 +753,7 @@ namespace MachineLearning.Model
                var currentModel = model;
                var taskEvaluate1 = eval1 != null || currentModel == null ? Task.FromResult(eval1) : Task.Run(() => GetModelEvaluation(currentModel, data), cancel);
                // Effettua il training
-               var taskTrain = e.Trainer == null ? Task.FromResult(null as ITransformer) : Task.Run(() => GetTrainedModel(e.Trainer, data, out eval2, linkedCancellation.Token));
+               var taskTrain = e.Trainer == null ? Task.FromResult(null as IDataTransformer) : Task.Run(() => GetTrainedModel(e.Trainer, data, out eval2, linkedCancellation.Token));
                // Messaggio di training ritardato
                cancel.ThrowIfCancellationRequested();
                var taskTrainingMessage = Task.Run(async () =>
@@ -831,19 +844,13 @@ namespace MachineLearning.Model
                try { OnTrainingEnded(new ModelTrainingEventArgs(e)); } catch { }
          }
       }
-      /// <summary>
-      /// Trasforma i dati
-      /// </summary>
-      /// <param name="data">Dati in ingresso</param>
-      /// <returns>I dati trasformati</returns>
-      public virtual IDataAccess Transform(IDataAccess data) => new DataAccess(this, data);
       #endregion
    }
 
    /// <summary>
    /// Dati di valutazione
    /// </summary>
-   public partial class ModelBase<T> // Evaluator
+   public partial class ModelBase // Evaluator
    {
       private class Evaluator : IDisposable, IModelEvaluator
       {
@@ -875,7 +882,7 @@ namespace MachineLearning.Model
          /// <summary>
          /// Modello
          /// </summary>
-         public ITransformer Model { get; set; }
+         public IDataTransformer Model { get; set; }
          /// <summary>
          /// Abilitazione al commit automatico dei dati di training
          /// </summary>

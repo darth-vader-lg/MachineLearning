@@ -30,7 +30,6 @@ namespace MachineLearning
       public ContextProvider(IContextProvider<T> contextProvider)
       {
          MachineLearningContext.CheckContext(this.contextProvider = contextProvider, nameof(contextProvider));
-         Contracts.CheckValue(contextProvider.Context, $"{nameof(contextProvider)}.{nameof(IContextProvider<T>.Context)}");
       }
       /// <summary>
       /// Funzione di restituzione del provider di canali

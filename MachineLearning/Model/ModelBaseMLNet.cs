@@ -17,8 +17,18 @@ namespace MachineLearning.Model
    /// Classe base per i modeli ML.NET
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBaseMLNet : ModelBase<MLContext>, ITransformer
+   public abstract partial class ModelBaseMLNet : ModelBase, IContextProvider<MLContext>, IDataTransformer, IModelTrainingShuffle, IModelTrainingStandard, ITransformer
    {
+      #region Properties
+      /// <summary>
+      /// Contesto
+      /// </summary>
+      public MLContext Context => ((IContextProvider<MLContext>)GetChannelProvider()).Context; 
+      /// <summary>
+      /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
+      /// </summary>
+      public bool IsRowToRowMapper => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.IsRowToRowMapper ?? false;
+      #endregion
       #region Methods
       /// <summary>
       /// Costruttore
@@ -26,41 +36,11 @@ namespace MachineLearning.Model
       /// <param name="contextProvider">Provider di contesto di machine learning</param>
       public ModelBaseMLNet(IContextProvider<MLContext> contextProvider = default) : base(contextProvider ?? MachineLearningContext.Default) { }
       /// <summary>
-      /// Effettua il training con la ricerca automatica del miglior trainer
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="maxTimeInSeconds">Numero massimo di secondi di training</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il modello migliore</returns>
-      public abstract ITransformer AutoTraining(
-         IDataAccess data,
-         int maxTimeInSeconds,
-         out object metrics,
-         int numberOfFolds = 1,
-         CancellationToken cancellation = default);
-      /// <summary>
-      /// Effettua il training con validazione incrociata del modello
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni</param>
-      /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
-      /// <param name="seed">Seme per le operazioni random</param>
-      /// <returns>Il modello migliore</returns>
-      public abstract ITransformer CrossValidateTraining(
-         IDataAccess data,
-         out object metrics,
-         int numberOfFolds = 5,
-         string samplingKeyColumnName = null,
-         int? seed = null);
-      /// <summary>
       /// Restituisce lo schema di output dato lo schema di input
       /// </summary>
       /// <param name="inputSchema">Scema di input</param>
       /// <returns>Lo schema di output</returns>
-      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => GetEvaluation(new ModelTrainerStandard()).Model?.GetOutputSchema(inputSchema);
+      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.GetOutputSchema(inputSchema);
       /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
@@ -71,7 +51,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="inputSchema">Schema di input</param>
       /// <returns>Il mappatore</returns>
-      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => GetEvaluation(new ModelTrainerStandard()).Model?.GetRowToRowMapper(inputSchema);
+      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.GetRowToRowMapper(inputSchema);
       /// <summary>
       /// Restituisce il modello sottoposto al training
       /// </summary>
@@ -80,11 +60,39 @@ namespace MachineLearning.Model
       /// <param name="metrics">Eventuale metrica</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns></returns>
-      protected sealed override ITransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
+      protected sealed override IDataTransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
       {
          Channel.CheckValue(trainer, nameof(trainer));
          Channel.CheckValue(data, nameof(data));
          return trainer.GetTrainedModel(this, data, out metrics, cancellation);
+      }
+      /// <summary>
+      /// Restituisce il modello effettuando il training con shuffle
+      /// </summary>
+      /// <param name="data">Dati di training</param>
+      /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
+      /// <param name="cancellation">Token di annullamento</param>
+      /// <returns>Il modello appreso</returns>
+      IDataTransformer IModelTrainingShuffle.ShuffleTraining(IDataAccess data, out object evaluationMetrics, int? seed, CancellationToken cancellation)
+      {
+         evaluationMetrics = null;
+         var result = GetPipes().Merged.Fit(data.CanShuffle ? Context.Data.ShuffleRows(data, seed) : data);
+         cancellation.ThrowIfCancellationRequested();
+         return result == null ? null : new DataTransformerMLNet(this, result);
+      }
+      /// <summary>
+      /// Restituisce il modello effettuando il training standard
+      /// </summary>
+      /// <param name="data">Dati di training</param>
+      /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
+      /// <param name="cancellation">Token di annullamento</param>
+      /// <returns>Il modello appreso</returns>
+      IDataTransformer IModelTrainingStandard.StandardTraining(IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
+      {
+         evaluationMetrics = null;
+         var result = GetPipes().Merged.Fit(data);
+         cancellation.ThrowIfCancellationRequested();
+         return result == null ? null : new DataTransformerMLNet(this, result);
       }
       /// <summary>
       /// Carica i dati da uno storage
@@ -97,10 +105,10 @@ namespace MachineLearning.Model
          var options = (this as ITextLoaderOptions)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchema)?.InputSchema?.ToTextLoaderColumns() };
          return dataStorage.LoadData(Context, options);
       }
-      public sealed override ITransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema)
+      public sealed override IDataTransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema)
       {
          Channel.CheckValue(modelStorage, nameof(modelStorage));
-         return modelStorage.LoadModel(Context, out schema);
+         return new DataTransformerMLNet(this, modelStorage.LoadModel(Context, out schema));
       }
       /// <summary>
       /// Effettua il salvataggio del modello
@@ -109,8 +117,8 @@ namespace MachineLearning.Model
       void ICanSaveModel.Save(ModelSaveContext ctx)
       {
          var evaluation = GetEvaluation(new ModelTrainerStandard());
-         if (evaluation.Model != null && evaluation.ModelStorage != null)
-            evaluation.ModelStorage.SaveModel(Context, evaluation.Model, evaluation.InputSchema);
+         if (evaluation.Model != null && evaluation.ModelStorage != null && evaluation.Model is ITransformer transformer)
+            evaluation.ModelStorage.SaveModel(Context, transformer, evaluation.InputSchema);
       }
       /// <summary>
       /// Salva i dati in uno storage
@@ -131,24 +139,33 @@ namespace MachineLearning.Model
       /// <param name="model">Modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public sealed override void SaveModel(IModelStorage modelStorage, ITransformer model, DataViewSchema schema)
+      public sealed override void SaveModel(IModelStorage modelStorage, IDataTransformer model, DataViewSchema schema)
       {
          Channel.CheckValue(modelStorage, nameof(modelStorage));
          Channel.CheckValue(model, nameof(model));
-         modelStorage.SaveModel(Context, model, schema);
+         var transformer = model as ITransformer;
+         Channel.Check(transformer != null, $"The model doesn't implement the {typeof(ITransformer)} interface");
+         modelStorage.SaveModel(Context, transformer, schema);
       }
       /// <summary>
       /// Trasforma i dati di input per il modello
       /// </summary>
       /// <param name="input">Vista di dati di input</param>
       /// <returns>I dati trasformati</returns>
-      public IDataView Transform(IDataView input) => GetEvaluation(new ModelTrainerStandard()).Model?.Transform(input);
+      public IDataView Transform(IDataView input) => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.Transform(input);
       /// <summary>
       /// Trasforma i dati di input per il modello
       /// </summary>
       /// <param name="data">Dati di input</param>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
       /// <returns>I dati trasformati</returns>
-      public sealed override IDataAccess Transform(IDataAccess data) => new DataAccess(this, Transform(data));
+      public IDataAccess Transform(IDataAccess data, CancellationToken cancellation = default)
+      {
+         if (cancellation != default)
+            return new DataAccess(this, GetEvaluationAsync((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).ConfigureAwait(false).GetAwaiter().GetResult().Model?.Transform(data, cancellation));
+         else
+            return new DataAccess(this, GetEvaluation((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).Model?.Transform(data, cancellation));
+      }
       #endregion
    }
 
@@ -167,7 +184,7 @@ namespace MachineLearning.Model
          /// <summary>
          /// Coda di modelli di autotraining
          /// </summary>
-         private Queue<(ITransformer Model, TMetrics Metrics)> autoTrainingModels = new Queue<(ITransformer Model, TMetrics Metrics)>();
+         private Queue<(DataTransformerMLNet Model, TMetrics Metrics)> autoTrainingModels = new Queue<(DataTransformerMLNet Model, TMetrics Metrics)>();
          /// <summary>
          /// Task di autotraining
          /// </summary>
@@ -246,7 +263,7 @@ namespace MachineLearning.Model
          /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
          /// <param name="cancellation">Token di cancellazione</param>
          /// <returns>Il modello migliore</returns>
-         public ITransformer WaitResult(
+         public IDataTransformer WaitResult(
             Func<ExperimentBase<TMetrics, TExperimentSettings>> ExperimentCreator,
             Func<IEnumerable<(ITransformer Model, TMetrics Metrics)>, (ITransformer Model, TMetrics Metrics)> BestModelEvaluator,
             IDataAccess data,
@@ -260,17 +277,17 @@ namespace MachineLearning.Model
                // Ottiene le pipe
                var pipes = owner.GetPipes();
                // Coda dei modelli di training calcolati
-               var queue = autoTrainingModels = new Queue<(ITransformer Model, TMetrics Metrics)>();
+               var queue = autoTrainingModels = new Queue<(DataTransformerMLNet Model, TMetrics Metrics)>();
                // Evento di modello disponibile
                var availableEvent = autoTrainingModelAvailable = new ManualResetEvent(false);
                // Funzione di accodamento modelli
-               void Enqueue(string trainerName, double runtimeInSeconds, ITransformer model, TMetrics metrics)
+               void Enqueue(string trainerName, double runtimeInSeconds, DataTransformerMLNet model, TMetrics metrics)
                {
                   try {
                      if (model != null && pipes.Output != null) {
-                        var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0));
+                        var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0), cancellation);
                         var outputTransformer = pipes.Output.Fit(dataFirstRow);
-                        model = new TransformerChain<ITransformer>(model, outputTransformer);
+                        model = new DataTransformerMLNet(owner, new TransformerChain<ITransformer>(model.Transformer, outputTransformer));
                         metrics = (TMetrics)owner.GetModelEvaluation(model, data);
                      }
                      lock (queue) {
@@ -282,7 +299,7 @@ namespace MachineLearning.Model
                   catch (Exception exc) {
                      Trace.WriteLine(exc);
                      try {
-                       owner. Channel.WriteLog(exc.ToString());
+                       owner.Channel.WriteLog(exc.ToString());
                      }
                      catch (Exception) {
                      }
@@ -296,14 +313,14 @@ namespace MachineLearning.Model
                      if (e.Exception != null)
                         sender.WriteLog(e);
                      else
-                        Enqueue(e.TrainerName, e.RuntimeInSeconds, e.Model, e.ValidationMetrics);
+                        Enqueue(e.TrainerName, e.RuntimeInSeconds, new DataTransformerMLNet(owner, e.Model), e.ValidationMetrics);
                   },
                   (sender, e) =>
                   {
                      cancellation.ThrowIfCancellationRequested();
                      var best = BestModelEvaluator(from r in e.Results where r.Exception == null select (r.Model, r.ValidationMetrics));
                      if (best != default)
-                        Enqueue(e.TrainerName, e.RuntimeInSeconds, best.Model, best.Metrics);
+                        Enqueue(e.TrainerName, e.RuntimeInSeconds, new DataTransformerMLNet(owner, best.Model), best.Metrics);
                   });
                // Avvia il task di esperimenti di autotraining
                autoTrainingTask.StartNew(cancellation => Task.Factory.StartNew(() =>

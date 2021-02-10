@@ -17,7 +17,7 @@ namespace MachineLearning.Model
    /// Classe base per i previsori di tipo multiclasse
    /// </summary>
    [Serializable]
-   public abstract class MulticlassModelBase : ModelBaseMLNet
+   public abstract class MulticlassModelBase : ModelBaseMLNet, IModelTrainingAuto, IModelTrainingCrossValidate
    {
       #region Fields
       /// <summary>
@@ -48,60 +48,6 @@ namespace MachineLearning.Model
       /// <param name="contextProvider">Provider di contesto di machine learning</param>
       public MulticlassModelBase(IContextProvider<MLContext> contextProvider = default) : base(contextProvider) =>
          Trainers = new TTrainers(this);
-      /// <summary>
-      /// Effettua il training con la ricerca automatica del miglior trainer
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="maxTimeInSeconds">Numero massimo di secondi di training</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
-      /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il modello migliore</returns>
-      public override sealed ITransformer AutoTraining(
-         IDataAccess data,
-         int maxTimeInSeconds,
-         out object metrics,
-         int numberOfFolds = 1,
-         CancellationToken cancellation = default)
-      {
-         autoTrainingTask ??= new AutoTrainingTask<TMetrics, TExperimentSettings>(this);
-         var result = autoTrainingTask.WaitResult(
-            () => Context.Auto().CreateMulticlassClassificationExperiment(new TExperimentSettings
-            {
-               CancellationToken = cancellation,
-               OptimizingMetric = BestModelSelectionMetric,
-               MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds),
-            }),
-            models => models.Best(),
-            data,
-            LabelColumnName,
-            out var m,
-            numberOfFolds,
-            cancellation);
-         metrics = m;
-         return result;
-      }
-      /// <summary>
-      /// Effettua il training con validazione incrociata del modello
-      /// </summary>
-      /// <param name="data">Dati</param>
-      /// <param name="metrics">La metrica del modello migliore</param>
-      /// <param name="numberOfFolds">Numero di validazioni</param>
-      /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
-      /// <param name="seed">Seme per le operazioni random</param>
-      /// <returns>Il modello migliore</returns>
-      public override sealed ITransformer CrossValidateTraining(
-         IDataAccess data,
-         out object metrics,
-         int numberOfFolds = 5,
-         string samplingKeyColumnName = null,
-         int? seed = null)
-      {
-         var results = Context.MulticlassClassification.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
-         var best = (from r in results select(r.Model, r.Metrics)).Best();
-         metrics = best.Metrics;
-         return best.Model;
-      }
       /// <summary>
       /// Funzione di dispose
       /// </summary>
@@ -135,7 +81,7 @@ namespace MachineLearning.Model
       /// <param name="data">Dati attuali caricati</param>
       /// <returns>Il risultato della valutazione</returns>
       /// <remarks>La valutazione ottenuta verra' infine passata alla GetBestEvaluation per compaare e selezionare il modello migliore</remarks>
-      protected override object GetModelEvaluation(ITransformer model, IDataAccess data) =>
+      protected override object GetModelEvaluation(IDataTransformer model, IDataAccess data) =>
          Context.MulticlassClassification.Evaluate(model.Transform(data), LabelColumnName ?? "Label");
       /// <summary>
       /// Funzione di restituzione della valutazione del modello (metrica, accuratezza, ecc...)
@@ -150,6 +96,56 @@ namespace MachineLearning.Model
          sb.AppendLine(metrics.ToText());
          sb.AppendLine(metrics.ConfusionMatrix.GetFormattedConfusionTable());
          return sb.ToString();
+      }
+      /// <summary>
+      /// Effettua il training con la ricerca automatica del miglior trainer
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="maxTimeInSeconds">Numero massimo di secondi di training</param>
+      /// <param name="metrics">La metrica del modello migliore</param>
+      /// <param name="numberOfFolds">Numero di validazioni incrociate</param>
+      /// <param name="cancellation">Token di cancellazione</param>
+      /// <returns>Il modello migliore</returns>
+      IDataTransformer IModelTrainingAuto.AutoTraining(IDataAccess data, int maxTimeInSeconds, out object metrics, int numberOfFolds, CancellationToken cancellation)
+      {
+         autoTrainingTask ??= new AutoTrainingTask<TMetrics, TExperimentSettings>(this);
+         var result = autoTrainingTask.WaitResult(
+            () => Context.Auto().CreateMulticlassClassificationExperiment(new TExperimentSettings
+            {
+               CancellationToken = cancellation,
+               OptimizingMetric = BestModelSelectionMetric,
+               MaxExperimentTimeInSeconds = (uint)Math.Max(0, maxTimeInSeconds),
+            }),
+            models => models.Best(),
+            data,
+            LabelColumnName,
+            out var m,
+            numberOfFolds,
+            cancellation);
+         metrics = m;
+         return result;
+      }
+      /// <summary>
+      /// Effettua il training con validazione incrociata del modello
+      /// </summary>
+      /// <param name="data">Dati</param>
+      /// <param name="metrics">La metrica del modello migliore</param>
+      /// <param name="numberOfFolds">Numero di validazioni</param>
+      /// <param name="samplingKeyColumnName">Nome colonna di chiave di campionamento</param>
+      /// <param name="seed">Seme per le operazioni random</param>
+      /// <returns>Il modello migliore</returns>
+      IDataTransformer IModelTrainingCrossValidate.CrossValidateTraining(IDataAccess data, out object metrics, int numberOfFolds, string samplingKeyColumnName, int? seed, CancellationToken cancellation)
+      {
+         var results = Context.MulticlassClassification.CrossValidate(data, GetPipes().Merged, numberOfFolds, LabelColumnName ?? "Label", samplingKeyColumnName, seed);
+         if (results == null) {
+            metrics = null;
+            return null;
+         }
+         cancellation.ThrowIfCancellationRequested();
+         var best = (from r in results select (r.Model, r.Metrics)).Best();
+         metrics = best.Metrics;
+         cancellation.ThrowIfCancellationRequested();
+         return new DataTransformerMLNet(this, best.Model);
       }
       #endregion
    }

@@ -1,5 +1,4 @@
 ﻿using MachineLearning.Data;
-using Microsoft.ML;
 using System;
 using System.Threading;
 
@@ -33,12 +32,12 @@ namespace MachineLearning.Model
       /// <param name="evaluationMetrics">Eventuali metriche di valutazione precalcolate</param>
       /// <param name="cancellation">Token di annullamento</param>
       /// <returns>Il modello appreso</returns>
-      ITransformer IModelTrainer.GetTrainedModel(ModelBaseMLNet model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
+      IDataTransformer IModelTrainer.GetTrainedModel(ModelBase model, IDataAccess data, out object evaluationMetrics, CancellationToken cancellation)
       {
-         evaluationMetrics = null;
-         var result = model.GetPipes().Merged.Fit(data.CanShuffle ? model.Context.Data.ShuffleRows(data, _trainingSeed++) : data);
-         cancellation.ThrowIfCancellationRequested();
-         return result;
+         if (model is IModelTrainingShuffle training)
+            return training.ShuffleTraining(data, out evaluationMetrics, _trainingSeed++, cancellation);
+         else
+            return ((IModelTrainer)new ModelTrainerStandard()).GetTrainedModel(model, data, out evaluationMetrics, cancellation);
       }
       #endregion
    }
