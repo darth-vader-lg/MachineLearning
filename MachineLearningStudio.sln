@@ -6,9 +6,6 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MachineLearningStudio", "MachineLearningStudio\MachineLearningStudio.csproj", "{B19212F0-F9E8-4964-A19D-EBABAE290A41}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B8E42C08-5E7F-48E6-99E2-ACA41C84881A}"
-	ProjectSection(SolutionItems) = preProject
-		c# - ML.NET plotting K-means clustering results- - Stack Overflow.url = c# - ML.NET plotting K-means clustering results- - Stack Overflow.url
-	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MachineLearning", "MachineLearning\MachineLearning.csproj", "{9543B73C-42DB-4958-9F59-7EA50F596FA9}"
 EndProject
