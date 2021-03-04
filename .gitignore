@@ -340,6 +340,8 @@ ASALocalRun/
 healthchecksdb
 
 # Python environment
+/output-model
+/pre-trained-models
 /TensorFlowTraining/env/Scripts
 /TensorFlowTraining/env/Lib/site-packages/absl
 /TensorFlowTraining/env/Lib/site-packages/absl_py-0.10.0.dist-info

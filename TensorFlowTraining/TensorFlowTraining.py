@@ -1,11 +1,22 @@
 # Root of the workspace
 workspaceRoot = ".."
+# The type of the model
+modelType = "SSD MobileNet v2 320x320"
+# Directory where to mount the Google GDrive
+mountGDriveDir = None
 # ===============================================================================================================
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+
+models = {
+    "SSD MobileNet v2 320x320": {
+        "DownloadPath": "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz",
+        "batch_size": 12
+    },
+}
 
 # Execute a subprocess
 def executeSubprocess(cmd):
@@ -21,6 +32,22 @@ def executeSubprocess(cmd):
 def execute(cmd):
     for output in executeSubprocess(cmd):
         print(output, end="")
+
+# Mount the GDrive
+if (mountGDriveDir != None):
+    print("Mounting the GDrive")
+    from google.colab import drive
+    drive.mount(os.path.join(mountGDriveDir))
+    workspaceGDrive = os.path.join(mountGDriveDir, "MyDrive", workspaceRoot)
+    # Check the existence of the workspace directory
+    if (not os.path.isdir(workspaceGDrive)):
+        print("Creating the workspace")
+        os.mkdir(workspaceRoot)
+    os.symlink(workspaceGDrive, workspaceRoot, True)
+# Check the existence of the workspace directory
+else:
+    if (not os.path.isdir(workspaceRoot)):
+        print("Creating the workspace")
 
 # Upgrade pip and setuptools
 pythonPath = os.path.join(os.path.dirname(sys.executable), "python3")
@@ -49,7 +76,7 @@ class GitCallbacks(pygit2.RemoteCallbacks):
             print("\rReceiving... Deltas [%d / %d], Objects [%d / %d]"%(stats.indexed_deltas, stats.total_deltas, stats.indexed_objects, stats.total_objects), end="", flush=True)
             self.dateTime = now
         if (stats.received_objects >= stats.total_objects and stats.indexed_objects >= stats.total_objects and stats.indexed_deltas >= stats.total_deltas):
-            print("\rDone Deltas %d, Objects %d."%(stats.total_objects, stats.total_objects))
+            print("\r\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\rDone Deltas %d, Objects %d."%(stats.total_objects, stats.total_objects))
         return super().transfer_progress(stats)
 
 # Directory of the TensorFlow models
@@ -86,3 +113,28 @@ if (not os.path.isdir(modelsDir)):
     os.chdir(currentDir)
 
 print("Installation completed.")
+
+# Workspace creation
+if (not os.path.isdir(os.path.join(workspaceRoot, "pre-trained-models"))):
+    print("Creating the pre-trained-models directory")
+    os.mkdir(os.path.join(workspaceRoot, "pre-trained-models"))
+if (not os.path.isdir(os.path.join(workspaceRoot, "output-model"))):
+    print("Creating the output-model directory")
+    os.mkdir(os.path.join(workspaceRoot, "output-model"))
+
+# Pre-trained model download
+import urllib.request
+preTrainedModelDir = str(Path(os.path.join(workspaceRoot, "pre-trained-models", Path(models[modelType]["DownloadPath"]).name)).with_suffix("").with_suffix(""))
+if not (os.path.exists(preTrainedModelDir)):
+    preTrainedModelFile = preTrainedModelDir + ".tar.gz"
+    print(f"Downloading the pre-trained model {str(Path(preTrainedModelFile).name)}...")
+    import shutil
+    import tarfile
+    urllib.request.urlretrieve(models[modelType]["DownloadPath"], preTrainedModelFile) # TODO: show progress
+    print("Done.")
+    print(f"Extracting the pre-trained model {str(Path(preTrainedModelFile).name)}...")
+    tar = tarfile.open(preTrainedModelFile)
+    tar.extractall(os.path.join(workspaceRoot, "pre-trained-models"))
+    tar.close()
+    os.remove(preTrainedModelFile)
+    print("Done.")
