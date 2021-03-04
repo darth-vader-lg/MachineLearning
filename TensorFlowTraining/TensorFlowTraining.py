@@ -27,14 +27,14 @@ pythonPath = os.path.join(os.path.dirname(sys.executable), "python3")
 if (not os.path.exists(pythonPath)):
     pythonPath = os.path.join(os.path.dirname(sys.executable), "python")
 
-execute([pythonPath, "-m", "pip", "install", "--upgrade", "pip"])
-execute([pythonPath, "-m", "pip", "install", "--upgrade", "setuptools"])
+execute([pythonPath, "-m", "pip", "install", "--upgrade", "pip==21.0.1"])
+execute([pythonPath, "-m", "pip", "install", "--upgrade", "setuptools==54.0.0"])
 
 # Install TensorFlow
 execute([pythonPath, "-m", "pip", "install", "tensorflow==2.4.1"])
 
 # Install pygit2
-execute([pythonPath, "-m", "pip", "install", "pygit2"])
+execute([pythonPath, "-m", "pip", "install", "pygit2==1.5.0"])
 
 # Progress for git
 import pygit2
@@ -68,13 +68,11 @@ if (not os.path.isdir(modelsDir)):
     (commit, reference) = repo.resolve_refish(ish)
     repo.checkout_tree(commit)
     repo.reset(pygit2.Oid(hex=ish), pygit2.GIT_RESET_HARD)
-    # Install the object detection packages
+    # Move to the research dir
     currentDir = os.getcwd()
     os.chdir(os.path.join(modelsDir, "research"))
-    shutil.copy2("object_detection/packages/tf2/setup.py", ".")
-    execute([pythonPath, "-m", "pip", "install", "."])
     # Install the protobuf tools
-    execute([pythonPath, "-m", "pip", "install", "grpcio-tools"])
+    execute([pythonPath, "-m", "pip", "install", "grpcio-tools==1.32.0"])
     # Compile the protobufs
     import grpc_tools.protoc as protoc
     protoFiles = Path("object_detection/protos").rglob("*.proto")
@@ -82,6 +80,9 @@ if (not os.path.isdir(modelsDir)):
         protoFilePath = str(protoFile)
         print("Compiling", protoFilePath)
         protoc.main(["grpc_tools.protoc", "--python_out=.", protoFilePath])
+    # Install the object detection packages
+    shutil.copy2("object_detection/packages/tf2/setup.py", ".")
+    execute([pythonPath, "-m", "pip", "install", "."])
     os.chdir(currentDir)
 
 print("Installation completed.")
