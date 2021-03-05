@@ -16,36 +16,39 @@ import tempfile
 preTrainedModelBaseDir = os.path.join(tempfile.gettempdir(), "tensorflow-pre-trained-models")
 # Set the configuration for Google Colab
 if ('google.colab' in sys.modules):
-    print("Mounting the GDrive")
-    from google.colab import drive
-    drive.mount("/mnt")
+    if (not os.path.exists("/mnt/MyDrive")):
+        print("Mounting the GDrive")
+        from google.colab import drive
+        drive.mount("/mnt")
     # Check the existence of the train images dir
     gdriveOutputDir = os.path.join("/mnt", "MyDrive", trainImagesDir)
     if (not os.path.isdir(gdriveOutputDir)):
         print("Error!!! The train images dir doesn't exist")
         exit(-1)
-    if (os.path.exists("/contents/train-images")):
-        os.unlink("/contents/train-images")
-    os.symlink(gdriveOutputDir, "/contents/train-images", True)
-    trainImagesDir = "/contents/train-images"
+    if (not os.path.exists("/content/train-images")):
+        os.mkdir("/content/train-images")
+    if (os.path.exists("/content/train-images/train")):
+        os.unlink("/content/train-images/train")
+    os.symlink(gdriveOutputDir, "/content/train-images/train", True)
+    trainImagesDir = "/content/train-images/train"
     # Check the existence of the test images dir
     gdriveOutputDir = os.path.join("/mnt", "MyDrive", testImagesDir)
     if (not os.path.isdir(gdriveOutputDir)):
         print("Error!!! The test images dir doesn't exist")
         exit(-1)
-    if (os.path.exists("/contents/test-images")):
-        os.unlink("/contents/test-images")
-    os.symlink(gdriveOutputDir, "/contents/test-images", True)
-    testImagesDir = "/contents/test-images"
+    if (os.path.exists("/content/train-images/test")):
+        os.unlink("/content/train-images/test")
+    os.symlink(gdriveOutputDir, "/content/train-images/test", True)
+    testImagesDir = "/content/train-images/test"
     # Check the existence of the output directory
     gdriveOutputDir = os.path.join("/mnt", "MyDrive", outputDir)
     if (not os.path.isdir(gdriveOutputDir)):
         print("Creating the output directory")
         os.mkdir(gdriveOutputDir)
-    if (os.path.exists("/contents/trained-model")):
-        os.unlink("/contents/trained-model")
-    os.symlink(gdriveOutputDir, "/contents/trained-model", True)
-    outputDir = "/contents/trained-model"
+    if (os.path.exists("/content/trained-model")):
+        os.unlink("/content/trained-model")
+    os.symlink(gdriveOutputDir, "/content/trained-model", True)
+    outputDir = "/content/trained-model"
 else:
     if (not os.path.isdir(trainImagesDir)):
         print("Error!!! The train images dir doesn't exist")
