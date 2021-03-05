@@ -1,22 +1,75 @@
-# Root of the workspace
-workspaceRoot = ".."
+# Directories
+outputDir = "TrainedModel"
+trainImagesDir = "Images/Train"
+testImagesDir = "Images/Test"
 # The type of the model
 modelType = "SSD MobileNet v2 320x320"
-# Directory where to mount the Google GDrive
-mountGDriveDir = None
 # ===============================================================================================================
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 
+# Set the directory where to download the pre-trained models
+preTrainedModelBaseDir = os.path.join(tempfile.gettempdir(), "tensorflow-pre-trained-models")
+# Set the configuration for Google Colab
+if ('google.colab' in sys.modules):
+    print("Mounting the GDrive")
+    from google.colab import drive
+    drive.mount("/mnt")
+    # Check the existence of the train images dir
+    gdriveOutputDir = os.path.join("/mnt", "MyDrive", trainImagesDir)
+    if (not os.path.isdir(gdriveOutputDir)):
+        print("Error!!! The train images dir doesn't exist")
+        exit(-1)
+    if (os.path.exists("/contents/train-images")):
+        os.unlink("/contents/train-images")
+    os.symlink(gdriveOutputDir, "/contents/train-images", True)
+    trainImagesDir = "/contents/train-images"
+    # Check the existence of the test images dir
+    gdriveOutputDir = os.path.join("/mnt", "MyDrive", testImagesDir)
+    if (not os.path.isdir(gdriveOutputDir)):
+        print("Error!!! The test images dir doesn't exist")
+        exit(-1)
+    if (os.path.exists("/contents/test-images")):
+        os.unlink("/contents/test-images")
+    os.symlink(gdriveOutputDir, "/contents/test-images", True)
+    testImagesDir = "/contents/test-images"
+    # Check the existence of the output directory
+    gdriveOutputDir = os.path.join("/mnt", "MyDrive", outputDir)
+    if (not os.path.isdir(gdriveOutputDir)):
+        print("Creating the output directory")
+        os.mkdir(gdriveOutputDir)
+    if (os.path.exists("/contents/trained-model")):
+        os.unlink("/contents/trained-model")
+    os.symlink(gdriveOutputDir, "/contents/trained-model", True)
+    outputDir = "/contents/trained-model"
+else:
+    if (not os.path.isdir(trainImagesDir)):
+        print("Error!!! The train images dir doesn't exist")
+        exit(-1)
+    if (not os.path.isdir(testImagesDir)):
+        print("Error!!! The test images dir doesn't exist")
+        exit(-1)
+    if (not os.path.exists(outputDir)):
+        print("Creating the output dir")
+        os.mkdir(outputDir)
+if (not os.path.exists(os.path.join(outputDir, "annotations"))):
+    os.mkdir(os.path.join(outputDir, "annotations"))
+
+
+# List of available models and theirs configurations
 models = {
     "SSD MobileNet v2 320x320": {
         "DownloadPath": "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz",
-        "batch_size": 12
+        "batch_size": 12,
+        "height": 300,
+        "width": 300
     },
 }
+model = models[modelType]
 
 # Execute a subprocess
 def executeSubprocess(cmd):
@@ -32,22 +85,6 @@ def executeSubprocess(cmd):
 def execute(cmd):
     for output in executeSubprocess(cmd):
         print(output, end="")
-
-# Mount the GDrive
-if (mountGDriveDir != None):
-    print("Mounting the GDrive")
-    from google.colab import drive
-    drive.mount(os.path.join(mountGDriveDir))
-    workspaceGDrive = os.path.join(mountGDriveDir, "MyDrive", workspaceRoot)
-    # Check the existence of the workspace directory
-    if (not os.path.isdir(workspaceGDrive)):
-        print("Creating the workspace")
-        os.mkdir(workspaceRoot)
-    os.symlink(workspaceGDrive, workspaceRoot, True)
-# Check the existence of the workspace directory
-else:
-    if (not os.path.isdir(workspaceRoot)):
-        print("Creating the workspace")
 
 # Upgrade pip and setuptools
 pythonPath = os.path.join(os.path.dirname(sys.executable), "python3")
@@ -79,25 +116,25 @@ class GitCallbacks(pygit2.RemoteCallbacks):
             print("\r\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\rDone Deltas %d, Objects %d."%(stats.total_objects, stats.total_objects))
         return super().transfer_progress(stats)
 
-# Directory of the TensorFlow models
-modelsDir = os.path.join(workspaceRoot, "models")
+# Directory of the TensorFlow object detection api
+odApiDir = os.path.join(tempfile.gettempdir(), "tensorflow-object-detection-api")
 # Install the TensorFlow models
-if (not os.path.isdir(modelsDir)):
+if (not os.path.isdir(odApiDir)):
     # Create the callback for the progress
     callbacks = GitCallbacks();
     # Clone the TensorFlow models repository
     print("Cloning the TensorFlow models repository")
-    pygit2.clone_repository("https://github.com/tensorflow/models.git", modelsDir, callbacks = callbacks)
+    pygit2.clone_repository("https://github.com/tensorflow/models.git", odApiDir, callbacks = callbacks)
     print("TensorFlow models repository cloned")
     # Checkout a well known commit
-    repo = pygit2.Repository(modelsDir)
+    repo = pygit2.Repository(odApiDir)
     ish = "e356598a5b79a768942168b10d9c1acaa923bdb4"
     (commit, reference) = repo.resolve_refish(ish)
     repo.checkout_tree(commit)
     repo.reset(pygit2.Oid(hex=ish), pygit2.GIT_RESET_HARD)
     # Move to the research dir
     currentDir = os.getcwd()
-    os.chdir(os.path.join(modelsDir, "research"))
+    os.chdir(os.path.join(odApiDir, "research"))
     # Install the protobuf tools
     execute([pythonPath, "-m", "pip", "install", "grpcio-tools==1.32.0"])
     # Compile the protobufs
@@ -114,27 +151,51 @@ if (not os.path.isdir(modelsDir)):
 
 print("Installation completed.")
 
-# Workspace creation
-if (not os.path.isdir(os.path.join(workspaceRoot, "pre-trained-models"))):
-    print("Creating the pre-trained-models directory")
-    os.mkdir(os.path.join(workspaceRoot, "pre-trained-models"))
-if (not os.path.isdir(os.path.join(workspaceRoot, "output-model"))):
-    print("Creating the output-model directory")
-    os.mkdir(os.path.join(workspaceRoot, "output-model"))
+# Append the object detection api to the path
+sys.path.append(os.path.join(odApiDir, "research"))
+sys.path.append(os.path.join(odApiDir, "research/slim"))
 
 # Pre-trained model download
 import urllib.request
-preTrainedModelDir = str(Path(os.path.join(workspaceRoot, "pre-trained-models", Path(models[modelType]["DownloadPath"]).name)).with_suffix("").with_suffix(""))
+preTrainedModelDir = str(Path(os.path.join(preTrainedModelBaseDir, Path(model["DownloadPath"]).name)).with_suffix("").with_suffix(""))
 if not (os.path.exists(preTrainedModelDir)):
+    if (not os.path.exists(preTrainedModelBaseDir)):
+        os.mkdir(preTrainedModelBaseDir)
     preTrainedModelFile = preTrainedModelDir + ".tar.gz"
     print(f"Downloading the pre-trained model {str(Path(preTrainedModelFile).name)}...")
-    import shutil
     import tarfile
-    urllib.request.urlretrieve(models[modelType]["DownloadPath"], preTrainedModelFile) # TODO: show progress
+    urllib.request.urlretrieve(model["DownloadPath"], preTrainedModelFile) # TODO: show progress
     print("Done.")
     print(f"Extracting the pre-trained model {str(Path(preTrainedModelFile).name)}...")
     tar = tarfile.open(preTrainedModelFile)
-    tar.extractall(os.path.join(workspaceRoot, "pre-trained-models"))
+    tar.extractall(preTrainedModelBaseDir)
     tar.close()
     os.remove(preTrainedModelFile)
     print("Done.")
+
+# Copy the pipeline configuration file
+outPipelineFile = os.path.join(outputDir, "pipeline.config")
+if (not os.path.exists(outPipelineFile)):
+    shutil.copy2(os.path.join(preTrainedModelDir, "pipeline.config"), outputDir)
+
+# Configuring the pipeline
+import tensorflow as tf
+from google.protobuf import text_format
+from object_detection.protos import pipeline_pb2
+pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
+with tf.io.gfile.GFile(outPipelineFile, "r") as f:
+    proto_str = f.read()
+    text_format.Merge(proto_str, pipeline_config)
+pipeline_config.model.ssd.num_classes = 1 # TODO define
+pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.height = model["height"]
+pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.width = model["width"]
+pipeline_config.train_config.batch_size = model["batch_size"]
+pipeline_config.train_config.fine_tune_checkpoint = os.path.join(preTrainedModelDir, "checkpoint", "ckpt-0")
+pipeline_config.train_config.fine_tune_checkpoint_type = "detection"
+pipeline_config.train_input_reader.label_map_path = os.path.join(outputDir, "annotations", "label_map.pbtxt")
+pipeline_config.train_input_reader.tf_record_input_reader.input_path[0] = os.path.join(outputDir, "annotations", "train.record")
+pipeline_config.eval_input_reader[0].label_map_path = os.path.join(outputDir, "annotations", "label_map.pbtxt")
+pipeline_config.eval_input_reader[0].tf_record_input_reader.input_path[0] = os.path.join(outputDir, "annotations", "test.record")
+config_text = text_format.MessageToString(pipeline_config)
+with tf.io.gfile.GFile(outPipelineFile, "wb") as f:
+    f.write(config_text)
