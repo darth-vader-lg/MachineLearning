@@ -1,17 +1,38 @@
-# Directories
+# =============================================================================
+# Parameters
+# =============================================================================
+# Training model output directory
 outputDir = "TrainedModel"
+# Directory containing the images for the training
 trainImagesDir = "Images/Train"
+# Directory containing the images for the evaluation
 testImagesDir = "Images/Test"
-# The type of the model
+# The type of the base model
 modelType = "SSD MobileNet v2 320x320"
-# ===============================================================================================================
+# =============================================================================
+# List of available models and theirs configurations
+# =============================================================================
+models = {
+    "SSD MobileNet v2 320x320": {
+        "DownloadPath": "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz",
+        "batch_size": 12,
+        "height": 300,
+        "width": 300
+    },
+}
+model = models[modelType]
+# =============================================================================
+# Imports
+# =============================================================================
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
-
+# =============================================================================
+# Directories mounting, checking and creating
+# =============================================================================
 # Set the directory where to download the pre-trained models
 preTrainedModelBaseDir = os.path.join(tempfile.gettempdir(), "tensorflow-pre-trained-models")
 # Set the configuration for Google Colab
@@ -61,19 +82,9 @@ else:
         os.mkdir(outputDir)
 if (not os.path.exists(os.path.join(outputDir, "annotations"))):
     os.mkdir(os.path.join(outputDir, "annotations"))
-
-
-# List of available models and theirs configurations
-models = {
-    "SSD MobileNet v2 320x320": {
-        "DownloadPath": "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz",
-        "batch_size": 12,
-        "height": 300,
-        "width": 300
-    },
-}
-model = models[modelType]
-
+# =============================================================================
+# Processes execution with printing
+# =============================================================================
 # Execute a subprocess
 def executeSubprocess(cmd):
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
@@ -83,27 +94,25 @@ def executeSubprocess(cmd):
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
-
-# Execute with output
+# Execute a subprocess with output
 def execute(cmd):
     for output in executeSubprocess(cmd):
         print(output, end="")
-
-# Upgrade pip and setuptools
+# =============================================================================
+# Well known environment installation
+# =============================================================================
+# Path of the python interpreter executable
 pythonPath = os.path.join(os.path.dirname(sys.executable), "python3")
 if (not os.path.exists(pythonPath)):
     pythonPath = os.path.join(os.path.dirname(sys.executable), "python")
-
+# Upgrade pip and setuptools
 execute([pythonPath, "-m", "pip", "install", "--upgrade", "pip==21.0.1"])
 execute([pythonPath, "-m", "pip", "install", "--upgrade", "setuptools==54.0.0"])
-
 # Install TensorFlow
 execute([pythonPath, "-m", "pip", "install", "tensorflow==2.4.1"])
-
 # Install pygit2
 execute([pythonPath, "-m", "pip", "install", "pygit2==1.5.0"])
-
-# Progress for git
+# Progress class for the git output
 import pygit2
 import datetime
 class GitCallbacks(pygit2.RemoteCallbacks):
@@ -118,7 +127,6 @@ class GitCallbacks(pygit2.RemoteCallbacks):
         if (stats.received_objects >= stats.total_objects and stats.indexed_objects >= stats.total_objects and stats.indexed_deltas >= stats.total_deltas):
             print("\r\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\rDone Deltas %d, Objects %d."%(stats.total_objects, stats.total_objects))
         return super().transfer_progress(stats)
-
 # Directory of the TensorFlow object detection api
 odApiDir = os.path.join(tempfile.gettempdir(), "tensorflow-object-detection-api")
 # Install the TensorFlow models
@@ -151,13 +159,16 @@ if (not os.path.isdir(odApiDir)):
     shutil.copy2("object_detection/packages/tf2/setup.py", ".")
     execute([pythonPath, "-m", "pip", "install", "."])
     os.chdir(currentDir)
-
 print("Installation completed.")
-
+# =============================================================================
+# Add the object detection api to the paths
+# =============================================================================
 # Append the object detection api to the path
 sys.path.append(os.path.join(odApiDir, "research"))
 sys.path.append(os.path.join(odApiDir, "research/slim"))
-
+# =============================================================================
+# Download the base model from the TensorFlow models zoo if it's needed
+# =============================================================================
 # Pre-trained model download
 import urllib.request
 preTrainedModelDir = str(Path(os.path.join(preTrainedModelBaseDir, Path(model["DownloadPath"]).name)).with_suffix("").with_suffix(""))
@@ -175,12 +186,14 @@ if not (os.path.exists(preTrainedModelDir)):
     tar.close()
     os.remove(preTrainedModelFile)
     print("Done.")
-
-# Copy the pipeline configuration file
+# =============================================================================
+# Configuration of the training pipeline in the model output directory
+# =============================================================================
+# Copy the pipeline configuration file if it's not already present in the output dir
+print("Configuring the pipeline")
 outPipelineFile = os.path.join(outputDir, "pipeline.config")
 if (not os.path.exists(outPipelineFile)):
     shutil.copy2(os.path.join(preTrainedModelDir, "pipeline.config"), outputDir)
-
 # Configuring the pipeline
 import tensorflow as tf
 from google.protobuf import text_format
@@ -202,3 +215,5 @@ pipeline_config.eval_input_reader[0].tf_record_input_reader.input_path[0] = os.p
 config_text = text_format.MessageToString(pipeline_config)
 with tf.io.gfile.GFile(outPipelineFile, "wb") as f:
     f.write(config_text)
+print(str(config_text))
+print("Done.")
