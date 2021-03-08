@@ -584,4 +584,5 @@ healthchecksdb
 /TensorFlowTraining/env/Lib/site-packages/cycler.py
 /TensorFlowTraining/env/Lib/site-packages/contextlib2.py
 /TensorFlowTraining/env/Lib/site-packages/cached_property.py
-/TensorFlowTraining/TrainedModel
+/TensorFlowTraining/annotations
+/TensorFlowTraining/trained-model
