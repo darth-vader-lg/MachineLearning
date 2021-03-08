@@ -10,17 +10,20 @@
 # =============================================================================
 # The available models are:
 # - SSD MobileNet v2 320x320
+# - SSD ResNet50 V1 FPN 640x640 (RetinaNet50)
 # =============================================================================
 # Globals
 # =============================================================================
 # The type of the base model
-model_type = "SSD MobileNet v2 320x320"
+model_type = "SSD ResNet50 V1 FPN 640x640 (RetinaNet50)"
 # Training model output directory
-model_dir = "TrainedModel"
+model_dir = "trained-model"
 # Directory containing the images for the training
-train_images_dir = "Images/Train"
+train_images_dir = "images/train"
 # Directory containing the images for the evaluation
-eval_images_dir = "Images/Eval"
+eval_images_dir = "images/eval"
+# Directory containing the training data
+annotations_dir = "annotations"
 # =============================================================================
 # Arguments
 # =============================================================================
@@ -65,6 +68,12 @@ models = {
         "batch_size": 12,
         "height": 300,
         "width": 300
+    },
+    "SSD ResNet50 V1 FPN 640x640 (RetinaNet50)": {
+        "DownloadPath": "http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz",
+        "batch_size": 8,
+        "height": 640,
+        "width": 640
     },
 }
 model = models[model_type]
@@ -210,8 +219,8 @@ def InitEnvironment():
         if (not os.path.exists(model_dir)):
             print("Creating the output dir")
             os.mkdir(model_dir)
-    if (not os.path.exists(os.path.join(model_dir, "annotations"))):
-        os.mkdir(os.path.join(model_dir, "annotations"))
+    if (not os.path.exists(annotations_dir)):
+        os.mkdir(annotations_dir)
 if ('google.colab' in sys.modules): InitEnvironment()
 # =============================================================================
 # Download the base model from the TensorFlow models zoo if it's needed
@@ -281,7 +290,9 @@ def class_text_to_int(row_label):
             msg.item.append(StringIntLabelMapItem(id=id, name=name))
         text = str(text_format.MessageToBytes(msg, as_utf8=True), "utf-8")
         global model_dir
-        with open(os.path.join(model_dir, "annotations", "label_map.pbtxt"), "w") as f:
+        with open(os.path.join(annotations_dir, "label_map.pbtxt"), "w") as f:
+            f.write(text)
+        with open(os.path.join(model_dir, "label_map.pbtxt"), "w") as f:
             f.write(text)
     return labelDict[row_label]
 # Splitting
@@ -351,13 +362,14 @@ def CreateTFRecords():
     global model_dir
     global train_images_dir
     global eval_images_dir
-    create_tf_record(train_images_dir, os.path.join(model_dir, "annotations", "train.record"))
-    create_tf_record(eval_images_dir, os.path.join(model_dir, "annotations", "eval.record"))
+    create_tf_record(train_images_dir, os.path.join(annotations_dir, "train.record"))
+    create_tf_record(eval_images_dir, os.path.join(annotations_dir, "eval.record"))
 if ('google.colab' in sys.modules): CreateTFRecords()
 # =============================================================================
 # Configuration of the training pipeline in the model output directory
 # =============================================================================
 def ConfigurePipeline():
+    import tensorflow as tf
     from object_detection.protos import pipeline_pb2
     from google.protobuf import text_format
     global model_dir
@@ -365,8 +377,7 @@ def ConfigurePipeline():
     # Copy the pipeline configuration file if it's not already present in the output dir
     print("Configuring the pipeline")
     outPipelineFile = os.path.join(model_dir, "pipeline.config")
-    if (not os.path.exists(outPipelineFile)):
-        shutil.copy2(os.path.join(preTrainedModelDir, "pipeline.config"), model_dir)
+    shutil.copy2(os.path.join(preTrainedModelDir, "pipeline.config"), model_dir)
     # Configuring the pipeline
     pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
     with tf.io.gfile.GFile(outPipelineFile, "r") as f:
@@ -378,13 +389,14 @@ def ConfigurePipeline():
     pipeline_config.train_config.batch_size = model["batch_size"]
     pipeline_config.train_config.fine_tune_checkpoint = os.path.join(preTrainedModelDir, "checkpoint", "ckpt-0")
     pipeline_config.train_config.fine_tune_checkpoint_type = "detection"
-    pipeline_config.train_input_reader.label_map_path = os.path.join(model_dir, "annotations", "label_map.pbtxt")
-    pipeline_config.train_input_reader.tf_record_input_reader.input_path[0] = os.path.join(model_dir, "annotations", "train.record")
-    pipeline_config.eval_input_reader[0].label_map_path = os.path.join(model_dir, "annotations", "label_map.pbtxt")
-    pipeline_config.eval_input_reader[0].tf_record_input_reader.input_path[0] = os.path.join(model_dir, "annotations", "eval.record")
+    pipeline_config.train_input_reader.label_map_path = os.path.join(annotations_dir, "label_map.pbtxt")
+    pipeline_config.train_input_reader.tf_record_input_reader.input_path[0] = os.path.join(annotations_dir, "train.record")
+    pipeline_config.eval_input_reader[0].label_map_path = os.path.join(annotations_dir, "label_map.pbtxt")
+    pipeline_config.eval_input_reader[0].tf_record_input_reader.input_path[0] = os.path.join(annotations_dir, "eval.record")
     config_text = text_format.MessageToString(pipeline_config)
     with tf.io.gfile.GFile(outPipelineFile, "wb") as f:
         f.write(config_text)
+    shutil.copy2(outPipelineFile, annotations_dir)
     print(str(config_text))
     print("Done.")
 if ('google.colab' in sys.modules): ConfigurePipeline()
@@ -413,7 +425,7 @@ def main(unused_argv):
         ConfigurePipeline()
     if FLAGS.checkpoint_dir:
         model_lib_v2.eval_continuously(
-            pipeline_config_path=os.path.join(model_dir, "pipeline.config"),
+            pipeline_config_path=os.path.join(annotations_dir, "pipeline.config"),
             model_dir=model_dir,
             train_steps=FLAGS.num_train_steps,
             sample_1_of_n_eval_examples=FLAGS.sample_1_of_n_eval_examples,
@@ -435,7 +447,7 @@ def main(unused_argv):
             strategy = tf.compat.v2.distribute.MirroredStrategy()
     with strategy.scope():
         model_lib_v2.train_loop(
-            pipeline_config_path=os.path.join(model_dir, "pipeline.config"),
+            pipeline_config_path=os.path.join(annotations_dir, "pipeline.config"),
             model_dir=model_dir,
             train_steps=FLAGS.num_train_steps,
             use_tpu=FLAGS.use_tpu,
@@ -448,4 +460,6 @@ if __name__ == '__main__':
     if (not 'google.colab' in sys.modules):
         InstallDependencies()
     import tensorflow as tf
+    if (__debug__):
+        tf.config.run_functions_eagerly(True)
     tf.compat.v1.app.run()
