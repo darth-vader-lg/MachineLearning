@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>bf17799b-e8e4-4441-9f34-25b050033535</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>TensorFlowTraining.py</StartupFile>
+    <StartupFile>train.py</StartupFile>
     <SearchPath>env\Scripts</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -24,7 +24,35 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="TensorFlowTraining.py" />
+    <Compile Include="base_parameters.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="train_loop.py" />
+    <Compile Include="train_pipeline.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="pretrained_model.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="train_environment.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="od_install.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="model_types.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="process_execution.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="train.py" />
+    <Compile Include="tf_record.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="train_parameters.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="requirements.txt" />
