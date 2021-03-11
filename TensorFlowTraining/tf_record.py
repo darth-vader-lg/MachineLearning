@@ -1,12 +1,14 @@
-# Module tf_record.py
+# Module: tf_record.py
 
-from    base_parameters import BaseParameters
-
-# Begin notebook cell
 import  glob
 import  io
 import  os
+from    pathlib import Path
 import  shutil
+
+try:
+    from    base_parameters import BaseParameters
+except: pass
 
 class TFRecord:
     """Class for the TensorFlow records creation"""
@@ -91,7 +93,7 @@ class TFRecord:
             tf_example = self.create_tf_example(group, path)
             writer.write(tf_example.SerializeToString())
         writer.close()
-        print('Successfully created the TFRecord file: {}'.format(output_file))
+        print(f'Created the TFRecord file {str(Path(output_file).resolve())}')
         if labels_file is not None:
             from google.protobuf import text_format
             from object_detection.protos.string_int_label_map_pb2 import StringIntLabelMap, StringIntLabelMapItem
@@ -101,9 +103,10 @@ class TFRecord:
             text = str(text_format.MessageToBytes(msg, as_utf8 = True), 'utf-8')
             with open(labels_file, 'w') as f:
                 f.write(text)
+            print(f'Created the labels map file {str(Path(labels_file).resolve())}')
         if csv_file is not None:
             examples.to_csv(csv_file, index = None)
-            print('Successfully created the CSV file: {}'.format(csv_file))
+            print(f'Created the CSV file {str(Path(csv_file).resolve())}')
     def split(self, df, group):
         """
         Split the labels in an image
@@ -143,21 +146,24 @@ class TFRecord:
         xml_df = pd.DataFrame(xml_list, columns = column_name)
         return xml_df
 
-def create_tf_records(prm = BaseParameters()):
+def create_tf_records(prm: BaseParameters):
     """
     TensorFlow record files creator
     Keyword arguments:
     prm     -- Parameters
     """
+    print("Creating TFRecord for the train images...")
     TFRecord().create_tf_record(
         prm.train_images_dir,
-        os.path.join(prm.annotations_dir, "train.record"),
-        os.path.join(prm.annotations_dir, "label_map.pbtxt"))
+        os.path.join(prm.annotations_dir, 'train.record'),
+        os.path.join(prm.annotations_dir, 'label_map.pbtxt'))
+    print("Creating TFRecord for the evaluation images...")
     TFRecord().create_tf_record(
         prm.eval_images_dir,
-        os.path.join(prm.annotations_dir, "eval.record"))
-    shutil.copy2(os.path.join(prm.annotations_dir, "label_map.pbtxt"), prm.model_dir)
+        os.path.join(prm.annotations_dir, 'eval.record'))
+    shutil.copy2(os.path.join(prm.annotations_dir, 'label_map.pbtxt'), prm.model_dir)
+    print(f"The labels map file was copied to {(os.path.join(str(Path(prm.model_dir).resolve()), 'label_map.pbtxt'))}")
 
 if __name__ == '__main__':
-    create_tf_records()
-# End notebook cell
+    prm = prm or BaseParameters.default
+    create_tf_records(prm)

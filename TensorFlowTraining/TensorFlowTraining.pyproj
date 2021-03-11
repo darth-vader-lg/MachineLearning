@@ -27,6 +27,7 @@
     <Compile Include="base_parameters.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="train.ipynb.py" />
     <Compile Include="train_loop.py" />
     <Compile Include="train_pipeline.py">
       <SubType>Code</SubType>
@@ -43,7 +44,7 @@
     <Compile Include="model_types.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="process_execution.py">
+    <Compile Include="utilities.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="train.py" />
