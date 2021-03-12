@@ -28,7 +28,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="train.ipynb.py" />
-    <Compile Include="train_loop.py" />
     <Compile Include="train_pipeline.py">
       <SubType>Code</SubType>
     </Compile>
