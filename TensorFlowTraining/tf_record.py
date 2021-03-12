@@ -165,5 +165,5 @@ def create_tf_records(prm: BaseParameters):
     print(f"The labels map file was copied to {(os.path.join(str(Path(prm.model_dir).resolve()), 'label_map.pbtxt'))}")
 
 if __name__ == '__main__':
-    prm = prm or BaseParameters.default
+    prm = ('prm' in locals() and prm) or BaseParameters.default
     create_tf_records(prm)

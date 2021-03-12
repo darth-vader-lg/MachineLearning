@@ -96,6 +96,6 @@ class BaseParameters:
 BaseParameters.default = BaseParameters.default or BaseParameters()
 
 if __name__ == '__main__':
-    prm = BaseParameters.default
+    prm = ('prm' in locals() and prm) or BaseParameters.default
     print(prm)
     print('Base parameters configured')

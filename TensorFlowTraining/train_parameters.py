@@ -25,7 +25,7 @@ class TrainParameters(BaseParameters):
         self._record_summaries = True
         self._is_path.extend([
             'pipeline_config_path',
-            '_checkpoint_dir'])
+            'checkpoint_dir'])
     default = None
     @property
     def pipeline_config_path(self): return self._pipeline_config_path

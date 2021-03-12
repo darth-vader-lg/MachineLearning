@@ -30,5 +30,5 @@ def download_pretrained_model(prm: BaseParameters):
     print(f'Pre-trained model is located at {str(Path(prm.pre_trained_model_dir).resolve())}')
 
 if __name__ == '__main__':
-    prm = prm or BaseParameters.default
+    prm = ('prm' in locals() and prm) or BaseParameters.default
     download_pretrained_model(prm)

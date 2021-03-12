@@ -64,5 +64,5 @@ def init_train_environment(prm: TrainParameters):
     print(f'The annotations files will be in {str(Path(prm.annotations_dir).resolve())}')
 
 if __name__ == '__main__':
-    prm = prm or TrainParameters.default
+    prm = ('prm' in locals() and prm) or TrainParameters.default
     init_train_environment(prm)
