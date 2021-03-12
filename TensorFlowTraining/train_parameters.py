@@ -23,6 +23,9 @@ class TrainParameters(BaseParameters):
         self._num_workers = 1
         self._checkpoint_every_n = 1000
         self._record_summaries = True
+        self._is_path.extend([
+            'pipeline_config_path',
+            '_checkpoint_dir'])
     default = None
     @property
     def pipeline_config_path(self): return self._pipeline_config_path
@@ -44,10 +47,6 @@ class TrainParameters(BaseParameters):
     def sample_1_of_n_eval_on_train_examples(self): return self._sample_1_of_n_eval_on_train_examples
     @sample_1_of_n_eval_on_train_examples.setter
     def sample_1_of_n_eval_on_train_examples(self, value): self._sample_1_of_n_eval_on_train_examples = value
-    @property
-    def checkpoint_dir(self): return self._checkpoint_dir
-    @checkpoint_dir.setter
-    def checkpoint_dir(self, value): self._checkpoint_dir = value
     @property
     def checkpoint_dir(self): return self._checkpoint_dir
     @checkpoint_dir.setter
@@ -79,6 +78,6 @@ class TrainParameters(BaseParameters):
 TrainParameters.default = TrainParameters.default or TrainParameters()
 
 if __name__ == '__main__':
-    prm = TrainParameters.default
+    prm = ('prm' in locals() and prm) or TrainParameters.default
     print(prm)
     print('Train parameters configured')
