@@ -1,4 +1,6 @@
 # Module: utilities.py
+#@title #Utility functions
+#@markdown Some utility functions used for the train steps.
 
 import subprocess
 import sys
@@ -46,3 +48,5 @@ def execute_non_colab(fn):
 
 if __name__ == '__main__':
     print('Utilities functions initialized')
+
+#@markdown ---

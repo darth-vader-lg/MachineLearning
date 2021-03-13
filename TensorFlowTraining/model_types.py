@@ -1,4 +1,6 @@
 # Module: model_types.py
+#@title #Model types { vertical-output: true, form-width: "20%" }
+#@markdown Initialize the list of the available pre-trained models and their parameters.
 
 """ List of the available models and their definitions """
 models = {
@@ -20,3 +22,5 @@ if __name__ == '__main__':
     import pprint
     pprint.PrettyPrinter(1).pprint(models)
     print('Dictionary of pre-trained models configured')
+
+#@markdown ---

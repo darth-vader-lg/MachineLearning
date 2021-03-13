@@ -1,4 +1,6 @@
 # Module: base_parameters.py
+#@title #Base parameters { form-width: "20%" }
+#@markdown Definition of the base parameters class.
 
 from    absl import flags
 import  os
@@ -14,10 +16,10 @@ class BaseParameters:
     """ Class holding the base parameters """
     def __init__(self):
         """ Constructor """
-        self._model_type = 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
-        self._model_dir = 'trained-model'
-        self._train_images_dir = 'images/train'
-        self._eval_images_dir = 'images/eval'
+        self._model_type = ('model' in globals() and model) or 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
+        self._model_dir = ('trained_model' in globals() and trained_model) or 'trained-model'
+        self._train_images_dir = ('train_images_dir' in globals() and train_images_dir) or 'images/train'
+        self._eval_images_dir = ('eval_images_dir' in globals() and eval_images_dir) or 'images/eval'
         self._annotations_dir = 'annotations'
         self._pre_trained_model_base_dir = os.path.join(tempfile.gettempdir(), 'tensorflow-pre-trained-models')
         self._is_path = [
@@ -96,6 +98,8 @@ class BaseParameters:
 BaseParameters.default = BaseParameters.default or BaseParameters()
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or BaseParameters.default
+    prm = ('prm' in locals() and prm and isinstance(prm, BaseParameters)) or BaseParameters.default
     print(prm)
     print('Base parameters configured')
+
+#@markdown ---

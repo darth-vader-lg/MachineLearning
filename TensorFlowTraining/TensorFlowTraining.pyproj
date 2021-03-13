@@ -27,6 +27,7 @@
     <Compile Include="base_parameters.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Plot-ssd_mobilenet_v2_320x320_coco17_tpu-8_checkpoint.py" />
     <Compile Include="train.ipynb.py" />
     <Compile Include="train_pipeline.py">
       <SubType>Code</SubType>

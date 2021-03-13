@@ -1,4 +1,9 @@
 # Module train_environment.py
+#@title #Environment initialization { form-width: "30%" }
+#@markdown In this section the environment for the training will be initialized.
+#@markdown
+#@markdown All necessary directories will be crated and the Google drive
+#@markdown containing the images will be mounted. Follow the instruction for the mounting during the execution.
 
 import  os
 from    pathlib import Path
@@ -66,3 +71,5 @@ def init_train_environment(prm: TrainParameters):
 if __name__ == '__main__':
     prm = ('prm' in locals() and prm) or TrainParameters.default
     init_train_environment(prm)
+
+#@markdown ---

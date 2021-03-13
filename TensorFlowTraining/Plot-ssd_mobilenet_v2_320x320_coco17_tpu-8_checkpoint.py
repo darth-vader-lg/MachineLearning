@@ -32,7 +32,7 @@ for gpu in gpus:
 def download_images():
     image_paths = []
     # Get the list of the test images
-    fileList = Path("TestImages").rglob("*.jpg")
+    fileList = Path("images/test").rglob("*.jpg")
     # Add the images
     for file in fileList:
         image_path = str(file)
@@ -70,7 +70,7 @@ def download_model(model_name, model_date):
 
 MODEL_DATE = '20200711'
 MODEL_NAME = 'centernet_hg104_1024x1024_coco17_tpu-32'
-PATH_TO_MODEL_DIR = "../Workspace/ObjectDetection/exported-models/my_ssd_mobilenet_v2_320x320_coco17_tpu-8" #download_model(MODEL_NAME, MODEL_DATE)
+PATH_TO_MODEL_DIR = "trained-model" #download_model(MODEL_NAME, MODEL_DATE)
 
 # %%
 # Download the labels
@@ -91,7 +91,7 @@ def download_labels(filename):
     return str(label_dir)
 
 LABEL_FILENAME = 'mscoco_label_map.pbtxt'
-PATH_TO_LABELS = "../Workspace/ObjectDetection/annotations/label_map.pbtxt" #download_labels(LABEL_FILENAME)
+PATH_TO_LABELS = "trained-model/label_map.pbtxt" #download_labels(LABEL_FILENAME)
 
 # %%
 # Load the model
@@ -104,7 +104,7 @@ from object_detection.utils import visualization_utils as viz_utils
 from object_detection.builders import model_builder
 
 PATH_TO_CFG = PATH_TO_MODEL_DIR + "/pipeline.config"
-PATH_TO_CKPT = PATH_TO_MODEL_DIR + "/checkpoint"
+PATH_TO_CKPT = PATH_TO_MODEL_DIR
 
 print('Loading model... ', end='')
 start_time = time.time()
@@ -116,7 +116,7 @@ detection_model = model_builder.build(model_config=model_config, is_training=Fal
 
 # Restore checkpoint
 ckpt = tf.compat.v2.train.Checkpoint(model=detection_model)
-ckpt.restore(os.path.join(PATH_TO_CKPT, 'ckpt-0')).expect_partial()
+ckpt.restore(os.path.join(PATH_TO_CKPT, 'ckpt-89')).expect_partial()
 
 @tf.function
 def detect_fn(image):
