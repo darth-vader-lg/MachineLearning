@@ -6,8 +6,9 @@
 
 import  os
 
-try:
-    from    base_parameters import BaseParameters
+try:    from    base_parameters import BaseParameters
+except: pass
+try:    from    default_cfg import *
 except: pass
 
 class TrainParameters(BaseParameters):

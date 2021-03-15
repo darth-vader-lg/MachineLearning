@@ -2,8 +2,9 @@
 #@title #Utility functions
 #@markdown Some utility functions used for the train steps.
 
-import subprocess
-import sys
+import  os
+import  subprocess
+import  sys
 
 def execute_subprocess(cmd):
     """
@@ -28,23 +29,49 @@ def execute(cmd):
     for output in execute_subprocess(cmd):
         print(output, end="")
 
-def execute_colab(fn):
+def execute_script(cmd):
     """
-    Execute a function only in the Google Colab environment.
+    Execute a script as a subprocess printing its standard output.
     Keyword arguments:
-    fn      -- the function to execute
+    cmd     -- the parameters of the script
     """
-    if ('google.colab' in sys.modules):
-        fn()
+    python_path = os.path.join(os.path.dirname(sys.executable), 'python3')
+    if (not os.path.exists(python_path)):
+        python_path = os.path.join(os.path.dirname(sys.executable), 'python')
+    script_cmd = [python_path]
+    script_cmd.extend(cmd)
+    for output in execute_subprocess(script_cmd):
+        print(output, end="")
 
-def execute_non_colab(fn):
+def get_type_of_script():
     """
-    Execute a function only outside the Google Colab environment.
-    Keyword arguments:
-    fn      -- the function to execute
+    Return of the type of the script is being executed
     """
-    if (not 'google.colab' in sys.modules):
-        fn()
+    try:
+        ipy_str = str(type(get_ipython()))
+        if ('ipykernel_launcher.py' in sys.argv[0]):
+            return 'jupyter'
+        return 'ipython'
+    except:
+        return 'terminal'
+
+def is_ipython():
+    """
+    True if running in an ipython environment
+    """
+    return get_type_of_script() == 'ipython'
+
+def is_jupyter():
+    """
+    True if running in a jupyter notebook
+    """
+    return get_type_of_script() == 'jupyter'
+
+def is_terminal():
+    """
+    True if running a terminal environment
+    """
+    return get_type_of_script() == 'terminal'
 
 if __name__ == '__main__':
     print('Utilities functions initialized')

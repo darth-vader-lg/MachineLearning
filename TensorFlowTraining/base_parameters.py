@@ -8,18 +8,19 @@ from    pathlib import Path
 import  sys
 import  tempfile
 
-try:
-    from    model_types import models
+try:    from    default_cfg import *
+except: pass
+try:    from    model_types import models
 except: pass
 
 class BaseParameters:
     """ Class holding the base parameters """
     def __init__(self):
         """ Constructor """
-        self._model_type = ('model' in globals() and model) or 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
-        self._model_dir = ('trained_model' in globals() and trained_model) or 'trained-model'
-        self._train_images_dir = ('train_images_dir' in globals() and train_images_dir) or 'images/train'
-        self._eval_images_dir = ('eval_images_dir' in globals() and eval_images_dir) or 'images/eval'
+        self._model_type = cfg_model_type or 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
+        self._model_dir = cfg_trained_model or 'trained-model'
+        self._train_images_dir = cfg_train_images_dir or 'images/train'
+        self._eval_images_dir = cfg_eval_images_dir or 'images/eval'
         self._annotations_dir = 'annotations'
         self._pre_trained_model_base_dir = os.path.join(tempfile.gettempdir(), 'tensorflow-pre-trained-models')
         self._is_path = [
@@ -56,11 +57,6 @@ class BaseParameters:
     def pre_trained_model_base_dir(self): return self._pre_trained_model_base_dir
     @pre_trained_model_base_dir.setter
     def pre_trained_model_base_dir(self, value): self._pre_trained_model_base_dir = value
-    @property
-    def pre_trained_model_dir(self):
-        return str(Path(os.path.join(
-            self.pre_trained_model_base_dir,
-            Path(self.model["DownloadPath"]).name)).with_suffix("").with_suffix(""))
     def __str__(self):
         result = ''
         propnames = [p for p in dir(type(self)) if isinstance(getattr(type(self), p),property) and getattr(self, p)]

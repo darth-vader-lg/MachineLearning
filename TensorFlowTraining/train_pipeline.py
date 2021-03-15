@@ -17,14 +17,21 @@ def config_train_pipeline(prm: TrainParameters):
     Keyword arguments:
     prm     -- Parameters
     """
-    import tensorflow as tf
-    from object_detection.protos import pipeline_pb2
-    from object_detection.utils import label_map_util
-    from google.protobuf import text_format
+    import  tensorflow as tf
+    from    object_detection.protos import pipeline_pb2
+    from    object_detection.utils import label_map_util
+    from    google.protobuf import text_format
+    import  tempfile
     # Copy the pipeline configuration file if it's not already present in the output dir
     print('Configuring the pipeline')
     output_file = prm.pipeline_config_path
-    shutil.copy2(os.path.join(prm.pre_trained_model_dir, 'pipeline.config'), output_file)
+    pre_trained_model_dir = os.path.join(prm.pre_trained_model_base_dir, prm.model['dir_name'])
+    pre_trained_cfg_file = os.path.join(
+        tempfile.gettempdir(),
+        'tensorflow-object-detection-api-2.4.1',
+        'research', 'object_detection', 'configs', 'tf2',
+        prm.model['dir_name'] + '.config')
+    shutil.copy2(pre_trained_cfg_file, output_file)
     # Read the number of labels
     label_dict = label_map_util.get_label_map_dict(os.path.join(prm.annotations_dir, 'label_map.pbtxt'))
     labels_count = len(label_dict)
@@ -37,7 +44,7 @@ def config_train_pipeline(prm: TrainParameters):
     pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.height = prm.model['height']
     pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.width = prm.model['width']
     pipeline_config.train_config.batch_size = prm.model['batch_size']
-    pipeline_config.train_config.fine_tune_checkpoint = os.path.join(prm.pre_trained_model_dir, 'checkpoint', 'ckpt-0')
+    pipeline_config.train_config.fine_tune_checkpoint = os.path.join(pre_trained_model_dir, 'checkpoint', 'ckpt-0')
     pipeline_config.train_config.fine_tune_checkpoint_type = 'detection'
     pipeline_config.train_input_reader.label_map_path = os.path.join(prm.annotations_dir, 'label_map.pbtxt')
     pipeline_config.train_input_reader.tf_record_input_reader.input_path[0] = os.path.join(prm.annotations_dir, 'train.record')

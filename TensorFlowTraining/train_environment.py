@@ -9,8 +9,9 @@ import  os
 from    pathlib import Path
 import  sys
 
-try:
-    from    train_parameters import TrainParameters
+try:    from    default_cfg import *
+except: pass
+try:    from    train_parameters import TrainParameters
 except: pass
 
 def init_train_environment(prm: TrainParameters):
@@ -20,37 +21,37 @@ def init_train_environment(prm: TrainParameters):
     prm     -- the train parameters
     """
     # Set the configuration for Google Colab
-    if ('google.colab' in sys.modules):
+    if ('google.colab' in sys.modules and cfg_data_on_drive):
         if (not os.path.exists('/mnt/MyDrive')):
             print('Mounting the GDrive')
             from google.colab import drive
             drive.mount('/mnt')
         # Check the existence of the train images dir
-        gdriveOutputDir = os.path.join('/mnt', 'MyDrive', prm.train_images_dir)
-        if (not os.path.isdir(gdriveOutputDir)):
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.train_images_dir)
+        if (not os.path.isdir(gdrive_dir)):
             raise Exception('Error!!! The train images dir doesn`t exist')
         if (os.path.exists('/content/train-images')):
             os.unlink('/content/train-images')
-        os.symlink(gdriveOutputDir, '/content/train-images', True)
+        os.symlink(gdrive_dir, '/content/train-images', True)
         print(f"Google drive's {prm.train_images_dir} is linked to /content/train-images")
         prm.train_images_dir = '/content/train-images'
         # Check the existence of the evaluation images dir
-        gdriveOutputDir = os.path.join('/mnt', 'MyDrive', prm.eval_images_dir)
-        if (not os.path.isdir(gdriveOutputDir)):
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.eval_images_dir)
+        if (not os.path.isdir(gdrive_dir)):
             raise Exception('Error!!! The evaluation images dir doesn`t exist')
         if (os.path.exists('/content/eval-images')):
             os.unlink('/content/eval-images')
-        os.symlink(gdriveOutputDir, '/content/eval-images', True)
+        os.symlink(gdrive_dir, '/content/eval-images', True)
         print(f"Google drive's {prm.eval_images_dir} is linked to /content/eval-images")
         prm.eval_images_dir = '/content/eval-images'
         # Check the existence of the output directory
-        gdriveOutputDir = os.path.join('/mnt', 'MyDrive', prm.model_dir)
-        if (not os.path.isdir(gdriveOutputDir)):
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.model_dir)
+        if (not os.path.isdir(gdrive_dir)):
             print('Creating the output directory')
-            os.mkdir(gdriveOutputDir)
+            os.mkdir(gdrive_dir)
         if (os.path.exists('/content/trained-model')):
             os.unlink('/content/trained-model')
-        os.symlink(gdriveOutputDir, '/content/trained-model', True)
+        os.symlink(gdrive_dir, '/content/trained-model', True)
         print(f"Google drive's {prm.model_dir} is linked to /content/trained-model")
         prm.model_dir = '/content/trained-model'
     else:

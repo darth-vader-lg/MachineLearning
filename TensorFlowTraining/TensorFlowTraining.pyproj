@@ -5,7 +5,7 @@
     <ProjectGuid>bf17799b-e8e4-4441-9f34-25b050033535</ProjectGuid>
     <ProjectHome>.</ProjectHome>
     <StartupFile>train.py</StartupFile>
-    <SearchPath>env\Scripts</SearchPath>
+    <SearchPath>env\Scripts;C:\Users\DartFener\AppData\Local\Temp\tensorflow-object-detection-api-2.4.1\research;C:\Users\DartFener\AppData\Local\Temp\tensorflow-object-detection-api-2.4.1\research\object_detection;C:\Users\DartFener\AppData\Local\Temp\tensorflow-object-detection-api-2.4.1\research\slim</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>TensorFlowTraining</Name>
@@ -27,6 +27,12 @@
     <Compile Include="base_parameters.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="default_cfg.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="mount_google_drive.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Plot-ssd_mobilenet_v2_320x320_coco17_tpu-8_checkpoint.py" />
     <Compile Include="train.ipynb.py" />
     <Compile Include="train_pipeline.py">
@@ -44,6 +50,7 @@
     <Compile Include="model_types.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="train_tensorboard.py" />
     <Compile Include="utilities.py">
       <SubType>Code</SubType>
     </Compile>

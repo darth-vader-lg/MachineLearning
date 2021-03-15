@@ -36,27 +36,51 @@ The notebook needs to mount your GDrive. It will ask you the access authorizatio
 ---
 """
 
+# Module: default_cfg.py
 #@title #Notebook configuration
+import  sys
+#@markdown ## Data on Google Drive:
+#@markdown (The data will be treated in a Google Drive space if enabled)
+if ('google.colab' in sys.modules):
+    cfg_data_on_drive = True #@param {type:"boolean"}
+else:
+    cfg_data_on_drive = False
+#@markdown ---
 #@markdown ## Base model:
 #@markdown (The base model from which the train will start)
-model = 'SSD MobileNet v2 320x320' #@param ['SSD MobileNet v2 320x320', 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)']
+cfg_model_type = 'SSD MobileNet v2 320x320' #@param ['SSD MobileNet v2 320x320', 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)']
 #@markdown ---
 #@markdown ## Target directory:
 #@markdown The GDrive directory (Colab execution) or the local directory (machine execution) where the checkpoints will be saved.
-trained_model = 'trained-model' #@param {type:"string"}
+cfg_trained_model = 'trained-model' #@param {type:"string"}
 #@markdown ---
 #@markdown ## Images directories:
 #@markdown The GDrive directory (Colab execution) or the local directory (machine execution) where is located the images set for the train and for the evaluation.
-train_images_dir = 'images/train' #@param {type:"string"}
-eval_images_dir = 'images/eval' #@param {type:"string"}
+cfg_train_images_dir = 'images/train' #@param {type:"string"}
+cfg_eval_images_dir = 'images/eval' #@param {type:"string"}
+#@markdown ---
+
+# Module: mount_google_drive.py
+#@title #Mount Google Drive
+#@markdown Mounting of the Google Drive (if enabled in the configuration).
 
 import  os
 import  sys
-if ('google.colab' in sys.modules):
+
+try:    from    default_cfg import *
+except: pass
+
+def mount_google_drive():
     if (not os.path.exists('/mnt/MyDrive')):
         print('Mounting the GDrive')
         from google.colab import drive
         drive.mount('/mnt')
+    else:
+        print('GDrive already mounted')
+
+if __name__ == '__main__':
+    if (cfg_data_on_drive and 'google.colab' in sys.modules):
+        mount_google_drive()
 #@markdown ---
 
 # Module: model_types.py
@@ -65,14 +89,23 @@ if ('google.colab' in sys.modules):
 
 """ List of the available models and their definitions """
 models = {
+    'CenterNet Resnet101 V1 FPN 512x512': {
+        'dir_name': 'centernet_resnet101_v1_fpn_512x512_coco17_tpu-8',
+        'download_path': 'http://download.tensorflow.org/models/object_detection/tf2/20200711/centernet_resnet50_v1_fpn_512x512_coco17_tpu-8.tar.gz',
+        'batch_size': 8,
+        'height': 512,
+        'width': 512
+    },
     'SSD MobileNet v2 320x320': {
-        'DownloadPath': 'http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz',
-        'batch_size': 12,
+        'dir_name': 'ssd_mobilenet_v2_320x320_coco17_tpu-8',
+        'download_path': 'http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz',
+        'batch_size': 8,
         'height': 300,
         'width': 300
     },
     'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)': {
-        'DownloadPath': 'http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz',
+        'dir_name': 'ssd_resnet50_v1_fpn_640x640_coco17_tpu-8',
+        'download_path': 'http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz',
         'batch_size': 8,
         'height': 640,
         'width': 640
@@ -90,8 +123,9 @@ if __name__ == '__main__':
 #@title #Utility functions
 #@markdown Some utility functions used for the train steps.
 
-import subprocess
-import sys
+import  os
+import  subprocess
+import  sys
 
 def execute_subprocess(cmd):
     """
@@ -116,23 +150,49 @@ def execute(cmd):
     for output in execute_subprocess(cmd):
         print(output, end="")
 
-def execute_colab(fn):
+def execute_script(cmd):
     """
-    Execute a function only in the Google Colab environment.
+    Execute a script as a subprocess printing its standard output.
     Keyword arguments:
-    fn      -- the function to execute
+    cmd     -- the parameters of the script
     """
-    if ('google.colab' in sys.modules):
-        fn()
+    python_path = os.path.join(os.path.dirname(sys.executable), 'python3')
+    if (not os.path.exists(python_path)):
+        python_path = os.path.join(os.path.dirname(sys.executable), 'python')
+    script_cmd = [python_path]
+    script_cmd.extend(cmd)
+    for output in execute_subprocess(script_cmd):
+        print(output, end="")
 
-def execute_non_colab(fn):
+def get_type_of_script():
     """
-    Execute a function only outside the Google Colab environment.
-    Keyword arguments:
-    fn      -- the function to execute
+    Return of the type of the script is being executed
     """
-    if (not 'google.colab' in sys.modules):
-        fn()
+    try:
+        ipy_str = str(type(get_ipython()))
+        if ('ipykernel_launcher.py' in sys.argv[0]):
+            return 'jupyter'
+        return 'ipython'
+    except:
+        return 'terminal'
+
+def is_ipython():
+    """
+    True if running in an ipython environment
+    """
+    return get_type_of_script() == 'ipython'
+
+def is_jupyter():
+    """
+    True if running in a jupyter notebook
+    """
+    return get_type_of_script() == 'jupyter'
+
+def is_terminal():
+    """
+    True if running a terminal environment
+    """
+    return get_type_of_script() == 'terminal'
 
 if __name__ == '__main__':
     print('Utilities functions initialized')
@@ -149,18 +209,19 @@ from    pathlib import Path
 import  sys
 import  tempfile
 
-try:
-    from    model_types import models
+try:    from    default_cfg import *
+except: pass
+try:    from    model_types import models
 except: pass
 
 class BaseParameters:
     """ Class holding the base parameters """
     def __init__(self):
         """ Constructor """
-        self._model_type = ('model' in globals() and model) or 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
-        self._model_dir = ('trained_model' in globals() and trained_model) or 'trained-model'
-        self._train_images_dir = ('train_images_dir' in globals() and train_images_dir) or 'images/train'
-        self._eval_images_dir = ('eval_images_dir' in globals() and eval_images_dir) or 'images/eval'
+        self._model_type = cfg_model_type or 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
+        self._model_dir = cfg_trained_model or 'trained-model'
+        self._train_images_dir = cfg_train_images_dir or 'images/train'
+        self._eval_images_dir = cfg_eval_images_dir or 'images/eval'
         self._annotations_dir = 'annotations'
         self._pre_trained_model_base_dir = os.path.join(tempfile.gettempdir(), 'tensorflow-pre-trained-models')
         self._is_path = [
@@ -197,11 +258,6 @@ class BaseParameters:
     def pre_trained_model_base_dir(self): return self._pre_trained_model_base_dir
     @pre_trained_model_base_dir.setter
     def pre_trained_model_base_dir(self, value): self._pre_trained_model_base_dir = value
-    @property
-    def pre_trained_model_dir(self):
-        return str(Path(os.path.join(
-            self.pre_trained_model_base_dir,
-            Path(self.model["DownloadPath"]).name)).with_suffix("").with_suffix(""))
     def __str__(self):
         result = ''
         propnames = [p for p in dir(type(self)) if isinstance(getattr(type(self), p),property) and getattr(self, p)]
@@ -253,8 +309,9 @@ if __name__ == '__main__':
 
 import  os
 
-try:
-    from    base_parameters import BaseParameters
+try:    from    base_parameters import BaseParameters
+except: pass
+try:    from    default_cfg import *
 except: pass
 
 class TrainParameters(BaseParameters):
@@ -339,67 +396,102 @@ if __name__ == '__main__':
 #@title #Object detection libraries installation { form-width: "20%" }
 #@markdown This step installs a well known Python environment for the train.
 
-import os
-import datetime
-from   pathlib import Path
-import shutil
-import sys
-import tempfile
+import  os
+import  datetime
+from    pathlib import Path
+import  shutil
+import  sys
+import  tempfile
 
-try:
-    from    utilities import execute
+try:    from utilities import *
 except: pass
 
 def install_object_detection():
     """
     Install a well known environment.
     """
-    # Path of the python interpreter executable
-    pythonPath = os.path.join(os.path.dirname(sys.executable), 'python3')
-    if (not os.path.exists(pythonPath)):
-        pythonPath = os.path.join(os.path.dirname(sys.executable), 'python')
     # Upgrade pip and setuptools
-    execute([pythonPath, '-m', 'pip', 'install', '--upgrade', 'pip==21.0.1'])
-    execute([pythonPath, '-m', 'pip', 'install', '--upgrade', 'setuptools==54.0.0'])
+    is_installed = False
+    try:
+        import pip
+        is_installed = pip.__version__ == '21.0.1'
+    except: pass
+    if (not is_installed):
+        execute_script(['-m', 'pip', 'install', '--upgrade', 'pip==21.0.1'])
+    else:
+        print('pip 21.0.1 is already installed')
+    is_installed = False
+    try:
+        import setuptools
+        is_installed = setuptools.__version__ == '54.0.0'
+    except: pass
+    if (not is_installed):
+        execute_script(['-m', 'pip', 'install', '--upgrade', 'setuptools==54.0.0'])
+    else:
+        print('setuptools 54.0.0 is already installed')
     # Install TensorFlow
-    execute([pythonPath, '-m', 'pip', 'install', 'tensorflow==2.4.1'])
+    is_installed = False
+    try:
+        import tensorflow
+        is_installed = tensorflow.__version__ == '2.4.1'
+    except: pass
+    if (not is_installed):
+        execute_script(['-m', 'pip', 'install', 'tensorflow==2.4.1'])
+    else:
+        print('TensorFlow 2.4.1 is already installed')
     # Install pygit2
-    execute([pythonPath, '-m', 'pip', 'install', 'pygit2==1.5.0'])
-    import pygit2
-    # Progress class for the git output
-    class GitCallbacks(pygit2.RemoteCallbacks):
-        def __init__(self, credentials=None, certificate=None):
-            self.dateTime = datetime.datetime.now()
-            return super().__init__(credentials=credentials, certificate=certificate)
-        def transfer_progress(self, stats):
-            now = datetime.datetime.now()
-            if ((now - self.dateTime).total_seconds() > 1):
-                print('\rReceiving... Deltas [%d / %d], Objects [%d / %d]'%(stats.indexed_deltas, stats.total_deltas, stats.indexed_objects, stats.total_objects), end='', flush=True)
-                self.dateTime = now
-            if (stats.received_objects >= stats.total_objects and stats.indexed_objects >= stats.total_objects and stats.indexed_deltas >= stats.total_deltas):
-                print('\r\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\rDone Deltas %d, Objects %d.'%(stats.total_objects, stats.total_objects))
-            return super().transfer_progress(stats)
-    # Directory of the TensorFlow object detection api
-    odApiDir = os.path.join(tempfile.gettempdir(), 'tensorflow-object-detection-api-2.4.1')
+    is_installed = False
+    try:
+        import pygit2
+        is_installed = pygit2.__version__ == '1.5.0'
+    except: pass
+    if (not is_installed):
+        execute_script(['-m', 'pip', 'install', 'pygit2==1.5.0'])
+        import pygit2
+    else:
+        print('pygit2 1.5.0 is already installed')
+    # Directory of the TensorFlow object detection api and commit id
+    od_api_dir = os.path.join(tempfile.gettempdir(), 'tensorflow-object-detection-api-2.4.1')
+    od_api_ish = 'e356598a5b79a768942168b10d9c1acaa923bdb4'
+    # Install the object detection api
+    is_installed = False
+    try:
+        import object_detection
+        repo = pygit2.Repository(od_api_dir)
+        if (repo.head.target.hex == od_api_ish):
+            is_installed = True
+    except: pass
     # Install the TensorFlow models
-    if (not os.path.isdir(odApiDir)):
+    if (not is_installed):
+        # Progress class for the git output
+        class GitCallbacks(pygit2.RemoteCallbacks):
+            def __init__(self, credentials=None, certificate=None):
+                self.dateTime = datetime.datetime.now()
+                return super().__init__(credentials=credentials, certificate=certificate)
+            def transfer_progress(self, stats):
+                now = datetime.datetime.now()
+                if ((now - self.dateTime).total_seconds() > 1):
+                    print('\rReceiving... Deltas [%d / %d], Objects [%d / %d]'%(stats.indexed_deltas, stats.total_deltas, stats.indexed_objects, stats.total_objects), end='', flush=True)
+                    self.dateTime = now
+                if (stats.received_objects >= stats.total_objects and stats.indexed_objects >= stats.total_objects and stats.indexed_deltas >= stats.total_deltas):
+                    print('\r\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\rDone Deltas %d, Objects %d.'%(stats.total_objects, stats.total_objects))
+                return super().transfer_progress(stats)
         # Create the callback for the progress
         callbacks = GitCallbacks();
         # Clone the TensorFlow models repository
-        print('Cloning the TensorFlow models repository')
-        pygit2.clone_repository('https://github.com/tensorflow/models.git', odApiDir, callbacks = callbacks)
-        print('TensorFlow models repository cloned')
-        # Checkout a well known commit
-        repo = pygit2.Repository(odApiDir)
-        ish = 'e356598a5b79a768942168b10d9c1acaa923bdb4'
-        (commit, reference) = repo.resolve_refish(ish)
+        print('Cloning the TensorFlow object detection api repository')
+        pygit2.clone_repository('https://github.com/tensorflow/models.git', od_api_dir, callbacks = callbacks)
+        print('TensorFlow object detection api repository cloned')
+        # Checkout the well known commit
+        repo = pygit2.Repository(od_api_dir)
+        (commit, reference) = repo.resolve_refish(od_api_ish)
         repo.checkout_tree(commit)
-        repo.reset(pygit2.Oid(hex=ish), pygit2.GIT_RESET_HARD)
+        repo.reset(pygit2.Oid(hex=od_api_ish), pygit2.GIT_RESET_HARD)
         # Move to the research dir
         currentDir = os.getcwd()
-        os.chdir(os.path.join(odApiDir, 'research'))
+        os.chdir(os.path.join(od_api_dir, 'research'))
         # Install the protobuf tools
-        execute([pythonPath, '-m', 'pip', 'install', 'grpcio-tools==1.32.0'])
+        execute_script(['-m', 'pip', 'install', 'grpcio-tools==1.32.0'])
         # Compile the protobufs
         import grpc_tools.protoc as protoc
         protoFiles = Path('object_detection/protos').rglob('*.proto')
@@ -409,12 +501,14 @@ def install_object_detection():
             protoc.main(['grpc_tools.protoc', '--python_out=.', protoFilePath])
         # Install the object detection packages
         shutil.copy2('object_detection/packages/tf2/setup.py', '.')
-        execute([pythonPath, '-m', 'pip', 'install', '.'])
+        execute_script(['-m', 'pip', 'install', '.'])
         os.chdir(currentDir)
-    sys.path.append(os.path.join(odApiDir, 'research'))
-    sys.path.append(os.path.join(odApiDir, 'research/slim'))
-    sys.path.append(os.path.join(odApiDir, 'research/object_detection'))
-    print('Installation completed.')
+    else:
+        print(f'TensorFlow object detection api SHA-1 {od_api_ish} is already installed')
+    sys.path.append(os.path.join(od_api_dir, 'research'))
+    sys.path.append(os.path.join(od_api_dir, 'research/slim'))
+    sys.path.append(os.path.join(od_api_dir, 'research/object_detection'))
+    print('Installation ok.')
 
 if __name__ == '__main__':
     install_object_detection()
@@ -432,8 +526,9 @@ import  os
 from    pathlib import Path
 import  sys
 
-try:
-    from    train_parameters import TrainParameters
+try:    from    default_cfg import *
+except: pass
+try:    from    train_parameters import TrainParameters
 except: pass
 
 def init_train_environment(prm: TrainParameters):
@@ -443,37 +538,37 @@ def init_train_environment(prm: TrainParameters):
     prm     -- the train parameters
     """
     # Set the configuration for Google Colab
-    if ('google.colab' in sys.modules):
+    if ('google.colab' in sys.modules and cfg_data_on_drive):
         if (not os.path.exists('/mnt/MyDrive')):
             print('Mounting the GDrive')
             from google.colab import drive
             drive.mount('/mnt')
         # Check the existence of the train images dir
-        gdriveOutputDir = os.path.join('/mnt', 'MyDrive', prm.train_images_dir)
-        if (not os.path.isdir(gdriveOutputDir)):
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.train_images_dir)
+        if (not os.path.isdir(gdrive_dir)):
             raise Exception('Error!!! The train images dir doesn`t exist')
         if (os.path.exists('/content/train-images')):
             os.unlink('/content/train-images')
-        os.symlink(gdriveOutputDir, '/content/train-images', True)
+        os.symlink(gdrive_dir, '/content/train-images', True)
         print(f"Google drive's {prm.train_images_dir} is linked to /content/train-images")
         prm.train_images_dir = '/content/train-images'
         # Check the existence of the evaluation images dir
-        gdriveOutputDir = os.path.join('/mnt', 'MyDrive', prm.eval_images_dir)
-        if (not os.path.isdir(gdriveOutputDir)):
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.eval_images_dir)
+        if (not os.path.isdir(gdrive_dir)):
             raise Exception('Error!!! The evaluation images dir doesn`t exist')
         if (os.path.exists('/content/eval-images')):
             os.unlink('/content/eval-images')
-        os.symlink(gdriveOutputDir, '/content/eval-images', True)
+        os.symlink(gdrive_dir, '/content/eval-images', True)
         print(f"Google drive's {prm.eval_images_dir} is linked to /content/eval-images")
         prm.eval_images_dir = '/content/eval-images'
         # Check the existence of the output directory
-        gdriveOutputDir = os.path.join('/mnt', 'MyDrive', prm.model_dir)
-        if (not os.path.isdir(gdriveOutputDir)):
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.model_dir)
+        if (not os.path.isdir(gdrive_dir)):
             print('Creating the output directory')
-            os.mkdir(gdriveOutputDir)
+            os.mkdir(gdrive_dir)
         if (os.path.exists('/content/trained-model')):
             os.unlink('/content/trained-model')
-        os.symlink(gdriveOutputDir, '/content/trained-model', True)
+        os.symlink(gdrive_dir, '/content/trained-model', True)
         print(f"Google drive's {prm.model_dir} is linked to /content/trained-model")
         prm.model_dir = '/content/trained-model'
     else:
@@ -515,20 +610,21 @@ def download_pretrained_model(prm: BaseParameters):
     Keyword arguments:
     prm     -- the base parameters
     """
-    if (not os.path.exists(prm.pre_trained_model_dir) or not os.path.exists(os.path.join(prm.pre_trained_model_dir, 'checkpoint', 'checkpoint'))):
+    pre_trained_model_dir = os.path.join(prm.pre_trained_model_base_dir, prm.model['dir_name'])
+    if (not os.path.exists(pre_trained_model_dir) or not os.path.exists(os.path.join(pre_trained_model_dir, 'checkpoint', 'checkpoint'))):
         if (not os.path.exists(prm.pre_trained_model_base_dir)):
             os.mkdir(prm.pre_trained_model_base_dir)
-        pre_trained_model_file = prm.pre_trained_model_dir + '.tar.gz'
+        pre_trained_model_file = pre_trained_model_dir + '.tar.gz'
         print(f'Downloading the pre-trained model {str(Path(pre_trained_model_file).name)}...')
         import tarfile
-        request.urlretrieve(prm.model['DownloadPath'], pre_trained_model_file) # TODO: show progress
+        request.urlretrieve(prm.model['download_path'], pre_trained_model_file) # TODO: show progress
         print('Done.')
         print(f'Extracting the pre-trained model {str(Path(pre_trained_model_file).name)}...')
         tar = tarfile.open(pre_trained_model_file)
         tar.extractall(prm.pre_trained_model_base_dir)
         tar.close()
         os.remove(pre_trained_model_file)
-    print(f'Pre-trained model is located at {str(Path(prm.pre_trained_model_dir).resolve())}')
+    print(f'Pre-trained model is located at {str(Path(pre_trained_model_dir).resolve())}')
 
 if __name__ == '__main__':
     prm = ('prm' in locals() and prm) or BaseParameters.default
@@ -539,7 +635,7 @@ if __name__ == '__main__':
 # Module: tf_record.py
 #@title #TensorFlow's records { form-width: "30%" }
 #@markdown In this step there will be created the TensorFlow records from the
-#@markdown annotated images and the file contained all the labels' indices.
+#@markdown annotated images and the file containing all the labels' indices.
 
 import  glob
 import  io
@@ -730,14 +826,21 @@ def config_train_pipeline(prm: TrainParameters):
     Keyword arguments:
     prm     -- Parameters
     """
-    import tensorflow as tf
-    from object_detection.protos import pipeline_pb2
-    from object_detection.utils import label_map_util
-    from google.protobuf import text_format
+    import  tensorflow as tf
+    from    object_detection.protos import pipeline_pb2
+    from    object_detection.utils import label_map_util
+    from    google.protobuf import text_format
+    import  tempfile
     # Copy the pipeline configuration file if it's not already present in the output dir
     print('Configuring the pipeline')
     output_file = prm.pipeline_config_path
-    shutil.copy2(os.path.join(prm.pre_trained_model_dir, 'pipeline.config'), output_file)
+    pre_trained_model_dir = os.path.join(prm.pre_trained_model_base_dir, prm.model['dir_name'])
+    pre_trained_cfg_file = os.path.join(
+        tempfile.gettempdir(),
+        'tensorflow-object-detection-api-2.4.1',
+        'research', 'object_detection', 'configs', 'tf2',
+        prm.model['dir_name'] + '.config')
+    shutil.copy2(pre_trained_cfg_file, output_file)
     # Read the number of labels
     label_dict = label_map_util.get_label_map_dict(os.path.join(prm.annotations_dir, 'label_map.pbtxt'))
     labels_count = len(label_dict)
@@ -750,7 +853,7 @@ def config_train_pipeline(prm: TrainParameters):
     pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.height = prm.model['height']
     pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.width = prm.model['width']
     pipeline_config.train_config.batch_size = prm.model['batch_size']
-    pipeline_config.train_config.fine_tune_checkpoint = os.path.join(prm.pre_trained_model_dir, 'checkpoint', 'ckpt-0')
+    pipeline_config.train_config.fine_tune_checkpoint = os.path.join(pre_trained_model_dir, 'checkpoint', 'ckpt-0')
     pipeline_config.train_config.fine_tune_checkpoint_type = 'detection'
     pipeline_config.train_input_reader.label_map_path = os.path.join(prm.annotations_dir, 'label_map.pbtxt')
     pipeline_config.train_input_reader.tf_record_input_reader.input_path[0] = os.path.join(prm.annotations_dir, 'train.record')
@@ -769,17 +872,47 @@ if __name__ == '__main__':
 
 #@markdown ---
 
-# Commented out IPython magic to ensure Python compatibility.
 # Module: train_tensorboard
 #@title #Start the TensorBoard { vertical-output: true }
 #@markdown The TensorBoard is run for checking the progress.
 #@markdown
-#@markdown Click the refresh button for start sampling.
+#@markdown Warning: an error message will be displayed if no data are yet present.
+#@markdown Wait that the train it will be started (loss messages on output) and
+#@markdown just click the refresh button.
 
-def start_tensorboard(prm: TrainParameters):
-#     %load_ext tensorboard
-#     %tensorboard --logdir {os.path.join(prm.model_dir, 'train')}
-    pass
+try:    from base_parameters import BaseParameters
+except: pass
+import  subprocess
+import  time
+try:    from utilities import *
+except: pass
+
+def start_tensorboard(prm: BaseParameters):
+    log_dir = os.path.join(prm.model_dir, 'train')
+    error = False
+    try:
+        subprocess.Popen(
+            ['tensorboard', '--logdir', log_dir],
+            stdout = subprocess.PIPE,
+            universal_newlines = True)
+    except:
+        try:
+            tensorboard_path = os.path.join(os.path.dirname(sys.executable), 'tensorboard')
+            subprocess.Popen(
+                [tensorboard_path, '--logdir', log_dir],
+                stdout = subprocess.PIPE,
+                universal_newlines = True)
+        except:
+            print('Warning: cannot start tensorboard')
+            error = True
+    if (not error and is_jupyter()):
+        import tensorboard
+        for i in range(5):
+            try:
+                tensorboard.notebook.display()
+                break
+            except:
+                time.sleep(1)
 
 if __name__ == '__main__':
     prm = ('prm' in locals() and prm) or BaseParameters.default
@@ -788,29 +921,34 @@ if __name__ == '__main__':
 #@markdown ---
 
 # Module: train.py
-#@title #Train
+#@title #Train { form-width: "20%" }
 #@markdown The main train loop. It trains the model and put it in the output directory.
 #@markdown 
 #@markdown It can be stopped before the completion when
 #@markdown a considerable result is reached and restart after for enhancing the tuning.
 
-
+from    absl import flags
+import  importlib
 import  os
 import  sys
-from    absl import flags
 
-try:
-    from    utilities import execute, execute_colab, execute_non_colab
+try:    from    utilities import *
 except: pass
 
+# Avoiding the absl error for duplicated flags if run again the cell from a notebook
+for f in flags.FLAGS.flag_values_dict():
+    flags.FLAGS[f].allow_override = True
+
+# Flags for arguments parameters
 flags.DEFINE_string('model_type', None, 'Type of the base model.')
 flags.DEFINE_string('train_images_dir', None, 'Path to the directory '
                     'containing the images for train and their labeling xml.')
 flags.DEFINE_string('eval_images_dir', None, 'Path to the directory '
                     'containing the images for evaluate and their labeling xml.')
+
 FLAGS = flags.FLAGS
 
-def main(unused_argv):
+def train_main(unused_argv):
     # Part of code not executed on Colab notebook
     def run_py_mode():
         # Init the train environment
@@ -829,23 +967,8 @@ def main(unused_argv):
         from object_detection import model_main_tf2
         prm.update_flags()
         # Start the tensorboard
-        import subprocess
-        try:
-            subprocess.Popen(
-                ['tensorboard', '--logdir',
-                 os.path.join(prm.model_dir, 'train')],
-                 stdout = subprocess.PIPE,
-                 universal_newlines = True)
-        except:
-            try:
-                tensorboard_path = os.path.join(os.path.dirname(sys.executable), 'tensorboard')
-                subprocess.Popen(
-                    [tensorboard_path, '--logdir',
-                     os.path.join(prm.model_dir, 'train')],
-                     stdout = subprocess.PIPE,
-                     universal_newlines = True)
-            except:
-                print('Warning: cannot start tensorboard')
+        from train_tensorboard import start_tensorboard
+        start_tensorboard(prm)
         # Execute the train
         model_main_tf2.main(unused_argv)
     def run_notebook_mode():
@@ -855,15 +978,22 @@ def main(unused_argv):
         # Execute the train
         model_main_tf2.main(unused_argv)
     # Execution
-    execute_non_colab(run_py_mode)
-    execute_colab(run_notebook_mode)
+    if (is_jupyter()):
+        run_notebook_mode()
+    else:
+        run_py_mode()
 
 if __name__ == '__main__':
-    def init():
+    if (not is_jupyter()):
         from od_install import install_object_detection
         install_object_detection()
-    execute_non_colab(init)
     import tensorflow as tf
-    tf.compat.v1.app.run()
+    try:
+        tf.compat.v1.app.run(train_main)
+    except KeyboardInterrupt:
+        pass
+    except SystemExit:
+        pass
+    print('Train complete')
 
 #@markdown ---
