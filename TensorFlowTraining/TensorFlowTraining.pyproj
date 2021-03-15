@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>bf17799b-e8e4-4441-9f34-25b050033535</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>train.py</StartupFile>
+    <StartupFile>train_main.py</StartupFile>
     <SearchPath>env\Scripts;C:\Users\DartFener\AppData\Local\Temp\tensorflow-object-detection-api-2.4.1\research;C:\Users\DartFener\AppData\Local\Temp\tensorflow-object-detection-api-2.4.1\research\object_detection;C:\Users\DartFener\AppData\Local\Temp\tensorflow-object-detection-api-2.4.1\research\slim</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -54,7 +54,7 @@
     <Compile Include="utilities.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="train.py" />
+    <Compile Include="train_main.py" />
     <Compile Include="tf_record.py">
       <SubType>Code</SubType>
     </Compile>
