@@ -80,10 +80,11 @@ class TrainParameters(BaseParameters):
     def record_summaries(self): return self._record_summaries
     @record_summaries.setter
     def record_summaries(self, value): self._record_summaries = value
+
 TrainParameters.default = TrainParameters.default or TrainParameters()
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm and isinstance(prm, TrainParameters)) or TrainParameters.default
+    prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     print(prm)
     print('Train parameters configured')
 

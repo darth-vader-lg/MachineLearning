@@ -586,3 +586,4 @@ healthchecksdb
 /TensorFlowTraining/env/Lib/site-packages/cached_property.py
 /TensorFlowTraining/annotations
 /TensorFlowTraining/trained-model
+/TensorFlowTraining/exported-model

@@ -41,7 +41,7 @@ def start_tensorboard(prm: BaseParameters):
                 time.sleep(1)
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or BaseParameters.default
+    prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     start_tensorboard(prm)
 
 #@markdown ---

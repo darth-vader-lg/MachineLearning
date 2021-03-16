@@ -1,4 +1,4 @@
-# Module: tf_record.py
+# Module: tf_records.py
 #@title #TensorFlow's records { form-width: "30%" }
 #@markdown In this step there will be created the TensorFlow records from the
 #@markdown annotated images and the file contained all the labels' indices.
@@ -168,7 +168,7 @@ def create_tf_records(prm: BaseParameters):
     print(f"The labels map file was copied to {(os.path.join(str(Path(prm.model_dir).resolve()), 'label_map.pbtxt'))}")
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or BaseParameters.default
+    prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     create_tf_records(prm)
 
 #@markdown ---

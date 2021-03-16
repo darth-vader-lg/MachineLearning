@@ -35,6 +35,9 @@
     </Compile>
     <Compile Include="Plot-ssd_mobilenet_v2_320x320_coco17_tpu-8_checkpoint.py" />
     <Compile Include="train.ipynb.py" />
+    <Compile Include="export_main.py" />
+    <Compile Include="export_parameters.py" />
+    <Compile Include="export_environment.py" />
     <Compile Include="train_pipeline.py">
       <SubType>Code</SubType>
     </Compile>
@@ -55,7 +58,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="train_main.py" />
-    <Compile Include="tf_record.py">
+    <Compile Include="tf_records.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="train_parameters.py">

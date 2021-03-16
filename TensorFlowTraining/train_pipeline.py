@@ -58,7 +58,7 @@ def config_train_pipeline(prm: TrainParameters):
     print(str(config_text))
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or TrainParameters.default
+    prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     config_train_pipeline(prm)
 
 #@markdown ---

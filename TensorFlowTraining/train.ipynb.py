@@ -38,26 +38,26 @@ The notebook needs to mount your GDrive. It will ask you the access authorizatio
 
 # Module: default_cfg.py
 #@title #Notebook configuration
-import  sys
 #@markdown ## Data on Google Drive:
 #@markdown (The data will be treated in a Google Drive space if enabled)
-if ('google.colab' in sys.modules):
-    cfg_data_on_drive = True #@param {type:"boolean"}
-else:
-    cfg_data_on_drive = False
+cfg_data_on_drive = True #@param {type:"boolean"}
 #@markdown ---
 #@markdown ## Base model:
 #@markdown (The base model from which the train will start)
 cfg_model_type = 'SSD MobileNet v2 320x320' #@param ['SSD MobileNet v2 320x320', 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)']
 #@markdown ---
-#@markdown ## Target directory:
-#@markdown The GDrive directory (Colab execution) or the local directory (machine execution) where the checkpoints will be saved.
-cfg_trained_model = 'trained-model' #@param {type:"string"}
-#@markdown ---
 #@markdown ## Images directories:
 #@markdown The GDrive directory (Colab execution) or the local directory (machine execution) where is located the images set for the train and for the evaluation.
 cfg_train_images_dir = 'images/train' #@param {type:"string"}
 cfg_eval_images_dir = 'images/eval' #@param {type:"string"}
+#@markdown ---
+#@markdown ## Train directory:
+#@markdown The GDrive directory (Colab execution) or the local directory (machine execution) where the checkpoints will be saved.
+cfg_trained_model = 'trained-model' #@param {type:"string"}
+#@markdown ---
+#@markdown ## Export directory:
+#@markdown The GDrive directory (Colab execution) or the local directory (machine execution) where the exported model will be saved.
+cfg_exported_model = 'exported-model' #@param {type:"string"}
 #@markdown ---
 
 # Module: mount_google_drive.py
@@ -292,10 +292,11 @@ class BaseParameters:
                     print(f'Written property {prop} with value {value}')
             except:
                 pass
+
 BaseParameters.default = BaseParameters.default or BaseParameters()
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm and isinstance(prm, BaseParameters)) or BaseParameters.default
+    prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     print(prm)
     print('Base parameters configured')
 
@@ -383,10 +384,11 @@ class TrainParameters(BaseParameters):
     def record_summaries(self): return self._record_summaries
     @record_summaries.setter
     def record_summaries(self, value): self._record_summaries = value
+
 TrainParameters.default = TrainParameters.default or TrainParameters()
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm and isinstance(prm, TrainParameters)) or TrainParameters.default
+    prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     print(prm)
     print('Train parameters configured')
 
@@ -516,7 +518,7 @@ if __name__ == '__main__':
 #@markdown ---
 
 # Module train_environment.py
-#@title #Environment initialization { form-width: "30%" }
+#@title #Train's environment initialization { form-width: "30%" }
 #@markdown In this section the environment for the training will be initialized.
 #@markdown
 #@markdown All necessary directories will be crated and the Google drive
@@ -579,7 +581,7 @@ def init_train_environment(prm: TrainParameters):
             raise Exception('Error!!! The evaluation images dir doesn`t exist')
         print(f'Train images from {str(Path(prm.eval_images_dir).resolve())}')
         if (not os.path.exists(prm.model_dir)):
-            print('Creating the output dir')
+            print('Creating the output directory')
             os.mkdir(prm.model_dir)
         print(f'The trained model will be in {str(Path(prm.model_dir).resolve())}')
     if (not os.path.exists(prm.annotations_dir)):
@@ -587,7 +589,7 @@ def init_train_environment(prm: TrainParameters):
     print(f'The annotations files will be in {str(Path(prm.annotations_dir).resolve())}')
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or TrainParameters.default
+    prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     init_train_environment(prm)
 
 #@markdown ---
@@ -627,15 +629,15 @@ def download_pretrained_model(prm: BaseParameters):
     print(f'Pre-trained model is located at {str(Path(pre_trained_model_dir).resolve())}')
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or BaseParameters.default
+    prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     download_pretrained_model(prm)
 
 #@markdown ---
 
-# Module: tf_record.py
+# Module: tf_records.py
 #@title #TensorFlow's records { form-width: "30%" }
 #@markdown In this step there will be created the TensorFlow records from the
-#@markdown annotated images and the file containing all the labels' indices.
+#@markdown annotated images and the file contained all the labels' indices.
 
 import  glob
 import  io
@@ -802,7 +804,7 @@ def create_tf_records(prm: BaseParameters):
     print(f"The labels map file was copied to {(os.path.join(str(Path(prm.model_dir).resolve()), 'label_map.pbtxt'))}")
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or BaseParameters.default
+    prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     create_tf_records(prm)
 
 #@markdown ---
@@ -867,7 +869,7 @@ def config_train_pipeline(prm: TrainParameters):
     print(str(config_text))
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or TrainParameters.default
+    prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     config_train_pipeline(prm)
 
 #@markdown ---
@@ -915,12 +917,12 @@ def start_tensorboard(prm: BaseParameters):
                 time.sleep(1)
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or BaseParameters.default
+    prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     start_tensorboard(prm)
 
 #@markdown ---
 
-# Module: train.py
+# Module: train_main.py
 #@title #Train { form-width: "20%" }
 #@markdown The main train loop. It trains the model and put it in the output directory.
 #@markdown 
@@ -928,7 +930,6 @@ if __name__ == '__main__':
 #@markdown a considerable result is reached and restart after for enhancing the tuning.
 
 from    absl import flags
-import  importlib
 import  os
 import  sys
 
@@ -946,29 +947,27 @@ flags.DEFINE_string('train_images_dir', None, 'Path to the directory '
 flags.DEFINE_string('eval_images_dir', None, 'Path to the directory '
                     'containing the images for evaluate and their labeling xml.')
 
-FLAGS = flags.FLAGS
-
 def train_main(unused_argv):
     # Part of code not executed on Colab notebook
     def run_py_mode():
         # Init the train environment
         from pretrained_model import download_pretrained_model
-        from tf_record import create_tf_records
+        from tf_records import create_tf_records
         from train_environment import init_train_environment
         from train_parameters import TrainParameters
         from train_pipeline import config_train_pipeline
-        prm = TrainParameters()
-        prm.update_values()
-        init_train_environment(prm)
-        download_pretrained_model(prm)
-        create_tf_records(prm)
-        config_train_pipeline(prm)
+        train_parameters = TrainParameters()
+        train_parameters.update_values()
+        init_train_environment(train_parameters)
+        download_pretrained_model(train_parameters)
+        create_tf_records(train_parameters)
+        config_train_pipeline(train_parameters)
         # Import the train main function
         from object_detection import model_main_tf2
-        prm.update_flags()
+        train_parameters.update_flags()
         # Start the tensorboard
         from train_tensorboard import start_tensorboard
-        start_tensorboard(prm)
+        start_tensorboard(train_parameters)
         # Execute the train
         model_main_tf2.main(unused_argv)
     def run_notebook_mode():
@@ -991,9 +990,189 @@ if __name__ == '__main__':
     try:
         tf.compat.v1.app.run(train_main)
     except KeyboardInterrupt:
+        print('Train interrupted by user')
         pass
     except SystemExit:
+        print('Train complete')
         pass
-    print('Train complete')
+    else:
+        print('Train complete')
+
+#@markdown ---
+
+#module export_parameters.py
+#@title #Export parameters { form-width: "20%" }
+#@markdown Definition of the export parameters. Read the comments in the flags
+#@markdown section of the exporter main module
+#@markdown https://raw.githubusercontent.com/tensorflow/models/e356598a5b79a768942168b10d9c1acaa923bdb4/research/object_detection/exporter_main_v2.py
+
+import  os
+
+try:    from    base_parameters import BaseParameters
+except: pass
+try:    from    default_cfg import *
+except: pass
+
+class ExportParameters(BaseParameters):
+    """ Class holding the model export parameters """
+    def __init__(self):
+        """ Constructor """
+        super().__init__()
+        self._input_type = 'image_tensor'
+        self._pipeline_config_path = os.path.join(self.model_dir, 'pipeline.config')
+        self._trained_checkpoint_dir = self.model_dir
+        self._output_directory = cfg_exported_model or 'exported-model'
+        self._is_path.extend([
+            'pipeline_config_path',
+            'trained_checkpoint_dir',
+            'output_directory'])
+    default = None
+    @property
+    def pipeline_config_path(self): return self._pipeline_config_path
+    @pipeline_config_path.setter
+    def pipeline_config_path(self, value): self._pipeline_config_path = value
+    @property
+    def trained_checkpoint_dir(self): return self._trained_checkpoint_dir
+    @trained_checkpoint_dir.setter
+    def trained_checkpoint_dir(self, value): self._trained_checkpoint_dir = value
+    @property
+    def output_directory(self): return self._output_directory
+    @output_directory.setter
+    def output_directory(self, value): self._output_directory = value
+
+ExportParameters.default = ExportParameters.default or ExportParameters()
+
+if __name__ == '__main__':
+    prm = ('prm' in locals() and isinstance(prm, ExportParameters) and prm) or ExportParameters.default
+    print(prm)
+    print('Export parameters configured')
+
+#@markdown ---
+
+# Module export_environment.py
+#@title #Export's environment initialization { form-width: "30%" }
+#@markdown In this section the environment for the export will be initialized.
+#@markdown
+#@markdown All necessary directories will be mounted from the Google drive.
+#@markdown Follow the instruction for the mounting during the execution.
+
+import  os
+from    pathlib import Path
+import  shutil
+import  sys
+
+try:    from    default_cfg import *
+except: pass
+try:    from    export_parameters import ExportParameters
+except: pass
+
+def init_export_environment(prm: ExportParameters):
+    """
+    Initialize the model export environment with the right directories structure.
+    Keyword arguments:
+    prm     -- the export parameters
+    """
+    # Set the configuration for Google Colab
+    if ('google.colab' in sys.modules and cfg_data_on_drive):
+        if (not os.path.exists('/mnt/MyDrive')):
+            print('Mounting the GDrive')
+            from google.colab import drive
+            drive.mount('/mnt')
+
+        # Check the existence of the checkpoints directory
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.trained_checkpoint_dir)
+        if (not os.path.isdir(gdrive_dir)):
+            raise Exception('Error!!! The trained checkpoint dir doesn`t exist')
+        if (os.path.exists('/content/trained-model')):
+            os.unlink('/content/trained-model')
+        os.symlink(gdrive_dir, '/content/trained-model', True)
+        print(f"Google drive's {prm.trained_checkpoint_dir} is linked to /content/trained-model")
+        prm.trained_checkpoint_dir = '/content/trained-model'
+        # Check the existence of the output directory
+        gdrive_dir = os.path.join('/mnt', 'MyDrive', prm.output_directory)
+        if (not os.path.isdir(gdrive_dir)):
+            print('Creating the output directory')
+            os.mkdir(gdrive_dir)
+        if (str(Path(prm.output_directory).resolve()) == str(Path(prm.model_dir).resolve())):
+            raise Exception("Error: export directory cannot be the train directory")
+        if (os.path.exists('/content/exported-model')):
+            os.unlink('/content/exported-model')
+        os.symlink(gdrive_dir, '/content/exported-model', True)
+        gdrive_dir = os.path.join(prm.output_directory, 'exported-model')
+        print(f"Google drive's {gdrive_dir} is linked to /content/exported-model")
+        prm.output_directory = '/content/exported-model'
+    else:
+        if (not os.path.isdir(prm.trained_checkpoint_dir)):
+            raise Exception('Error!!! The trained checkpoint dir doesn`t exist')
+        print(f'Trained checkpoint directory from {str(Path(prm.trained_checkpoint_dir).resolve())}')
+        if (not os.path.exists(prm.output_directory)):
+            print('Creating the output directory')
+            os.mkdir(prm.output_directory)
+        if (str(Path(prm.output_directory).resolve()) == str(Path(prm.model_dir).resolve())):
+            raise Exception("Error: export directory cannot be the train directory")
+        print(f'The trained model will be in {str(Path(prm.model_dir).resolve())}')
+    # Copy the label file in the export directory
+    shutil.copy2(os.path.join(prm.trained_checkpoint_dir, 'label_map.pbtxt'), prm.output_directory)
+
+if __name__ == '__main__':
+    prm = ('prm' in locals() and isinstance(prm, ExportParameters) and prm) or ExportParameters.default
+    init_export_environment(prm)
+
+#@markdown ---
+
+# Module: export_main.py
+#@title #Export { form-width: "20%" }
+#@markdown The main train loop. It trains the model and put it in the output directory.
+#@markdown 
+#@markdown It can be stopped before the completion when
+#@markdown a considerable result is reached and restart after for enhancing the tuning.
+
+from    absl import flags
+import  os
+import  sys
+
+try:    from    utilities import *
+except: pass
+
+# Avoiding the absl error for duplicated flags if run again the cell from a notebook
+for f in flags.FLAGS.flag_values_dict():
+    flags.FLAGS[f].allow_override = True
+
+def export_main(unused_argv):
+    # Part of code not executed on Colab notebook
+    def run_py_mode():
+        # Init the train environment
+        from export_environment import init_export_environment
+        from export_parameters import ExportParameters
+        export_parameters = ExportParameters()
+        export_parameters.update_values()
+        init_export_environment(export_parameters)
+        # Import the export main function
+        from object_detection import exporter_main_v2
+        export_parameters.update_flags()
+        # Export the model
+        exporter_main_v2.main(unused_argv)
+    def run_notebook_mode():
+        # Import the train main function
+        from object_detection import exporter_main_v2
+        prm.update_flags()
+        # Execute the train
+        exporter_main_v2.main(unused_argv)
+    # Execution
+    if (is_jupyter()):
+        run_notebook_mode()
+    else:
+        run_py_mode()
+
+if __name__ == '__main__':
+    if (not is_jupyter()):
+        from od_install import install_object_detection
+        install_object_detection()
+    import tensorflow as tf
+    try:
+        tf.compat.v1.app.run(export_main)
+    except SystemExit:
+        pass
+    print('Export complete')
 
 #@markdown ---

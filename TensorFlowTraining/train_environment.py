@@ -1,5 +1,5 @@
 # Module train_environment.py
-#@title #Environment initialization { form-width: "30%" }
+#@title #Train's environment initialization { form-width: "30%" }
 #@markdown In this section the environment for the training will be initialized.
 #@markdown
 #@markdown All necessary directories will be crated and the Google drive
@@ -62,7 +62,7 @@ def init_train_environment(prm: TrainParameters):
             raise Exception('Error!!! The evaluation images dir doesn`t exist')
         print(f'Train images from {str(Path(prm.eval_images_dir).resolve())}')
         if (not os.path.exists(prm.model_dir)):
-            print('Creating the output dir')
+            print('Creating the output directory')
             os.mkdir(prm.model_dir)
         print(f'The trained model will be in {str(Path(prm.model_dir).resolve())}')
     if (not os.path.exists(prm.annotations_dir)):
@@ -70,7 +70,7 @@ def init_train_environment(prm: TrainParameters):
     print(f'The annotations files will be in {str(Path(prm.annotations_dir).resolve())}')
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm) or TrainParameters.default
+    prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     init_train_environment(prm)
 
 #@markdown ---

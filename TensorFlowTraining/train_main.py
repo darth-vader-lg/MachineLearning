@@ -1,4 +1,4 @@
-# Module: train.py
+# Module: train_main.py
 #@title #Train { form-width: "20%" }
 #@markdown The main train loop. It trains the model and put it in the output directory.
 #@markdown 
@@ -6,7 +6,6 @@
 #@markdown a considerable result is reached and restart after for enhancing the tuning.
 
 from    absl import flags
-import  importlib
 import  os
 import  sys
 
@@ -24,29 +23,27 @@ flags.DEFINE_string('train_images_dir', None, 'Path to the directory '
 flags.DEFINE_string('eval_images_dir', None, 'Path to the directory '
                     'containing the images for evaluate and their labeling xml.')
 
-FLAGS = flags.FLAGS
-
 def train_main(unused_argv):
     # Part of code not executed on Colab notebook
     def run_py_mode():
         # Init the train environment
         from pretrained_model import download_pretrained_model
-        from tf_record import create_tf_records
+        from tf_records import create_tf_records
         from train_environment import init_train_environment
         from train_parameters import TrainParameters
         from train_pipeline import config_train_pipeline
-        prm = TrainParameters()
-        prm.update_values()
-        init_train_environment(prm)
-        download_pretrained_model(prm)
-        create_tf_records(prm)
-        config_train_pipeline(prm)
+        train_parameters = TrainParameters()
+        train_parameters.update_values()
+        init_train_environment(train_parameters)
+        download_pretrained_model(train_parameters)
+        create_tf_records(train_parameters)
+        config_train_pipeline(train_parameters)
         # Import the train main function
         from object_detection import model_main_tf2
-        prm.update_flags()
+        train_parameters.update_flags()
         # Start the tensorboard
         from train_tensorboard import start_tensorboard
-        start_tensorboard(prm)
+        start_tensorboard(train_parameters)
         # Execute the train
         model_main_tf2.main(unused_argv)
     def run_notebook_mode():
@@ -69,9 +66,12 @@ if __name__ == '__main__':
     try:
         tf.compat.v1.app.run(train_main)
     except KeyboardInterrupt:
+        print('Train interrupted by user')
         pass
     except SystemExit:
+        print('Train complete')
         pass
-    print('Train complete')
+    else:
+        print('Train complete')
 
 #@markdown ---

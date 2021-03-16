@@ -91,10 +91,11 @@ class BaseParameters:
                     print(f'Written property {prop} with value {value}')
             except:
                 pass
+
 BaseParameters.default = BaseParameters.default or BaseParameters()
 
 if __name__ == '__main__':
-    prm = ('prm' in locals() and prm and isinstance(prm, BaseParameters)) or BaseParameters.default
+    prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     print(prm)
     print('Base parameters configured')
 
