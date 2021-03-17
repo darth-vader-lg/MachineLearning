@@ -587,3 +587,4 @@ healthchecksdb
 /TensorFlowTraining/annotations
 /TensorFlowTraining/trained-model
 /TensorFlowTraining/exported-model
+/TensorFlowTraining/onnx-model
