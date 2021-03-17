@@ -28,6 +28,7 @@ class BaseParameters:
             'train_images_dir',
             'eval_images_dir',
             'annotations_dir']
+        self._flags_aliases = {}
     default = None
     @property
     def model(self):
@@ -77,6 +78,8 @@ class BaseParameters:
             try:
                 value = getattr(self, prop)
                 if (value):
+                    if (prop in self._flags_aliases):
+                        prop = self._flags_aliases[prop]
                     setattr(flags.FLAGS, prop, value)
                     print(f'Written flag {prop} with value {value}')
             except:
@@ -85,7 +88,11 @@ class BaseParameters:
         propnames = [p for p in dir(type(self)) if isinstance(getattr(type(self), p),property)]
         for prop in propnames:
             try:
-                value = getattr(flags.FLAGS, prop)
+                if (prop in self._flags_aliases):
+                    flag = self._flags_aliases[prop]
+                else:
+                    flag = prop
+                value = getattr(flags.FLAGS, flag)
                 if (value):
                     setattr(self, prop, value)
                     print(f'Written property {prop} with value {value}')
