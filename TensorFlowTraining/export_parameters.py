@@ -19,7 +19,7 @@ class ExportParameters(BaseParameters):
         self._input_type = 'image_tensor'
         self._pipeline_config_path = os.path.join(self.model_dir, 'pipeline.config')
         self._trained_checkpoint_dir = self.model_dir
-        self._output_directory = cfg_exported_model or 'exported-model'
+        self._output_directory = cfg_exported_model
         self._is_path.extend([
             'pipeline_config_path',
             'trained_checkpoint_dir',
