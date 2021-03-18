@@ -37,14 +37,18 @@ def install_object_detection():
         print('setuptools 54.0.0 is already installed')
     # Install TensorFlow
     is_installed = False
+    tensorflow_version = 'tensorflow==2.4.1' # or for example tf-nightly==2.5.0.dev20210315
     try:
         import tensorflow
-        is_installed = tensorflow.__version__ == '2.4.1'
+        comparing_version = tensorflow_version.replace('tensorflow==', '')
+        comparing_version = comparing_version.replace('tf-nightly==', '')
+        comparing_version = comparing_version.replace('.dev', '-dev')
+        is_installed = tensorflow.__version__ == comparing_version
     except: pass
     if (not is_installed):
-        execute_script(['-m', 'pip', 'install', 'tensorflow==2.4.1'])
+        execute_script(['-m', 'pip', 'install', tensorflow_version])
     else:
-        print('TensorFlow 2.4.1 is already installed')
+        print(f'TensorFlow {tensorflow_version} is already installed')
     # Install pygit2
     is_installed = False
     try:
