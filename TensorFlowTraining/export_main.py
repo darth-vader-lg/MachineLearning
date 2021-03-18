@@ -1,9 +1,6 @@
 # Module: export_main.py
 #@title #Export { form-width: "20%" }
-#@markdown The main train loop. It trains the model and put it in the output directory.
-#@markdown 
-#@markdown It can be stopped before the completion when
-#@markdown a considerable result is reached and restart after for enhancing the tuning.
+#@markdown The export action. It export the last checkpoint in a saved model.
 
 from    absl import flags
 import  os
@@ -31,10 +28,10 @@ def export_main(unused_argv):
         # Export the model
         exporter_main_v2.main(unused_argv)
     def run_notebook_mode():
-        # Import the train main function
+        # Import the export main function
         from object_detection import exporter_main_v2
         prm.update_flags()
-        # Execute the train
+        # Export the model
         exporter_main_v2.main(unused_argv)
     # Execution
     if (is_jupyter()):
