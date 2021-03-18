@@ -113,7 +113,7 @@ namespace MachineLearning
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class ImageRecognizer // Prediction
+   public sealed partial class ImageRecognizer // Model
    {
       [Serializable]
       private sealed class Model :
