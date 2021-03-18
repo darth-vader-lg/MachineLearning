@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Tensorflow;
+using static Tensorflow.Binding;
 
 namespace MachineLearning
 {
@@ -13,13 +15,13 @@ namespace MachineLearning
    /// Contesto di machine learning
    /// </summary>
    [Serializable]
-   public class MachineLearningContext : IContextProvider<MLContext>, IDeserializationCallback
+   public class MachineLearningContext : IContextProvider<MLContext>, IContextProvider<tensorflow>, IDeserializationCallback
    {
       #region Fields
       /// <summary>
       /// Tutti i task di lavoro
       /// </summary>
-      private static readonly HashSet<List<(Task task, CancellationTokenSource cts)>> _allWorkingTasks = new HashSet<List<(Task task, CancellationTokenSource cts)>>();
+      private static readonly HashSet<List<(Task task, CancellationTokenSource cts)>> _allWorkingTasks = new();
       /// <summary>
       /// Scheduler di creazione dell'oggetto
       /// </summary>
@@ -43,7 +45,7 @@ namespace MachineLearning
       /// Task di lavoro del contesto
       /// </summary>
       [NonSerialized]
-      private readonly List<(Task task, CancellationTokenSource cts)> _workingTasks = new List<(Task task, CancellationTokenSource cts)>();
+      private readonly List<(Task task, CancellationTokenSource cts)> _workingTasks = new();
       #endregion
       #region Properties
       /// <summary>
@@ -65,12 +67,20 @@ namespace MachineLearning
       /// <summary>
       /// Contesto ML.NET
       /// </summary>
+      tensorflow IContextProvider<tensorflow>.Context => TensorFlow;
+      /// <summary>
+      /// Contesto ML.NET
+      /// </summary>
       [field: NonSerialized]
       public MLContext MLNET { get; private set; }
       /// <summary>
       /// Indica necessita' di postare un azione nel thread di creazione dal momento che ci si trova in un altro
       /// </summary>
       public bool PostRequired => Thread.CurrentThread != _creationThread && _creationTaskScheduler != null;
+      /// <summary>
+      /// Contesto TensorFlow
+      /// </summary>
+      public static tensorflow TensorFlow => tf;
       #endregion
       #region Events
       /// <summary>
