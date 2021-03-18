@@ -177,7 +177,7 @@ namespace MachineLearning
          /// <summary>
          /// Opzioni di caricamento dati in formato testo
          /// </summary>
-         public TextLoader.Options TextLoaderOptions => new TextLoader.Options
+         public TextLoader.Options TextLoaderOptions => new()
          {
             AllowQuoting = true,
             Separators = new[] { ',' },
