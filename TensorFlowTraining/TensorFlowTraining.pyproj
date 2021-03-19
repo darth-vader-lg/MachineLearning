@@ -33,7 +33,6 @@
     <Compile Include="mount_google_drive.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Plot-ssd_mobilenet_v2_320x320_coco17_tpu-8_checkpoint.py" />
     <Compile Include="train.ipynb.py" />
     <Compile Include="export_main.py" />
     <Compile Include="export_parameters.py" />
