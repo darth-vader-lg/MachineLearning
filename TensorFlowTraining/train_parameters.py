@@ -17,7 +17,7 @@ class TrainParameters(BaseParameters):
         """ Constructor """
         super().__init__()
         self._pipeline_config_path = os.path.join(self.annotations_dir, 'pipeline.config')
-        self._num_train_steps = None
+        self._num_train_steps = cfg_max_train_steps if cfg_max_train_steps > -1 else None
         self._eval_on_train_data = False
         self._sample_1_of_n_eval_examples = None
         self._sample_1_of_n_eval_on_train_examples = 5

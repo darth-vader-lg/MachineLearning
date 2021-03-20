@@ -7,8 +7,9 @@
 import  os
 import  shutil
 
-try:
-    from    train_parameters import TrainParameters
+try:    from    default_cfg import *
+except: pass
+try:    from    train_parameters import TrainParameters
 except: pass
 
 def config_train_pipeline(prm: TrainParameters):
@@ -28,7 +29,7 @@ def config_train_pipeline(prm: TrainParameters):
     pre_trained_model_dir = os.path.join(prm.pre_trained_model_base_dir, prm.model['dir_name'])
     pre_trained_cfg_file = os.path.join(
         tempfile.gettempdir(),
-        'tensorflow-object-detection-api-2.4.1',
+        'tf-od-api-' + cfg_od_api_git_sha1,
         'research', 'object_detection', 'configs', 'tf2',
         prm.model['dir_name'] + '.config')
     shutil.copy2(pre_trained_cfg_file, output_file)
