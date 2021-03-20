@@ -340,18 +340,10 @@ ASALocalRun/
 healthchecksdb
 
 # Python environment
-/output-model
-/pre-trained-models
-/TensorFlowTraining/env/Scripts
-/TensorFlowTraining/env/Lib/site-packages
-/TensorFlowTraining/annotations
-/TensorFlowTraining/trained-model
-/TensorFlowTraining/exported-model
-/TensorFlowTraining/onnx-model
+/TensorFlowTraining/env/
 
-
-/TensorFlowTraining/env/Lib/site-packages/protobuf-3.15.6.dist-info
-/TensorFlowTraining/env/Lib/site-packages/urllib3-1.26.4.dist-info
-/TensorFlowTraining/env/Lib/site-packages/zipp-3.4.1.dist-info
-/TensorFlowTraining/env/Lib/site-packages/protobuf-3.15.6-py3.7-nspkg.pth
-/TensorFlowTraining/env/Lib/site-packages/google_auth-1.28.0-py3.9-nspkg.pth
+# Workspace directories
+TensorFlowTraining/images/
+TensorFlowTraining/annotations/
+TensorFlowTraining/trained-model/
+TensorFlowTraining/exported-model/
