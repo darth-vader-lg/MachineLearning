@@ -62,15 +62,13 @@ if __name__ == '__main__':
     if (not is_jupyter()):
         from od_install import install_object_detection
         install_object_detection()
-    import tensorflow as tf
     try:
+        import tensorflow as tf
         tf.compat.v1.app.run(train_main)
     except KeyboardInterrupt:
         print('Train interrupted by user')
-        pass
     except SystemExit:
         print('Train complete')
-        pass
     else:
         print('Train complete')
 

@@ -43,11 +43,14 @@ if __name__ == '__main__':
     if (not is_jupyter()):
         from od_install import install_object_detection
         install_object_detection()
-    import tensorflow as tf
     try:
+        import tensorflow as tf
         tf.compat.v1.app.run(export_main)
+    except KeyboardInterrupt:
+        print('Export interrupted by user')
     except SystemExit:
-        pass
-    print('Export complete')
+        print('Export complete')
+    else:
+        print('Export complete')
 
 #@markdown ---
