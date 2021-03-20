@@ -14,7 +14,7 @@ models = {
     'SSD MobileNet v2 320x320': {
         'dir_name': 'ssd_mobilenet_v2_320x320_coco17_tpu-8',
         'download_path': 'http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_320x320_coco17_tpu-8.tar.gz',
-        'batch_size': 8,
+        'batch_size': 16,
         'height': 300,
         'width': 300
     },
