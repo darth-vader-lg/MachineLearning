@@ -21,3 +21,12 @@ cfg_trained_model = 'trained-model' #@param {type:"string"}
 #@markdown The GDrive directory (Colab execution) or the local directory (machine execution) where the exported model will be saved.
 cfg_exported_model = 'exported-model' #@param {type:"string"}
 #@markdown ---
+#@markdown ---
+#@markdown ## Maximum training steps:
+#@markdown The maximun number of train steps. If < 0 it will be limited by the base model configuration.
+cfg_max_train_steps = -1 #@param {type:"integer"}
+#@markdown ---
+# TensorFlow version
+cfg_tensorflow_version = 'tensorflow==2.4.1' # or for example tf-nightly==2.5.0.dev20210315
+# SHA1 for the checkout of the TensorFlow object detection api
+cfg_od_api_git_sha1 = 'e356598a5b79a768942168b10d9c1acaa923bdb4'
