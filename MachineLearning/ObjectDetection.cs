@@ -70,13 +70,13 @@ namespace MachineLearning
          /// </summary>
          private readonly IContextProvider<tensorflow> _context;
          /// <summary>
-         /// Grafico TensorFlow
-         /// </summary>
-         private Graph _graph;
-         /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
          private readonly ObjectDetection _owner;
+         /// <summary>
+         /// Sessione TensorFlow
+         /// </summary>
+         private Session _session;
          /// <summary>
          /// Soglia punteggio minimo
          /// </summary>
@@ -157,7 +157,10 @@ namespace MachineLearning
             using var font = new Font("Verdana", 8);
             var p = new Point(rect.Left + 5, rect.Top + 5);
             var text = string.Format("{0}:{1}%", name, (int)(score * 100));
-            graphic.DrawString(text, font, Brushes.Lime, p);
+            var size = graphic.MeasureString(text, font);
+            using var brush = new SolidBrush(Color.FromArgb(50, Color.Lime));
+            graphic.FillRectangle(brush, p.X, p.Y, size.Width, size.Height);
+            graphic.DrawString(text, font, Brushes.Black, p);
          }
          /// <summary>
          /// Restituisce il task di previsione
@@ -172,22 +175,19 @@ namespace MachineLearning
             {
                foreach (string img in data) {
                   var imgArr = ReadTensorFromImageFile(img);
-                  if (_graph == null) {
-                     _graph = new Graph().as_default();
-                     using (var sess = Session.LoadFromSavedModel(Path.Combine(modelDir/*, pbFile*/))) {
-                        var graph = sess.graph;
-                        var t0 = graph.OperationByName("StatefulPartitionedCall").outputs;
-                        Tensor tensorNum = t0[5];
-                        Tensor tensorBoxes = t0[1];
-                        Tensor tensorScores = t0[4];
-                        Tensor tensorClasses = t0[2];
-                        Tensor imgTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
-                        Tensor[] outTensorArr = new Tensor[] { tensorNum, tensorBoxes, tensorScores, tensorClasses };
-                        var results = sess.run(outTensorArr, new FeedItem(imgTensor, imgArr));
-                        Console.WriteLine(results);
-                        BuildOutputImage(img, results);
-                     }
-                  }
+                  if (_session == null)
+                     _session = Session.LoadFromSavedModel(Path.Combine(modelDir/*, pbFile*/));
+                  _session.as_default();
+                  var graph = _session.graph.as_default();
+                  var t0 = graph.OperationByName("StatefulPartitionedCall").outputs;
+                  Tensor tensorNum = t0[5];
+                  Tensor tensorBoxes = t0[1];
+                  Tensor tensorScores = t0[4];
+                  Tensor tensorClasses = t0[2];
+                  Tensor imgTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
+                  Tensor[] outTensorArr = new Tensor[] { tensorNum, tensorBoxes, tensorScores, tensorClasses };
+                  var results = _session.run(outTensorArr, new FeedItem(imgTensor, imgArr));
+                  BuildOutputImage(img, results);
                }
             }, cancellation);
             return null;
@@ -199,13 +199,11 @@ namespace MachineLearning
          /// <returns>Il tensore</returns>
          private NDArray ReadTensorFromImageFile(string file_name)
          {
-            var graph = Context.Graph().as_default();
-
-            var file_reader = Context.io.read_file(file_name, "file_reader");
-            var decodeJpeg = Context.image.decode_jpeg(file_reader, channels: 3, name: "DecodeJpeg");
-            var casted = Context.cast(decodeJpeg, TF_DataType.TF_UINT8);
-            var dims_expander = Context.expand_dims(casted, 0);
-
+            using var graph = Context.Graph().as_default();
+            using var file_reader = Context.io.read_file(file_name, "file_reader");
+            using var decodeJpeg = Context.image.decode_jpeg(file_reader, channels: 3, name: "DecodeJpeg");
+            using var casted = Context.cast(decodeJpeg, TF_DataType.TF_UINT8);
+            using var dims_expander = Context.expand_dims(casted, 0);
             using var sess = Context.Session(graph);
             return sess.run(dims_expander);
          }
