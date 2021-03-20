@@ -7,7 +7,6 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Tensorflow;
-using static Tensorflow.Binding;
 
 namespace MachineLearning
 {
@@ -41,6 +40,10 @@ namespace MachineLearning
       /// Seme per le operazioni random
       /// </summary>
       private readonly int? _seed;
+      /// <summary>
+      /// Contesto globale di binding di TensorFlow
+      /// </summary>
+      private static tensorflow _tf;
       /// <summary>
       /// Task di lavoro del contesto
       /// </summary>
@@ -80,7 +83,8 @@ namespace MachineLearning
       /// <summary>
       /// Contesto TensorFlow
       /// </summary>
-      public static tensorflow TensorFlow => tf;
+      [field: NonSerialized]
+      public tensorflow TensorFlow { get; private set; }
       #endregion
       #region Events
       /// <summary>
@@ -204,6 +208,12 @@ namespace MachineLearning
          // Inizializza il contesto ML.NET
          MLNET = new MLContext(_seed);
          MLNET.Log += NET_Log;
+         // Inizializza il contesto TensorFlow
+         if (_tf == null) {
+            _tf = Binding.tf;
+            _tf.compat.v1.disable_eager_execution();
+         }
+         TensorFlow = _tf;
       }
       /// <summary>
       /// Funzione di log di un messaggio
