@@ -95,12 +95,6 @@ namespace MachineLearning
          /// </summary>
          public float MIN_SCORE = 0.5f;
          #endregion
-         #region Properties
-         /// <summary>
-         /// Contesto
-         /// </summary>
-         tensorflow TF => _context.Context.TF;
-         #endregion
          #region Methods
          /// <summary>
          /// Costruttore
@@ -205,14 +199,15 @@ namespace MachineLearning
          /// <returns>Il tensore</returns>
          private NDArray ReadTensorFromImageFile(string filePath)
          {
-            using var graph = TF.Graph().as_default();
-            TF.compat.v1.disable_eager_execution();
-            using var file_reader = TF.io.read_file(filePath, "file_reader");
-            using var decodeJpeg = TF.image.decode_jpeg(file_reader, channels: 3, name: "DecodeJpeg");
-            using var casted = TF.cast(decodeJpeg, TF_DataType.TF_UINT8);
-            using var dims_expander = TF.expand_dims(casted, 0);
-            TF.enable_eager_execution();
-            using var sess = TF.Session(graph).as_default();
+            var tf = _context.Context;
+            using var graph = tf.Graph().as_default();
+            tf.compat.v1.disable_eager_execution();
+            using var file_reader = tf.io.read_file(filePath, "file_reader");
+            using var decodeJpeg = tf.image.decode_jpeg(file_reader, channels: 3, name: "DecodeJpeg");
+            using var casted = tf.cast(decodeJpeg, TF_DataType.TF_UINT8);
+            using var dims_expander = tf.expand_dims(casted, 0);
+            tf.enable_eager_execution();
+            using var sess = tf.Session(graph).as_default();
             return sess.run(dims_expander);
          }
          #endregion

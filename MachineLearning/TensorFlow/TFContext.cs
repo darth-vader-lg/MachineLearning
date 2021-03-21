@@ -7,7 +7,7 @@ namespace MachineLearning.TensorFlow
    /// <summary>
    /// Contesto TensorFlow
    /// </summary>
-   public class TFContext : IChannelProvider
+   public class TFContext : tensorflow, IChannelProvider
    {
       #region Fields
       /// <summary>
@@ -20,10 +20,6 @@ namespace MachineLearning.TensorFlow
       /// La stringa descrittiva del contesto stesso
       /// </summary>
       public string ContextDescription => "TensorFlow";
-      /// <summary>
-      /// TensorFlow
-      /// </summary>
-      public tensorflow TF { get; }
       #endregion
       #region Events
       /// <summary>
@@ -32,10 +28,6 @@ namespace MachineLearning.TensorFlow
       public event EventHandler<LoggingEventArgs> Log;
       #endregion
       #region Methods
-      /// <summary>
-      /// Costruttore
-      /// </summary>
-      public TFContext() => TF = Binding.tf;
       /// <summary>
       /// Evento di canale disposto
       /// </summary>
