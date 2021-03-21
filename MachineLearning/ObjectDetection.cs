@@ -1,9 +1,11 @@
 ﻿using MachineLearning.Data;
+using MachineLearning.Model;
+using MachineLearning.TensorFlow;
 using MachineLearning.Util;
+using Microsoft.ML;
 using NumSharp;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -11,7 +13,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Tensorflow;
-using static Tensorflow.Binding;
 
 namespace MachineLearning
 {
@@ -19,7 +20,8 @@ namespace MachineLearning
    /// Classe per il rilevamento di oggetti nelle immagini
    /// </summary>
    [Serializable]
-   public sealed partial class ObjectDetection
+   public sealed partial class ObjectDetection :
+      IInputSchema
    {
       #region Fields
       /// <summary>
@@ -27,14 +29,25 @@ namespace MachineLearning
       /// </summary>
       private readonly Model _model;
       #endregion
+      #region Properties
+      /// <summary>
+      /// Schema di input dei dati
+      /// </summary>
+      public DataViewSchema InputSchema { get; private set; }
+      /// <summary>
+      /// Storage del modello
+      /// </summary>
+      public string ModelStorage { get; set; }
+      #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      public ObjectDetection(IContextProvider<tensorflow> context = default)
+      public ObjectDetection(IContextProvider<TFContext> context = default)
       {
          _model = new Model(this, context);
+         InputSchema = DataViewSchemaBuilder.Build((Name: "ImagePath", Type: typeof(string)));
       }
       /// <summary>
       /// Restituisce il tipo di immagine
@@ -68,7 +81,7 @@ namespace MachineLearning
          /// <summary>
          /// Contesto di machine learning
          /// </summary>
-         private readonly IContextProvider<tensorflow> _context;
+         private readonly IContextProvider<TFContext> _context;
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
@@ -81,26 +94,20 @@ namespace MachineLearning
          /// Soglia punteggio minimo
          /// </summary>
          public float MIN_SCORE = 0.5f;
-         /// <summary>
-         /// Directory del modello
-         /// </summary>
-         private readonly string exportDir = Path.Combine("S:", "ML.NET", "TensorFlowTraining", "TensorFlowTraining", "exported-model");
-         /// <summary>
-         /// Directory del modello
-         /// </summary>
-         private readonly string modelDir = Path.Combine("S:", "ML.NET", "TensorFlowTraining", "TensorFlowTraining", "exported-model", "saved_model");
          #endregion
+         #region Properties
          /// <summary>
          /// Contesto
          /// </summary>
-         tensorflow Context => _context.Context;
+         tensorflow TF => _context.Context.TF;
+         #endregion
          #region Methods
          /// <summary>
          /// Costruttore
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="context">Contesto di machine learning</param>
-         internal Model(ObjectDetection owner, IContextProvider<tensorflow> context)
+         internal Model(ObjectDetection owner, IContextProvider<TFContext> context)
          {
             _owner = owner;
             _context = context;
@@ -112,9 +119,9 @@ namespace MachineLearning
          /// <param name="resultArr">Risultato della previsione</param>
          private void BuildOutputImage(string inputImagePath, NDArray[] resultArr)
          {
-            // get pbtxt items
-            var pbTxtItems = PbtxtParser.ParsePbtxtFile(Path.Combine(exportDir, "label_map.pbtxt"));
-            // get bitmap
+            // Elenco di oggetti del modello
+            var pbTxtItems = PbtxtParser.ParsePbtxtFile(Path.Combine(_owner.ModelStorage, "label_map.pbtxt"));
+            // Crea il bitmap dall'immagine
             var bitmap = new Bitmap(inputImagePath);
             var scores = resultArr[2].AsIterator<float>();
             var boxes = resultArr[1].GetData<float>();
@@ -173,12 +180,11 @@ namespace MachineLearning
             // Importa il grafico del modello
             await Task.Run(() =>
             {
+               if (_session == null)
+                  _session = Session.LoadFromSavedModel(Path.Combine(_owner.ModelStorage, "saved_model"));
                foreach (string img in data) {
                   var imgArr = ReadTensorFromImageFile(img);
-                  if (_session == null)
-                     _session = Session.LoadFromSavedModel(Path.Combine(modelDir/*, pbFile*/));
-                  _session.as_default();
-                  var graph = _session.graph.as_default();
+                  var graph = _session.as_default().graph.as_default();
                   var t0 = graph.OperationByName("StatefulPartitionedCall").outputs;
                   Tensor tensorNum = t0[5];
                   Tensor tensorBoxes = t0[1];
@@ -197,14 +203,16 @@ namespace MachineLearning
          /// </summary>
          /// <param name="filePath">Path del file</param>
          /// <returns>Il tensore</returns>
-         private NDArray ReadTensorFromImageFile(string file_name)
+         private NDArray ReadTensorFromImageFile(string filePath)
          {
-            using var graph = Context.Graph().as_default();
-            using var file_reader = Context.io.read_file(file_name, "file_reader");
-            using var decodeJpeg = Context.image.decode_jpeg(file_reader, channels: 3, name: "DecodeJpeg");
-            using var casted = Context.cast(decodeJpeg, TF_DataType.TF_UINT8);
-            using var dims_expander = Context.expand_dims(casted, 0);
-            using var sess = Context.Session(graph);
+            using var graph = TF.Graph().as_default();
+            TF.compat.v1.disable_eager_execution();
+            using var file_reader = TF.io.read_file(filePath, "file_reader");
+            using var decodeJpeg = TF.image.decode_jpeg(file_reader, channels: 3, name: "DecodeJpeg");
+            using var casted = TF.cast(decodeJpeg, TF_DataType.TF_UINT8);
+            using var dims_expander = TF.expand_dims(casted, 0);
+            TF.enable_eager_execution();
+            using var sess = TF.Session(graph).as_default();
             return sess.run(dims_expander);
          }
          #endregion
@@ -219,19 +227,45 @@ namespace MachineLearning
       [Serializable]
       public class Prediction
       {
+         #region struct Rect
+         /// <summary>
+         /// Box contenitivo
+         /// </summary>
+         public struct Box
+         {
+            #region Fields
+            /// <summary>
+            /// Lato inferiore
+            /// </summary>
+            public float Bottom;
+            /// <summary>
+            /// Lato sinistro
+            /// </summary>
+            public float Left;
+            /// <summary>
+            /// Lato destro
+            /// </summary>
+            public float Right;
+            /// <summary>
+            /// Lato superiore
+            /// </summary>
+            public float Top;
+            #endregion
+         }
+         #endregion
          #region Properties
          /// <summary>
-         /// Significato
+         /// Tipi degli oggetti previsti
          /// </summary>
-         public string Kind { get; }
+         public string[] Kind { get; }
          /// <summary>
          /// Punteggio per il tipo previsto
          /// </summary>
-         public float Score { get; }
+         public float[] Score { get; }
          /// <summary>
-         /// Punteggi per label
+         /// Box di contenimento oggetti
          /// </summary>
-         public KeyValuePair<string, float>[] Scores { get; }
+         public Box[] Boxes { get; }
          #endregion
          #region Methods
          /// <summary>
@@ -240,6 +274,7 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(IDataAccess data)
          {
+            //var dvg = DataViewGrid.Create(DataViewSchemaBuilder.Build
             //var grid = data.ToDataViewGrid();
             //Kind = grid[0]["PredictedLabel"];
             //var scores = (float[])grid[0]["Score"];

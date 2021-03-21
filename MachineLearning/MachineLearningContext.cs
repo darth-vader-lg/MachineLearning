@@ -7,6 +7,7 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Tensorflow;
+using MachineLearning.TensorFlow;
 
 namespace MachineLearning
 {
@@ -14,7 +15,7 @@ namespace MachineLearning
    /// Contesto di machine learning
    /// </summary>
    [Serializable]
-   public class MachineLearningContext : IContextProvider<MLContext>, IContextProvider<tensorflow>, IDeserializationCallback
+   public class MachineLearningContext : IContextProvider<MLContext>, IContextProvider<TFContext>, IDeserializationCallback
    {
       #region Fields
       /// <summary>
@@ -41,10 +42,6 @@ namespace MachineLearning
       /// </summary>
       private readonly int? _seed;
       /// <summary>
-      /// Contesto globale di binding di TensorFlow
-      /// </summary>
-      private static tensorflow _tf;
-      /// <summary>
       /// Task di lavoro del contesto
       /// </summary>
       [NonSerialized]
@@ -70,7 +67,7 @@ namespace MachineLearning
       /// <summary>
       /// Contesto ML.NET
       /// </summary>
-      tensorflow IContextProvider<tensorflow>.Context => TensorFlow;
+      TFContext IContextProvider<TFContext>.Context => TensorFlow;
       /// <summary>
       /// Contesto ML.NET
       /// </summary>
@@ -84,7 +81,7 @@ namespace MachineLearning
       /// Contesto TensorFlow
       /// </summary>
       [field: NonSerialized]
-      public tensorflow TensorFlow { get; private set; }
+      public TFContext TensorFlow { get; private set; }
       #endregion
       #region Events
       /// <summary>
@@ -162,7 +159,7 @@ namespace MachineLearning
       /// </summary>
       /// <param name="sender">Contesto ML.NET</param>
       /// <param name="e">Argomenti del log</param>
-      private void NET_Log(object sender, LoggingEventArgs e)
+      private void NET_Log(object sender, Microsoft.ML.LoggingEventArgs e)
       {
          var kind = e.Kind switch
          {
@@ -209,11 +206,8 @@ namespace MachineLearning
          MLNET = new MLContext(_seed);
          MLNET.Log += NET_Log;
          // Inizializza il contesto TensorFlow
-         if (_tf == null) {
-            _tf = Binding.tf;
-            _tf.compat.v1.disable_eager_execution();
-         }
-         TensorFlow = _tf;
+         TensorFlow = new TFContext();
+         TensorFlow.Log += TensorFlow_Log;
       }
       /// <summary>
       /// Funzione di log di un messaggio
@@ -295,6 +289,36 @@ namespace MachineLearning
                   }
                }
             }).Wait(timeoutMs);
+         }
+      }
+
+      private void TensorFlow_Log(object sender, TensorFlow.LoggingEventArgs e)
+      {
+         var kind = e.Kind switch
+         {
+            ChannelMessageKind.Info => MachineLearningLogKind.Info,
+            ChannelMessageKind.Warning => MachineLearningLogKind.Warning,
+            ChannelMessageKind.Error => MachineLearningLogKind.Error,
+            _ => MachineLearningLogKind.Trace,
+         };
+         if (!SyncLogs) {
+            OnLog(new MachineLearningLogEventArgs(e.Message, kind, e.Source));
+            return;
+         }
+         lock (_logMessages ??= new Queue<MachineLearningLogEventArgs>()) {
+            _logMessages.Enqueue(new MachineLearningLogEventArgs(e.Message, kind, e.Source));
+            if (_logMessages.Count == 1) {
+               Post(() =>
+               {
+                  for (; ; ) {
+                     lock (_logMessages) {
+                        if (_logMessages.Count == 0)
+                           break;
+                        OnLog(_logMessages.Dequeue());
+                     }
+                  }
+               });
+            }
          }
       }
       #endregion
