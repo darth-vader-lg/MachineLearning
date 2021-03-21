@@ -43,6 +43,7 @@ namespace MachineLearning
       protected virtual void Dispose(bool disposing)
       {
          if (!IsDisposed) {
+            IsDisposed = true;
             if (disposing) {
                _channel?.Dispose();
                _channel = null;
