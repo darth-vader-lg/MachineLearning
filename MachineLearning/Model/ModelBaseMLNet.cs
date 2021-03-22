@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace MachineLearning.Model
 {
    /// <summary>
-   /// Classe base per i modeli ML.NET
+   /// Classe base per i modelli ML.NET
    /// </summary>
    [Serializable]
    public abstract partial class ModelBaseMLNet : ModelBase, IContextProvider<MLContext>, IModelTrainingShuffle, IModelTrainingStandard, ITransformer
@@ -105,6 +105,12 @@ namespace MachineLearning.Model
          var options = (this as ITextLoaderOptions)?.TextLoaderOptions ?? new TextLoader.Options() { Columns = (this as IInputSchema)?.InputSchema?.ToTextLoaderColumns() };
          return dataStorage.LoadData(Context, options);
       }
+      /// <summary>
+      /// Carica il modello da uno storage
+      /// </summary>
+      /// <param name="modelStorage">Storage del modello</param>
+      /// <param name="schema">Lo schema del modello</param>
+      /// <returns>Il modello</returns>
       public sealed override IDataTransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema)
       {
          Channel.CheckValue(modelStorage, nameof(modelStorage));
