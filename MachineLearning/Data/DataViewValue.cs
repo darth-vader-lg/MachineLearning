@@ -15,7 +15,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Dizionario di conversioni
       /// </summary>
-      private static readonly Dictionary<(Type from, Type to), Func<object, object>> Converter = new Dictionary<(Type from, Type to), Func<object, object>>
+      private static readonly Dictionary<(Type from, Type to), Func<object, object>> Converter = new()
       {
          { (typeof(VBuffer<sbyte>), typeof(sbyte[])), value => VBufferToArray<sbyte>(value) },
          { (typeof(VBuffer<byte>), typeof(byte[])), value => VBufferToArray<byte>(value) },
@@ -81,7 +81,7 @@ namespace MachineLearning.Data
       /// <typeparam name="T">Tipo di VBuffer e di array</typeparam>
       /// <param name="array">L'array</param>
       /// <returns>Il VBuffer</returns>
-      private static VBuffer<T> ArrayToVBuffer<T>(T[] array) => new VBuffer<T>(array.Length, array);
+      private static VBuffer<T> ArrayToVBuffer<T>(T[] array) => new(array.Length, array);
       /// <summary>
       /// Funzione di casting senza eccezione
       /// </summary>
