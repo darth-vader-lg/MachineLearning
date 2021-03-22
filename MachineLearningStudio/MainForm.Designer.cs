@@ -31,12 +31,15 @@ namespace MachineLearningStudio
          this.tabControlMain = new System.Windows.Forms.TabControl();
          this.tabPageTextMeaning = new System.Windows.Forms.TabPage();
          this.pageTextMeaning = new MachineLearningStudio.PageTextMeaning();
+         this.tabPageObjectDetection = new System.Windows.Forms.TabPage();
          this.tabPageImageClassification = new System.Windows.Forms.TabPage();
          this.pageImageClassification = new MachineLearningStudio.PageImageClassification();
          this.tabPageFeetRegression = new System.Windows.Forms.TabPage();
          this.pageFeetRegression = new MachineLearningStudio.PageFeetRegression();
+         this.pageObjectDetection = new MachineLearningStudio.PageObjectDetection();
          this.tabControlMain.SuspendLayout();
          this.tabPageTextMeaning.SuspendLayout();
+         this.tabPageObjectDetection.SuspendLayout();
          this.tabPageImageClassification.SuspendLayout();
          this.tabPageFeetRegression.SuspendLayout();
          this.SuspendLayout();
@@ -44,6 +47,7 @@ namespace MachineLearningStudio
          // tabControlMain
          // 
          this.tabControlMain.Controls.Add(this.tabPageTextMeaning);
+         this.tabControlMain.Controls.Add(this.tabPageObjectDetection);
          this.tabControlMain.Controls.Add(this.tabPageImageClassification);
          this.tabControlMain.Controls.Add(this.tabPageFeetRegression);
          this.tabControlMain.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -72,6 +76,16 @@ namespace MachineLearningStudio
          this.pageTextMeaning.Name = "pageTextMeaning";
          this.pageTextMeaning.Size = new System.Drawing.Size(1157, 742);
          this.pageTextMeaning.TabIndex = 0;
+         // 
+         // tabPageObjectDetection
+         // 
+         this.tabPageObjectDetection.Controls.Add(this.pageObjectDetection);
+         this.tabPageObjectDetection.Location = new System.Drawing.Point(4, 24);
+         this.tabPageObjectDetection.Name = "tabPageObjectDetection";
+         this.tabPageObjectDetection.Size = new System.Drawing.Size(1157, 742);
+         this.tabPageObjectDetection.TabIndex = 6;
+         this.tabPageObjectDetection.Text = "Object detection";
+         this.tabPageObjectDetection.UseVisualStyleBackColor = true;
          // 
          // tabPageImageClassification
          // 
@@ -113,6 +127,15 @@ namespace MachineLearningStudio
          this.pageFeetRegression.Size = new System.Drawing.Size(1157, 742);
          this.pageFeetRegression.TabIndex = 0;
          // 
+         // pageObjectDetection
+         // 
+         this.pageObjectDetection.Dock = System.Windows.Forms.DockStyle.Fill;
+         this.pageObjectDetection.Location = new System.Drawing.Point(0, 0);
+         this.pageObjectDetection.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+         this.pageObjectDetection.Name = "pageObjectDetection";
+         this.pageObjectDetection.Size = new System.Drawing.Size(1157, 742);
+         this.pageObjectDetection.TabIndex = 0;
+         // 
          // MainForm
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -124,6 +147,7 @@ namespace MachineLearningStudio
          this.Text = "MainForm";
          this.tabControlMain.ResumeLayout(false);
          this.tabPageTextMeaning.ResumeLayout(false);
+         this.tabPageObjectDetection.ResumeLayout(false);
          this.tabPageImageClassification.ResumeLayout(false);
          this.tabPageFeetRegression.ResumeLayout(false);
          this.ResumeLayout(false);
@@ -138,6 +162,8 @@ namespace MachineLearningStudio
       private System.Windows.Forms.TabPage tabPageTextMeaning;
       private PageTextMeaning pageTextMeaning;
       private PageFeetRegression pageFeetRegression;
+      private System.Windows.Forms.TabPage tabPageObjectDetection;
+      private PageObjectDetection pageObjectDetection;
    }
 }
 

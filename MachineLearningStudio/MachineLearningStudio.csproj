@@ -6,6 +6,9 @@
     <NeutralLanguage>en-US</NeutralLanguage>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Update="PageObjectDetection.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="PageTextMeaning.cs">
       <SubType>UserControl</SubType>
     </Compile>
