@@ -5,7 +5,6 @@ using MachineLearning.Util;
 using Microsoft.ML;
 using NumSharp;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -21,7 +20,8 @@ namespace MachineLearning
    /// </summary>
    [Serializable]
    public sealed partial class ObjectDetection :
-      IInputSchema
+      IInputSchema,
+      IModelStorageProvider
    {
       #region Fields
       /// <summary>
@@ -37,7 +37,12 @@ namespace MachineLearning
       /// <summary>
       /// Storage del modello
       /// </summary>
-      public string ModelStorage { get; set; }
+      //public string ModelStorage { get; set; }
+      public IModelStorage ModelStorage { get; set; }
+      /// <summary>
+      /// Nome del modello
+      /// </summary>
+      public string Name { get; set; }
       #endregion
       #region Methods
       /// <summary>
@@ -50,6 +55,10 @@ namespace MachineLearning
          InputSchema = DataViewSchemaBuilder.Build((Name: "ImagePath", Type: typeof(string)));
       }
       /// <summary>
+      /// Cancella il modello
+      /// </summary>
+      public void ClearModel() => _model.ClearModel();
+      /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
@@ -61,11 +70,8 @@ namespace MachineLearning
       /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default)
-      {
-         await _model.GetPredictionDataAsync(new[] { imagePath }, cancel);
-         return null;
-      }
+      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) =>
+         new Prediction(await _model.GetPredictionDataAsync(new[] { imagePath }, cancel));
       #endregion
    }
 
@@ -75,7 +81,12 @@ namespace MachineLearning
    public sealed partial class ObjectDetection // Prediction
    {
       [Serializable]
-      public sealed class Model : ModelBaseTensorFlow, IDataTransformer
+      public sealed class Model :
+         ModelBaseTensorFlow,
+         IDataTransformer,
+         IInputSchema,
+         IModelName,
+         IModelStorageProvider
       {
          #region Fields
          /// <summary>
@@ -93,12 +104,26 @@ namespace MachineLearning
          /// <summary>
          /// Soglia punteggio minimo
          /// </summary>
-         private const float MIN_SCORE = 0.5f;
+         private const float minimumScore = 0.5f;
          #endregion
+         #region Properties
+         /// <summary>
+         /// Schema di input
+         /// </summary>
+         public DataViewSchema InputSchema => ((IInputSchema)_owner).InputSchema;
+         /// <summary>
+         /// Storage del modello
+         /// </summary>
+         public IModelStorage ModelStorage => ((IModelStorageProvider)_owner).ModelStorage;
+         /// <summary>
+         /// Nome del modello
+         /// </summary>
+         public string ModelName => _owner.Name;
          /// <summary>
          /// Schema di output
          /// </summary>
          private DataViewSchema OutputSchema { get; }
+         #endregion
          #region Methods
          /// <summary>
          /// Costruttore
@@ -113,97 +138,11 @@ namespace MachineLearning
                ("ObjectId", typeof(int)),
                ("ObjectName", typeof(string)),
                ("ObjectDisplayName", typeof(string)),
+               ("Score", typeof(float)),
                ("ObjectLeft", typeof(float)),
                ("ObjectTop", typeof(float)),
                ("ObjectWidth", typeof(float)),
                ("ObjectHeight", typeof(float)));
-         }
-         /// <summary>
-         /// Crea l'immagine di output
-         /// </summary>
-         /// <param name="inputImagePath">Path dell'immagine di input</param>
-         /// <param name="resultArr">Risultato della previsione</param>
-         private void BuildOutputImage(string inputImagePath, NDArray[] resultArr)
-         {
-            // Crea il bitmap dall'immagine
-            var bitmap = new Bitmap(inputImagePath);
-            var scores = resultArr[2].AsIterator<float>();
-            var boxes = resultArr[1].GetData<float>();
-            var id = np.squeeze(resultArr[3]).GetData<float>();
-            for (int i = 0; i < scores.size; i++) {
-               var score = scores.MoveNext();
-               if (score > MIN_SCORE) {
-                  var top = boxes[i * 4] * bitmap.Height;
-                  var left = boxes[i * 4 + 1] * bitmap.Width;
-                  var bottom = boxes[i * 4 + 2] * bitmap.Height;
-                  var right = boxes[i * 4 + 3] * bitmap.Width;
-                  var rect = new Rectangle()
-                  {
-                     X = (int)left,
-                     Y = (int)top,
-                     Width = (int)(right - left),
-                     Height = (int)(bottom - top)
-                  };
-                  var name = _labels.Items.Where(w => w.Id == id[i])
-                     .Select(s => !string.IsNullOrWhiteSpace(s.DisplayName) ? s.DisplayName : s.Name)
-                     .FirstOrDefault();
-                  DrawObjectOnBitmap(bitmap, rect, score, name);
-               }
-            }
-            var path = Path.ChangeExtension(inputImagePath, null) + "-labeled" + Path.GetExtension(inputImagePath);
-            bitmap.Save(path);
-            Console.WriteLine($"Processed image is saved as {path}");
-         }
-         /// <summary>
-         /// Marca l'immagine
-         /// </summary>
-         /// <param name="bmp">Bitmap da marcare</param>
-         /// <param name="rect">Rettangolo da disegnare</param>
-         /// <param name="score">Punteggio della previsione</param>
-         /// <param name="name">Nome della previsione</param>
-         private static void DrawObjectOnBitmap(Bitmap bmp, Rectangle rect, float score, string name)
-         {
-            using var graphic = Graphics.FromImage(bmp); graphic.SmoothingMode = SmoothingMode.AntiAlias;
-            using var pen = new Pen(Color.Lime, 2); graphic.DrawRectangle(pen, rect);
-            using var font = new Font("Verdana", 8);
-            var p = new Point(rect.Left + 5, rect.Top + 5);
-            var text = string.Format("{0}:{1}%", name, (int)(score * 100));
-            var size = graphic.MeasureString(text, font);
-            using var brush = new SolidBrush(Color.FromArgb(50, Color.Lime));
-            graphic.FillRectangle(brush, p.X, p.Y, size.Width, size.Height);
-            graphic.DrawString(text, font, Brushes.Black, p);
-         }
-         /// <summary>
-         /// Restituisce il task di previsione
-         /// </summary>
-         /// <param name="data">Riga di dati da usare per la previsione</param>
-         /// <param name="cancellation">Eventule token di cancellazione attesa</param>
-         /// <returns>La previsione</returns>
-         public new async Task<IDataAccess> GetPredictionDataAsync(IEnumerable<object> data, CancellationToken cancellation)
-         {
-            //return await base.GetPredictionDataAsync(data, cancellation);
-            // Importa il grafico del modello
-            await Task.Run(() =>
-            {
-               if (_session == null) {
-                  _session = Session.LoadFromSavedModel(Path.Combine(_owner.ModelStorage, "saved_model"));
-                  _labels = PbtxtParser.ParsePbtxtFile(Path.Combine(_owner.ModelStorage, "label_map.pbtxt"));
-               }
-               foreach (string img in data) {
-                  var imgArr = ReadTensorFromImageFile(img);
-                  var graph = _session.as_default().graph.as_default();
-                  var t0 = graph.OperationByName("StatefulPartitionedCall").outputs;
-                  Tensor tensorNum = t0[5];
-                  Tensor tensorBoxes = t0[1];
-                  Tensor tensorScores = t0[4];
-                  Tensor tensorClasses = t0[2];
-                  Tensor imgTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
-                  Tensor[] outTensorArr = new Tensor[] { tensorNum, tensorBoxes, tensorScores, tensorClasses };
-                  var results = _session.run(outTensorArr, new FeedItem(imgTensor, imgArr));
-                  BuildOutputImage(img, results);
-               }
-            }, cancellation);
-            return null;
          }
          /// <summary>
          /// Trasforma i dati di input per il modello
@@ -216,25 +155,25 @@ namespace MachineLearning
             // Crea la sessione di trasformazione
             cancellation.ThrowIfCancellationRequested();
             // Prepara la configurazione della rete neurale
-            var graph = _session.as_default().graph.as_default();
-            var t0 = graph.OperationByName("StatefulPartitionedCall").outputs;
-            var tensorNum = t0[5];
-            var tensorBoxes = t0[1];
-            var tensorScores = t0[4];
-            var tensorClasses = t0[2];
-            var imgTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
-            var outTensorArr = new Tensor[] { tensorNum, tensorBoxes, tensorScores, tensorClasses };
             // Dati di input e di output
             var input = data.ToDataViewGrid();
             var output = DataViewGrid.Create(this, OutputSchema);
             // Loop su tutte le righe di input
             foreach (var row in data.GetRowCursor(data.Schema).AsEnumerable()) {
                // Path dell'immagine
-               var imagePath = row.ToDataViewValuesRow(this)["ImagePath"];
+               var imagePath = (string)row.ToDataViewValuesRow(this)["ImagePath"];
                // Trasforma l'immagine in dati numerici
                var imgArr = ReadTensorFromImageFile(imagePath);
                // La passa per la rete neurale
                cancellation.ThrowIfCancellationRequested();
+               var graph = _session.as_default().graph.as_default();
+               var t0 = graph.OperationByName("StatefulPartitionedCall").outputs;
+               var tensorNum = t0[5];
+               var tensorBoxes = t0[1];
+               var tensorScores = t0[4];
+               var tensorClasses = t0[2];
+               var imgTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
+               var outTensorArr = new Tensor[] { tensorNum, tensorBoxes, tensorScores, tensorClasses };
                var results = _session.as_default().run(outTensorArr, new FeedItem(imgTensor, imgArr));
                // Ottiene i risultati
                cancellation.ThrowIfCancellationRequested();
@@ -244,7 +183,7 @@ namespace MachineLearning
                // Riempe la vista di dati di output con le rilevazioni
                for (var i = 0; i < scores.size; i++) {
                   var score = scores.MoveNext();
-                  if (score < MIN_SCORE)
+                  if (score < minimumScore)
                      continue;
                   var label = _labels.Items.Where(w => w.Id == ids[i]).FirstOrDefault();
                   if (label == default)
@@ -254,6 +193,7 @@ namespace MachineLearning
                      ("ObjectId", label.Id),
                      ("ObjectName", label.Name),
                      ("ObjectDisplayName", label.DisplayName),
+                     ("Score", score),
                      ("ObjectLeft", boxes[i * 4 + 1]),
                      ("ObjectTop", boxes[i * 4]),
                      ("ObjectWidth", boxes[i * 4 + 3] - boxes[i * 4 + 1]),
@@ -280,9 +220,9 @@ namespace MachineLearning
             if (_session != null)
                _session.Dispose();
             // Carica modello e labels
-            _session = Session.LoadFromSavedModel(Path.Combine(_owner.ModelStorage, "saved_model"));
-            _labels = PbtxtParser.ParsePbtxtFile(Path.Combine(_owner.ModelStorage, "label_map.pbtxt"));
-            schema = OutputSchema;
+            _session = Session.LoadFromSavedModel(Path.Combine((ModelStorage as ModelStorageFile).FilePath, "saved_model"));
+            _labels = PbtxtParser.ParsePbtxtFile(Path.Combine((ModelStorage as ModelStorageFile).FilePath, "label_map.pbtxt"));
+            schema = InputSchema;
             return this;
          }
          /// <summary>
@@ -327,41 +267,73 @@ namespace MachineLearning
       [Serializable]
       public class Prediction
       {
-         #region struct Rect
+         #region class Box
          /// <summary>
          /// Box contenitivo
          /// </summary>
-         public struct Box
+         public class Box
          {
-            #region Fields
+            #region Properties
             /// <summary>
-            /// Lato inferiore
+            /// Eventuale definizione di nome da visualizzare
             /// </summary>
-            public float Bottom;
+            public string DisplayedName { get; }
+            /// <summary>
+            /// Altezza
+            /// </summary>
+            public float Height { get; }
+            /// <summary>
+            /// Identificatore
+            /// </summary>
+            public int Id { get; }
             /// <summary>
             /// Lato sinistro
             /// </summary>
-            public float Left;
+            public float Left { get; }
             /// <summary>
-            /// Lato destro
+            /// Tipo di oggetto
             /// </summary>
-            public float Right;
+            public string Kind { get; }
+            /// <summary>
+            /// Punteggio
+            /// </summary>
+            public float Score { get; }
             /// <summary>
             /// Lato superiore
             /// </summary>
-            public float Top;
+            public float Top { get; }
+            /// <summary>
+            /// Larghezza
+            /// </summary>
+            public float Width { get; }
+            #endregion
+            #region Methods
+            /// <summary>
+            /// Costruttore
+            /// </summary>
+            /// <param name="id">Identificatore oggetto</param>
+            /// <param name="kind">Tipo di oggetto</param>
+            /// <param name="displayedName">Eventuale definizione di nome da visualizzare</param>
+            /// <param name="score">Punteggio</param>
+            /// <param name="left">Lato sinistro</param>
+            /// <param name="top">Lato superiore</param>
+            /// <param name="width">Larghezza</param>
+            /// <param name="height">Altezza</param>
+            public Box(int id, string kind, string displayedName, float score, float left, float top, float width, float height)
+            {
+               Id = id;
+               DisplayedName = displayedName;
+               Height = height;
+               Left = left;
+               Kind = kind;
+               Score = score;
+               Top = top;
+               Width = width;
+            }
             #endregion
          }
          #endregion
          #region Properties
-         /// <summary>
-         /// Tipi degli oggetti previsti
-         /// </summary>
-         public string[] Kind { get; }
-         /// <summary>
-         /// Punteggio per il tipo previsto
-         /// </summary>
-         public float[] Score { get; }
          /// <summary>
          /// Box di contenimento oggetti
          /// </summary>
@@ -374,13 +346,20 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(IDataAccess data)
          {
-            //var dvg = DataViewGrid.Create(DataViewSchemaBuilder.Build
-            //var grid = data.ToDataViewGrid();
-            //Kind = grid[0]["PredictedLabel"];
-            //var scores = (float[])grid[0]["Score"];
-            //var slotNames = grid.Schema["Score"].GetSlotNames();
-            //Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
-            //Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
+            var grid = data.ToDataViewGrid();
+            Boxes = new Box[grid.Rows.Count];
+            for (var i = 0; i < Boxes.Length; i++) {
+               var row = grid.Rows[i];
+               Boxes[i] = new Box(
+                  row["ObjectId"],
+                  row["ObjectName"],
+                  row["ObjectDisplayName"],
+                  row["Score"],
+                  row["ObjectLeft"],
+                  row["ObjectTop"],
+                  row["ObjectWidth"],
+                  row["ObjectHeight"]);
+            }
          }
          #endregion
       }
