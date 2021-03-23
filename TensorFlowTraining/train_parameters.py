@@ -28,6 +28,7 @@ class TrainParameters(BaseParameters):
         self._num_workers = 1
         self._checkpoint_every_n = 1000
         self._record_summaries = True
+        self._batch_size = cfg_batch_size if cfg_batch_size > 1 else None
         self._is_path.extend([
             'pipeline_config_path',
             'checkpoint_dir'])
@@ -80,6 +81,10 @@ class TrainParameters(BaseParameters):
     def record_summaries(self): return self._record_summaries
     @record_summaries.setter
     def record_summaries(self, value): self._record_summaries = value
+    @property
+    def batch_size(self): return self._batch_size
+    @batch_size.setter
+    def batch_size(self, value): self._batch_size = value
 
 TrainParameters.default = TrainParameters.default or TrainParameters()
 

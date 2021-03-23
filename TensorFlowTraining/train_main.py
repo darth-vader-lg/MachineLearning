@@ -17,11 +17,13 @@ for f in flags.FLAGS.flag_values_dict():
     flags.FLAGS[f].allow_override = True
 
 # Flags for arguments parameters
-flags.DEFINE_string('model_type', None, 'Type of the base model.')
-flags.DEFINE_string('train_images_dir', None, 'Path to the directory '
-                    'containing the images for train and their labeling xml.')
-flags.DEFINE_string('eval_images_dir', None, 'Path to the directory '
-                    'containing the images for evaluate and their labeling xml.')
+flags.DEFINE_string ('model_type', None, 'Type of the base model.')
+flags.DEFINE_string ('train_images_dir', None, 'Path to the directory '
+                     'containing the images for train and their labeling xml.')
+flags.DEFINE_string ('eval_images_dir', None, 'Path to the directory '
+                     'containing the images for evaluate and their labeling xml.')
+flags.DEFINE_integer('batch_size', 0, 'The size of batch. If < 1 it uses the '
+                     'value contained in the pipeline configuration file.')
 
 def train_main(unused_argv):
     # Part of code not executed on Colab notebook

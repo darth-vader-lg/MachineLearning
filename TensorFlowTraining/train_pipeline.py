@@ -44,7 +44,7 @@ def config_train_pipeline(prm: TrainParameters):
     pipeline_config.model.ssd.num_classes = labels_count
     pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.height = prm.model['height']
     pipeline_config.model.ssd.image_resizer.fixed_shape_resizer.width = prm.model['width']
-    pipeline_config.train_config.batch_size = prm.model['batch_size']
+    pipeline_config.train_config.batch_size = prm.batch_size if prm.batch_size > 0 else pipeline_config.train_config.batch_size
     pipeline_config.train_config.fine_tune_checkpoint = os.path.join(pre_trained_model_dir, 'checkpoint', 'ckpt-0')
     pipeline_config.train_config.fine_tune_checkpoint_type = 'detection'
     pipeline_config.train_input_reader.label_map_path = os.path.join(prm.annotations_dir, 'label_map.pbtxt')
