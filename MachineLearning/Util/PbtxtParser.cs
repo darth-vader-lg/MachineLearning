@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace MachineLearning.Util
 {
@@ -8,9 +9,12 @@ namespace MachineLearning.Util
    /// </summary>
    internal class PbtxtItem
    {
-      public string Name { get; set; }
-      public int Id { get; set; }
-      public string DisplayName { get; set; }
+      [SuppressMessage("Style", "IDE1006:Stili di denominazione", Justification = "<Minuscolo necessario alla deserializzazione>")]
+      public string name { get; set; }
+      [SuppressMessage("Style", "IDE1006:Stili di denominazione", Justification = "<Minuscolo necessario alla deserializzazione>")]
+      public int id { get; set; }
+      [SuppressMessage("Style", "IDE1006:Stili di denominazione", Justification = "<Minuscolo necessario alla deserializzazione>")]
+      public string display_name { get; set; }
    }
    /// <summary>
    /// Elenco di items di un fie pbtxt

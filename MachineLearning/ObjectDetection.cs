@@ -185,14 +185,14 @@ namespace MachineLearning
                   var score = scores.MoveNext();
                   if (score < minimumScore)
                      continue;
-                  var label = _labels.Items.Where(w => w.Id == ids[i]).FirstOrDefault();
+                  var label = _labels.Items.Where(w => w.id == ids[i]).FirstOrDefault();
                   if (label == default)
                      continue;
                   output.Add(
                      ("ImagePath", imagePath),
-                     ("ObjectId", label.Id),
-                     ("ObjectName", label.Name),
-                     ("ObjectDisplayName", label.DisplayName),
+                     ("ObjectId", label.id),
+                     ("ObjectName", label.name),
+                     ("ObjectDisplayName", label.display_name),
                      ("Score", score),
                      ("ObjectLeft", boxes[i * 4 + 1]),
                      ("ObjectTop", boxes[i * 4]),
@@ -278,6 +278,10 @@ namespace MachineLearning
             /// Eventuale definizione di nome da visualizzare
             /// </summary>
             public string DisplayedName { get; }
+            /// <summary>
+            /// Nome oggetto. Prioritario il Displayed name, altrimenti il kind.
+            /// </summary>
+            public string Name => !string.IsNullOrEmpty(DisplayedName) ? DisplayedName : Kind;
             /// <summary>
             /// Altezza
             /// </summary>
