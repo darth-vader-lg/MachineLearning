@@ -88,10 +88,14 @@ namespace MachineLearningStudio
             (int)(box.Top * bmp.Height),
             (int)(box.Width * bmp.Width),
             (int)(box.Height * bmp.Height));
-         using var pen = new Pen(Color.Lime, 2); graphic.DrawRectangle(pen, rect);
-         using var font = new Font("Verdana", 8);
-         var p = new Point(rect.Left + 5, rect.Top + 5);
-         var text = $"{(!string.IsNullOrEmpty(box.DisplayedName) ? box.DisplayedName : box.Kind)}:{(int)(box.Score * 100)}";
+         using var pen = new Pen(Color.Lime, Math.Max(Math.Min(rect.Width, rect.Height) / 320f, 1f));
+         graphic.DrawRectangle(pen, rect);
+         var fontSize = Math.Min(bmp.Size.Width, bmp.Size.Height) / 40f;
+         fontSize = Math.Max(fontSize, 8f);
+         fontSize = Math.Min(fontSize, rect.Height);
+         using var font = new Font("Verdana", fontSize, GraphicsUnit.Pixel);
+         var p = new Point(rect.Left, rect.Top);
+         var text = $"{box.Name}:{(int)(box.Score * 100)}";
          var size = graphic.MeasureString(text, font);
          using var brush = new SolidBrush(Color.FromArgb(50, Color.Lime));
          graphic.FillRectangle(brush, p.X, p.Y, size.Width, size.Height);
@@ -179,7 +183,7 @@ namespace MachineLearningStudio
             if (predictor.ModelStorage != null && !string.IsNullOrEmpty(imagePath) && File.Exists(imagePath)) {
                var prediction = await Task.Run(() => predictor.GetPredictionAsync(imagePath, cancellation));
                if (prediction.Boxes.Length > 0) {
-                  labelClassResult.Text = $"{prediction.Boxes[0].Kind} ({prediction.Boxes[0].Score * 100f:0.#}%)";
+                  labelClassResult.Text = $"{prediction.Boxes[0].Name} ({prediction.Boxes[0].Score * 100f:0.#}%)";
                   var bmp = new Bitmap(imagePath);
                   foreach (var box in prediction.Boxes)
                      DrawObjectOnBitmap(bmp, box);
