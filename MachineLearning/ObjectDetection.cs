@@ -163,29 +163,69 @@ namespace MachineLearning
                // Path dell'immagine
                var imagePath = (string)row.ToDataViewValuesRow(this)["ImagePath"];
                // Trasforma l'immagine in dati numerici
-               var imgArr = ReadTensorFromImageFile(imagePath);
+               var imageTensor = ReadTensorFromImageFile(imagePath);
                // La passa per la rete neurale
                cancellation.ThrowIfCancellationRequested();
                var graph = _session.as_default().graph.as_default();
-               var t0 = graph.OperationByName("StatefulPartitionedCall").outputs;
-               var tensorNum = t0[5];
-               var tensorBoxes = t0[1];
-               var tensorScores = t0[4];
-               var tensorClasses = t0[2];
-               var imgTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
-               var outTensorArr = new Tensor[] { tensorNum, tensorBoxes, tensorScores, tensorClasses };
-               var results = _session.as_default().run(outTensorArr, new FeedItem(imgTensor, imgArr));
+               // Tensore di input
+               Tensor inputTensor;
+               var mobilenetV2 = false;
+               try {
+                  // Tensore standard
+                  inputTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
+               }
+               catch (Exception) {
+                  // Tensore per la CenterNet MobileNetV2 FPN 512x512 che hanno deciso di definire diversamente...
+                  inputTensor = graph.OperationByName("serving_default_input").outputs[0];
+                  mobilenetV2 = true;
+               }
+               var outputTensors = graph.OperationByName("StatefulPartitionedCall").outputs;
+               Tensor numDetectionsTensor, boxesTensor, scoresTensor, classesTensor;
+               int startId = 1;
+               // Modello tipo Mask R-CNN Inception ResNet V2
+               if (outputTensors.Length == 23) {
+                  numDetectionsTensor = outputTensors[12];
+                  boxesTensor = outputTensors[4];
+                  scoresTensor = outputTensors[8];
+                  classesTensor = outputTensors[5];
+               }
+               // Centernet ResNet / Centernet HourGlass
+               else if (outputTensors.Length == 4) {
+                  if (!mobilenetV2) {
+                     numDetectionsTensor = outputTensors[3];
+                     boxesTensor = outputTensors[0];
+                     scoresTensor = outputTensors[2];
+                     classesTensor = outputTensors[1];
+                  }
+                  else {
+                     numDetectionsTensor = outputTensors[0];
+                     boxesTensor = outputTensors[3];
+                     scoresTensor = outputTensors[1];
+                     classesTensor = outputTensors[2];
+                  }
+               }
+               // EfficientDet / SSD / Faster R-CCN
+               else if (outputTensors.Length == 8) {
+                  numDetectionsTensor = outputTensors[5];
+                  boxesTensor = outputTensors[1];
+                  scoresTensor = outputTensors[4];
+                  classesTensor = outputTensors[2];
+               }
+               else
+                  throw new Exception("Can't infer the model type");
+               var outTensorArr = new Tensor[] { numDetectionsTensor, boxesTensor, scoresTensor, classesTensor };
+               var results = _session.as_default().run(outTensorArr, new FeedItem(inputTensor, imageTensor));
                // Ottiene i risultati
                cancellation.ThrowIfCancellationRequested();
-               var scores = results[2].AsIterator<float>();
-               var boxes = results[1].GetData<float>();
-               var ids = np.squeeze(results[3]).GetData<float>();
+               var scores = results[2].AsIterator<float>().ToArray();
+               var boxes = results[1].GetData<float>().ToArray();
+               var ids = np.squeeze(results[3]).GetData<float>().ToArray();
                // Riempe la vista di dati di output con le rilevazioni
-               for (var i = 0; i < scores.size; i++) {
-                  var score = scores.MoveNext();
+               for (var i = 0; i < scores.Length; i++) {
+                  var score = scores[i];
                   if (score < minimumScore)
                      continue;
-                  var label = _labels.Items.Where(w => w.id == ids[i]).FirstOrDefault();
+                  var label = _labels.Items.Where(w => w.id == ids[i] + (1 - startId)).FirstOrDefault();
                   if (label == default)
                      continue;
                   output.Add(
