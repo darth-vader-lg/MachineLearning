@@ -7,6 +7,7 @@
 
 from    absl import flags
 import  os
+from    pathlib import Path
 import  sys
 
 try:    from    utilities import *
@@ -24,6 +25,7 @@ flags.DEFINE_string ('eval_images_dir', None, 'Path to the directory '
                      'containing the images for evaluate and their labeling xml.')
 flags.DEFINE_integer('batch_size', 0, 'The size of batch. If < 1 it uses the '
                      'value contained in the pipeline configuration file.')
+flags.DEFINE_integer('tensorboard_port', 8080, 'The port of the tensorboard server')
 
 def train_main(unused_argv):
     # Part of code not executed on Colab notebook
@@ -61,7 +63,7 @@ def train_main(unused_argv):
         run_py_mode()
 
 if __name__ == '__main__':
-    if (not is_jupyter()):
+    if (not is_jupyter() and 'python' in Path(sys.executable).name.lower()):
         from od_install import install_object_detection
         install_object_detection()
     try:

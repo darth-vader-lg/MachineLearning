@@ -4,6 +4,7 @@
 
 from    absl import flags
 import  os
+from    pathlib import Path
 import  sys
 
 try:    from    utilities import *
@@ -40,7 +41,7 @@ def export_main(unused_argv):
         run_py_mode()
 
 if __name__ == '__main__':
-    if (not is_jupyter()):
+    if (not is_jupyter() and 'python' in Path(sys.executable).name.lower()):
         from od_install import install_object_detection
         install_object_detection()
     try:
