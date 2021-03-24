@@ -18,14 +18,14 @@ def start_tensorboard(prm: BaseParameters):
     error = False
     try:
         subprocess.Popen(
-            ['tensorboard', '--logdir', log_dir],
+            ['tensorboard', '--port', str(prm.tensorboard_port), '--logdir', log_dir],
             stdout = subprocess.PIPE,
             universal_newlines = True)
     except:
         try:
             tensorboard_path = os.path.join(os.path.dirname(sys.executable), 'tensorboard')
             subprocess.Popen(
-                [tensorboard_path, '--logdir', log_dir],
+                [tensorboard_path, '--port', str(prm.tensorboard_port), '--logdir', log_dir],
                 stdout = subprocess.PIPE,
                 universal_newlines = True)
         except:
@@ -35,7 +35,7 @@ def start_tensorboard(prm: BaseParameters):
         import tensorboard
         for i in range(5):
             try:
-                tensorboard.notebook.display()
+                tensorboard.notebook.display(str(prm.tensorboard_port), 1024)
                 break
             except:
                 time.sleep(1)
