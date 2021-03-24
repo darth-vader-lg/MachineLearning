@@ -61,7 +61,7 @@ def init_export_environment(prm: ExportParameters):
             os.mkdir(prm.output_directory)
         if (str(Path(prm.output_directory).resolve()) == str(Path(prm.model_dir).resolve())):
             raise Exception("Error: export directory cannot be the train directory")
-        print(f'The trained model will be in {str(Path(prm.model_dir).resolve())}')
+        print(f'The exported model will be in {str(Path(prm.output_directory).resolve())}')
     # Copy the label file in the export directory
     try:
         shutil.copy2(os.path.join(prm.trained_checkpoint_dir, 'label_map.pbtxt'), prm.output_directory)
