@@ -68,6 +68,9 @@ if __name__ == '__main__':
         install_object_detection()
     try:
         import tensorflow as tf
+        # import the module here just for having the flags defined
+        if (not is_jupyter()):
+            from object_detection import model_main_tf2
         tf.compat.v1.app.run(train_main)
     except KeyboardInterrupt:
         print('Train interrupted by user')

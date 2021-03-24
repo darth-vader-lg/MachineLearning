@@ -23,12 +23,18 @@ def export_main(unused_argv):
         export_parameters = ExportParameters()
         export_parameters.update_values()
         init_export_environment(export_parameters)
+        # Check if the export directory is specified
+        if (not export_parameters.output_directory or len(export_parameters.output_directory) < 1):
+            return
         # Import the export main function
         from object_detection import exporter_main_v2
         export_parameters.update_flags()
         # Export the model
         exporter_main_v2.main(unused_argv)
     def run_notebook_mode():
+        # Check if the export directory is specified
+        if (not export_parameters.output_directory or len(export_parameters.output_directory) < 1):
+            return
         # Import the export main function
         from object_detection import exporter_main_v2
         prm.update_flags()
@@ -45,6 +51,9 @@ if __name__ == '__main__':
         from od_install import install_object_detection
         install_object_detection()
     try:
+        # import the module here just for having the flags defined
+        if (not is_jupyter()):
+            from object_detection import exporter_main_v2
         import tensorflow as tf
         tf.compat.v1.app.run(export_main)
     except KeyboardInterrupt:
