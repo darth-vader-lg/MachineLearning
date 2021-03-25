@@ -347,3 +347,6 @@ TensorFlowTraining/images/
 TensorFlowTraining/annotations/
 TensorFlowTraining/trained-model/
 TensorFlowTraining/exported-model/
+TensorFlowTraining/build/
+TensorFlowTraining/tf-od-model-builder/
+/TensorFlowTraining/tf-od-model-builder.spec

@@ -8,7 +8,7 @@ from    pathlib import Path
 import  sys
 import  tempfile
 
-try:    from    default_cfg import *
+try:    from    default_cfg import Cfg
 except: pass
 try:    from    model_types import models
 except: pass
@@ -17,10 +17,10 @@ class BaseParameters:
     """ Class holding the base parameters """
     def __init__(self):
         """ Constructor """
-        self._model_type = cfg_model_type or 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
-        self._model_dir = cfg_trained_model or 'trained-model'
-        self._train_images_dir = cfg_train_images_dir or 'images/train'
-        self._eval_images_dir = cfg_eval_images_dir or 'images/eval'
+        self._model_type = Cfg.model_type or 'SSD ResNet50 V1 FPN 640x640 (RetinaNet50)'
+        self._model_dir = Cfg.trained_model or 'trained-model'
+        self._train_images_dir = Cfg.train_images_dir or 'images/train'
+        self._eval_images_dir = Cfg.eval_images_dir or 'images/eval'
         self._annotations_dir = 'annotations'
         self._pre_trained_model_base_dir = os.path.join(tempfile.gettempdir(), 'tensorflow-pre-trained-models')
         self._is_path = [

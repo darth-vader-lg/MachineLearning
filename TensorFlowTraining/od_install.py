@@ -9,7 +9,7 @@ import  shutil
 import  sys
 import  tempfile
 
-try:    from    default_cfg import *
+try:    from    default_cfg import Cfg
 except: pass
 try:    from    utilities import *
 except: pass
@@ -41,15 +41,15 @@ def install_object_detection():
     is_installed = False
     try:
         import tensorflow
-        comparing_version = cfg_tensorflow_version.replace('tensorflow==', '')
+        comparing_version = Cfg.tensorflow_version.replace('tensorflow==', '')
         comparing_version = comparing_version.replace('tf-nightly==', '')
         comparing_version = comparing_version.replace('.dev', '-dev')
         is_installed = tensorflow.__version__ == comparing_version
     except: pass
     if (not is_installed):
-        execute_script(['-m', 'pip', 'install', cfg_tensorflow_version])
+        execute_script(['-m', 'pip', 'install', Cfg.tensorflow_version])
     else:
-        print(f'TensorFlow {cfg_tensorflow_version} is already installed')
+        print(f'TensorFlow {Cfg.tensorflow_version} is already installed')
     # Install pygit2
     is_installed = False
     try:
@@ -62,13 +62,13 @@ def install_object_detection():
     else:
         print('pygit2 1.5.0 is already installed')
     # Directory of the TensorFlow object detection api and commit id
-    od_api_dir = os.path.join(tempfile.gettempdir(), 'tf-od-api-' + cfg_od_api_git_sha1)
+    od_api_dir = os.path.join(tempfile.gettempdir(), 'tf-od-api-' + Cfg.od_api_git_sha1)
     # Install the object detection api
     is_installed = False
     try:
         import object_detection
         repo = pygit2.Repository(od_api_dir)
-        if (repo.head.target.hex == cfg_od_api_git_sha1):
+        if (repo.head.target.hex == Cfg.od_api_git_sha1):
             is_installed = True
     except: pass
     # Install the TensorFlow models
@@ -97,10 +97,10 @@ def install_object_detection():
             print('TensorFlow object detection api repository cloned')
             repo = pygit2.Repository(od_api_dir)
         # Checkout the well known commit
-        print(f'Checkout of the object detection api repository at the commit {cfg_od_api_git_sha1}')
-        (commit, reference) = repo.resolve_refish(cfg_od_api_git_sha1)
+        print(f'Checkout of the object detection api repository at the commit {Cfg.od_api_git_sha1}')
+        (commit, reference) = repo.resolve_refish(Cfg.od_api_git_sha1)
         repo.checkout_tree(commit)
-        repo.reset(pygit2.Oid(hex=cfg_od_api_git_sha1), pygit2.GIT_RESET_HARD)
+        repo.reset(pygit2.Oid(hex=Cfg.od_api_git_sha1), pygit2.GIT_RESET_HARD)
         # Move to the research dir
         currentDir = os.getcwd()
         os.chdir(os.path.join(od_api_dir, 'research'))
@@ -120,7 +120,7 @@ def install_object_detection():
         execute_script(['-m', 'pip', 'install', '.'])
         os.chdir(currentDir)
     else:
-        print(f'TensorFlow object detection api SHA-1 {cfg_od_api_git_sha1} is already installed')
+        print(f'TensorFlow object detection api SHA-1 {Cfg.od_api_git_sha1} is already installed')
     # Append of the paths
     paths = [
         os.path.join(od_api_dir, 'research'),

@@ -2,9 +2,19 @@
 #@title #Utility functions
 #@markdown Some utility functions used for the train steps.
 
+from    absl import flags
 import  os
+from    pathlib import Path
 import  subprocess
 import  sys
+
+def allow_flags_override():
+    """
+    Allow the argv flags override.
+    """
+    # Avoiding the absl error for duplicated flags if defined more than one time
+    for f in flags.FLAGS.flag_values_dict():
+        flags.FLAGS[f].allow_override = True
 
 def execute_subprocess(cmd):
     """
@@ -53,7 +63,16 @@ def get_type_of_script():
             return 'jupyter'
         return 'ipython'
     except:
-        return 'terminal'
+        if ('python' in Path(sys.executable).name.lower()):
+            return 'terminal'
+        else:
+            return "executable"
+
+def is_executable():
+    """
+    True if running as an executable
+    """
+    return get_type_of_script() == 'executable'
 
 def is_ipython():
     """

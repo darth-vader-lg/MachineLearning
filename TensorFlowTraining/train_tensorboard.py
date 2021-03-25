@@ -9,6 +9,7 @@
 try:    from base_parameters import BaseParameters
 except: pass
 import  subprocess
+import  sys
 import  time
 try:    from utilities import *
 except: pass
@@ -23,7 +24,7 @@ def start_tensorboard(prm: BaseParameters):
             universal_newlines = True)
     except:
         try:
-            tensorboard_path = os.path.join(os.path.dirname(sys.executable), 'tensorboard')
+            tensorboard_path = os.path.join(getattr(sys, '_MEIPASS', sys.executable), 'tensorboard')
             subprocess.Popen(
                 [tensorboard_path, '--port', str(prm.tensorboard_port), '--logdir', log_dir],
                 stdout = subprocess.PIPE,

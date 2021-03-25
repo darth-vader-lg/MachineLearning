@@ -7,15 +7,13 @@
 
 from    absl import flags
 import  os
-from    pathlib import Path
 import  sys
 
 try:    from    utilities import *
 except: pass
 
 # Avoiding the absl error for duplicated flags if run again the cell from a notebook
-for f in flags.FLAGS.flag_values_dict():
-    flags.FLAGS[f].allow_override = True
+allow_flags_override();
 
 # Flags for arguments parameters
 flags.DEFINE_string ('model_type', None, 'Type of the base model.')
@@ -38,6 +36,9 @@ def train_main(unused_argv):
         from train_pipeline import config_train_pipeline
         train_parameters = TrainParameters()
         train_parameters.update_values()
+        # Check if the numer of train steps is 0
+        if (train_parameters.num_train_steps == 0):
+            return
         init_train_environment(train_parameters)
         download_pretrained_model(train_parameters)
         create_tf_records(train_parameters)
@@ -51,6 +52,9 @@ def train_main(unused_argv):
         # Execute the train
         model_main_tf2.main(unused_argv)
     def run_notebook_mode():
+        # Check if the numer of train steps is 0
+        if (train_parameters.num_train_steps == 0):
+            return
         # Import the train main function
         from object_detection import model_main_tf2
         prm.update_flags()
@@ -63,20 +67,25 @@ def train_main(unused_argv):
         run_py_mode()
 
 if __name__ == '__main__':
-    if (not is_jupyter() and 'python' in Path(sys.executable).name.lower()):
+    if (not is_jupyter() and not is_executable()):
         from od_install import install_object_detection
         install_object_detection()
     try:
-        import tensorflow as tf
         # import the module here just for having the flags defined
         if (not is_jupyter()):
+            allow_flags_override()
             from object_detection import model_main_tf2
+        # Run the train main
+        import tensorflow as tf
         tf.compat.v1.app.run(train_main)
     except KeyboardInterrupt:
-        print('Train interrupted by user')
+        if (not is_executable()):
+            print('Train interrupted by user')
     except SystemExit:
-        print('Train complete')
+        if (not is_executable()):
+            print('Train complete')
     else:
-        print('Train complete')
+        if (not is_executable()):
+            print('Train complete')
 
 #@markdown ---

@@ -9,7 +9,7 @@ import  os
 from    pathlib import Path
 import  sys
 
-try:    from    default_cfg import *
+try:    from    default_cfg import Cfg
 except: pass
 try:    from    train_parameters import TrainParameters
 except: pass
@@ -21,7 +21,7 @@ def init_train_environment(prm: TrainParameters):
     prm     -- the train parameters
     """
     # Set the configuration for Google Colab
-    if ('google.colab' in sys.modules and cfg_data_on_drive):
+    if ('google.colab' in sys.modules and Cfg.data_on_drive):
         if (not os.path.exists('/mnt/MyDrive')):
             print('Mounting the GDrive')
             from google.colab import drive

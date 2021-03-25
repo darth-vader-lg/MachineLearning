@@ -10,7 +10,7 @@ from    pathlib import Path
 import  shutil
 import  sys
 
-try:    from    default_cfg import *
+try:    from    default_cfg import Cfg
 except: pass
 try:    from    export_parameters import ExportParameters
 except: pass
@@ -26,7 +26,7 @@ def init_export_environment(prm: ExportParameters):
         print('Warning: export output directory is not specified so nothing will be exported')
         return;
     # Set the configuration for Google Colab
-    if ('google.colab' in sys.modules and cfg_data_on_drive):
+    if ('google.colab' in sys.modules and Cfg.data_on_drive):
         if (not os.path.exists('/mnt/MyDrive')):
             print('Mounting the GDrive')
             from google.colab import drive

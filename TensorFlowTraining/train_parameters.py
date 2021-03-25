@@ -8,7 +8,7 @@ import  os
 
 try:    from    base_parameters import BaseParameters
 except: pass
-try:    from    default_cfg import *
+try:    from    default_cfg import Cfg
 except: pass
 
 class TrainParameters(BaseParameters):
@@ -17,7 +17,7 @@ class TrainParameters(BaseParameters):
         """ Constructor """
         super().__init__()
         self._pipeline_config_path = os.path.join(self.annotations_dir, 'pipeline.config')
-        self._num_train_steps = cfg_max_train_steps if cfg_max_train_steps > -1 else None
+        self._num_train_steps = Cfg.max_train_steps if Cfg.max_train_steps > -1 else None
         self._eval_on_train_data = False
         self._sample_1_of_n_eval_examples = None
         self._sample_1_of_n_eval_on_train_examples = 5
@@ -28,7 +28,7 @@ class TrainParameters(BaseParameters):
         self._num_workers = 1
         self._checkpoint_every_n = 1000
         self._record_summaries = True
-        self._batch_size = cfg_batch_size if cfg_batch_size > 1 else None
+        self._batch_size = Cfg.batch_size if Cfg.batch_size > 1 else None
         self._tensorboard_port = 8080
         self._is_path.extend([
             'pipeline_config_path',

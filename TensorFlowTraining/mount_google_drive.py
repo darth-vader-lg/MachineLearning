@@ -5,7 +5,7 @@
 import  os
 import  sys
 
-try:    from    default_cfg import *
+try:    from    default_cfg import Cfg
 except: pass
 
 def mount_google_drive():
@@ -17,6 +17,6 @@ def mount_google_drive():
         print('GDrive already mounted')
 
 if __name__ == '__main__':
-    if (cfg_data_on_drive and 'google.colab' in sys.modules):
+    if (Cfg.data_on_drive and 'google.colab' in sys.modules):
         mount_google_drive()
 #@markdown ---
