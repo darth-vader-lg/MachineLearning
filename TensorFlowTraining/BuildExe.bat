@@ -10,4 +10,7 @@ pyinstaller --onefile --clean ^
    --distpath .\tf-od-model-builder ^
    -n tf-od-model-builder ^
    main.py
+if ERRORLEVEL 1 EXIT /B %errorlevel%
+echo cleaning
+rd /S /Q build
 EXIT /B %errorlevel%
