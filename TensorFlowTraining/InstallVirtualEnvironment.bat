@@ -12,6 +12,6 @@ if not exist env\Lib\site-packages\PyInstaller (
 if ERRORLEVEL 1 EXIT /B %errorlevel%
 if not exist env\Lib\site-packages\object_detection (
    echo Installing the object detection API
-   py od_install.py
+   py -c "from od_install import install_object_detection; install_object_detection('env')"
 )
 EXIT /B %errorlevel%
