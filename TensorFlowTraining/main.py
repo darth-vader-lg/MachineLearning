@@ -47,6 +47,7 @@ if __name__ == '__main__':
             allow_flags_override()
             from object_detection import exporter_main_v2
             # Function that restore the original mandatory flags values and call the export main
+            from absl import flags
             fake_flags = ['pipeline_config_path', 'trained_checkpoint_dir', 'output_directory']
             def restore_and_run(unused_argv):
                 for flag in fake_flags:

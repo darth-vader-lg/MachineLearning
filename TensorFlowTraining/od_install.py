@@ -14,62 +14,60 @@ except: pass
 try:    from    utilities import *
 except: pass
 
-def install_object_detection():
+def install_object_detection(env_path: str = None):
     """
     Install a well known environment.
     """
+    if (env_path):
+        env_path = str(Path(env_path).absolute().resolve())
     # Upgrade pip and setuptools
     is_installed = False
     try:
-        import pip
-        is_installed = pip.__version__ == '21.0.1'
+        is_installed = '21.0.1' in get_package_info('pip', env_path).versions
     except: pass
     if (not is_installed):
-        execute_script(['-m', 'pip', 'install', '--upgrade', 'pip==21.0.1'])
+        install('pip==21.0.1', env_path)
     else:
         print('pip 21.0.1 is already installed')
     is_installed = False
     try:
-        import setuptools
-        is_installed = setuptools.__version__ == '54.1.2'
+        is_installed = '54.1.2' in get_package_info('setuptools', env_path).versions
     except: pass
     if (not is_installed):
-        execute_script(['-m', 'pip', 'install', '--upgrade', 'setuptools==54.1.2'])
+        install('setuptools==54.1.2', env_path)
     else:
         print('setuptools 54.1.2 is already installed')
     # Install TensorFlow
     is_installed = False
     try:
-        import tensorflow
         comparing_version = Cfg.tensorflow_version.replace('tensorflow==', '')
         comparing_version = comparing_version.replace('tf-nightly==', '')
         comparing_version = comparing_version.replace('.dev', '-dev')
-        is_installed = tensorflow.__version__ == comparing_version
+        is_installed = comparing_version in get_package_info('tensorflow', env_path).versions
     except: pass
     if (not is_installed):
-        execute_script(['-m', 'pip', 'install', Cfg.tensorflow_version])
+        install(Cfg.tensorflow_version, env_path)
     else:
         print(f'TensorFlow {Cfg.tensorflow_version} is already installed')
     # Install pygit2
     is_installed = False
     try:
-        import pygit2
-        is_installed = pygit2.__version__ == '1.5.0'
+        is_installed = '1.5.0' in get_package_info('pygit2', env_path).versions
     except: pass
     if (not is_installed):
-        execute_script(['-m', 'pip', 'install', 'pygit2==1.5.0'])
-        import pygit2
+        install('pygit2==1.5.0', env_path)
     else:
         print('pygit2 1.5.0 is already installed')
+    import pygit2
     # Directory of the TensorFlow object detection api and commit id
     od_api_dir = os.path.join(tempfile.gettempdir(), 'tf-od-api-' + Cfg.od_api_git_sha1)
     # Install the object detection api
     is_installed = False
     try:
-        import object_detection
-        repo = pygit2.Repository(od_api_dir)
-        if (repo.head.target.hex == Cfg.od_api_git_sha1):
-            is_installed = True
+        if (get_package_info('object-detection', env_path)):
+            repo = pygit2.Repository(od_api_dir)
+            if (repo.head.target.hex == Cfg.od_api_git_sha1):
+                is_installed = True
     except: pass
     # Install the TensorFlow models
     if (not is_installed):
@@ -105,7 +103,7 @@ def install_object_detection():
         currentDir = os.getcwd()
         os.chdir(os.path.join(od_api_dir, 'research'))
         # Install the protobuf tools
-        execute_script(['-m', 'pip', 'install', 'grpcio-tools==1.32.0'])
+        install('grpcio-tools==1.32.0', env_path)
         # Compile the protobufs
         print(f'Compiling the protobufs')
         import grpc_tools.protoc as protoc
@@ -117,7 +115,7 @@ def install_object_detection():
         # Install the object detection packages
         print(f'Installing the object detection api.')
         shutil.copy2('object_detection/packages/tf2/setup.py', '.')
-        execute_script(['-m', 'pip', 'install', '.'])
+        install('.', env_path)
         os.chdir(currentDir)
     else:
         print(f'TensorFlow object detection api SHA-1 {Cfg.od_api_git_sha1} is already installed')
