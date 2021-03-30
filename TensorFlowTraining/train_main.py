@@ -68,8 +68,8 @@ def train_main(unused_argv):
 
 if __name__ == '__main__':
     if (not is_jupyter() and not is_executable()):
-        from od_install import install_object_detection
-        install_object_detection()
+        from install_virtual_environment import install_virtual_environment
+        install_virtual_environment()
     try:
         # import the module here just for having the flags defined
         if (not is_jupyter()):

@@ -46,8 +46,8 @@ def export_main(unused_argv):
 
 if __name__ == '__main__':
     if (not is_jupyter() and not is_executable()):
-        from od_install import install_object_detection
-        install_object_detection()
+        from install_virtual_environment import install_virtual_environment
+        install_virtual_environment()
     try:
         # Import of the TensorFlow module
         import tensorflow as tf

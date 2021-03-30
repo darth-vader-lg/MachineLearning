@@ -16,22 +16,23 @@ except: pass
 
 def start_tensorboard(prm: BaseParameters):
     log_dir = os.path.join(prm.model_dir, 'train')
-    error = False
-    try:
-        subprocess.Popen(
-            ['tensorboard', '--port', str(prm.tensorboard_port), '--logdir', log_dir],
-            stdout = subprocess.PIPE,
-            universal_newlines = True)
-    except:
+    error = True
+    paths = [
+        'tensorboard',
+        os.path.join(os.path.dirname(sys.executable), 'tensorboard'),
+        os.path.join(getattr(sys, '_MEIPASS', sys.executable), 'tensorboard')]
+    for tensorboard_path in paths:
         try:
-            tensorboard_path = os.path.join(getattr(sys, '_MEIPASS', sys.executable), 'tensorboard')
             subprocess.Popen(
                 [tensorboard_path, '--port', str(prm.tensorboard_port), '--logdir', log_dir],
                 stdout = subprocess.PIPE,
                 universal_newlines = True)
+            error = False
+            break
         except:
-            print('Warning: cannot start tensorboard')
-            error = True
+            pass
+    if (error):
+        print('Warning: cannot start tensorboard')
     if (not error and is_jupyter()):
         import tensorboard
         for i in range(5):
