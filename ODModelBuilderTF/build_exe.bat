@@ -7,8 +7,8 @@ pyinstaller --onefile --clean ^
    --hidden-import tensorflow.python.keras.engine.base_layer_v1 ^
    --add-binary .\env\Scripts\tensorboard.exe;. ^
    --runtime-tmpdir %TEMP%\tf-od-model-builder ^
-   --distpath .\tf-od-model-builder ^
-   -n tf-od-model-builder ^
+   --distpath .\ODModelBuilderTF ^
+   -n ODModelBuilderTF ^
    main.py
 if ERRORLEVEL 1 EXIT /B %errorlevel%
 echo cleaning

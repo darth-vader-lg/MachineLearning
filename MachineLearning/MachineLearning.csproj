@@ -9,4 +9,8 @@
     <PackageReference Include="Microsoft.ML.TimeSeries" Version="1.5.4" />
     <PackageReference Include="SciSharp.TensorFlow.Redist" Version="2.4.1" />
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="echo Compiling Tensorflow object detection train executable.&#xD;&#xA;cd $(SolutionDir)ODModelBuilderTF&#xD;&#xA;py -3.7 build_exe.py&#xD;&#xA;" />
+  </Target>
 </Project>

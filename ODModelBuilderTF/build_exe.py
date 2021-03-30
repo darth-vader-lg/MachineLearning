@@ -26,8 +26,8 @@ def build_exe(name: str):
             '--name', exe_name,
             'main.py'])
         # Remove the build directory
-        from shutil import rmdir
-        rmdir('build')
+        import shutil
+        shutil.rmdir('build')
         ## Ok
         result = 0
     except Exception as exc:
