@@ -79,8 +79,8 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="BuildExe.bat" />
-    <Content Include="InstallVirtualEnvironment.bat" />
+    <Content Include="build_exe.bat" />
+    <Content Include="install_virtual_environment.bat" />
     <Content Include="requirements.txt" />
     <Content Include="train.ipynb" />
   </ItemGroup>

@@ -6,23 +6,29 @@ from    install_virtual_environment import *
 exe_name = 'tf-od-model-builder'
 
 def build_exe(name: str):
+    # Ensure that the environment is correctly installed
     result = install_virtual_environment()
     if (result != 0):
         return result
+    # Start with an error code
     result = 1
     try:
-        import PyInstaller.__main__
-        result = PyInstaller.__main__.run([
+        # Create the executable
+        from utilities import execute
+        execute([
+            'pyinstaller',
             '--onefile',
-            '--clean',
             '--hidden-import', 'pandas._libs.tslibs.base',
             '--hidden-import', 'tensorflow.python.keras.engine.base_layer_v1',
             '--add-binary', f'{env_name}/Scripts/tensorboard.exe;.',
             '--runtime-tmpdir', '%TEMP%/tf-od-model-builder',
             '--distpath', exe_name,
             '--name', exe_name,
-            'main.py'
-        ])
+            'main.py'])
+        # Remove the build directory
+        from shutil import rmdir
+        rmdir('build')
+        ## Ok
         result = 0
     except Exception as exc:
         print(exc)
