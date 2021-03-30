@@ -16,13 +16,18 @@ def allow_flags_override():
     for f in flags.FLAGS.flag_values_dict():
         flags.FLAGS[f].allow_override = True
 
-def execute_subprocess(cmd):
+def execute_subprocess(cmd: []):
     """
     Execute a subprocess returning each line of the standard output.
     Keyword arguments:
     cmd     -- the process to execute with its parameters
     """
-    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+    env = {
+        **os.environ, 'PATH':
+        os.path.dirname(sys.executable) + os.pathsep +
+        os.path.dirname(__file__) + os.pathsep +
+        os.environ['PATH']}
+    popen = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, universal_newlines=True,shell=True,creationflags=subprocess.CREATE_NO_WINDOW)
     for stdout_line in iter(popen.stdout.readline, ""):
         yield stdout_line 
     popen.stdout.close()
@@ -30,7 +35,7 @@ def execute_subprocess(cmd):
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
-def execute(cmd):
+def execute(cmd: []):
     """
     Execute a subprocess printing its standard output.
     Keyword arguments:
@@ -39,19 +44,34 @@ def execute(cmd):
     for output in execute_subprocess(cmd):
         print(output, end="")
 
-def execute_script(cmd):
+def execute_script(cmd: []):
     """
     Execute a script as a subprocess printing its standard output.
     Keyword arguments:
     cmd     -- the parameters of the script
     """
-    python_path = os.path.join(os.path.dirname(sys.executable), 'python3')
-    if (not os.path.exists(python_path)):
-        python_path = os.path.join(os.path.dirname(sys.executable), 'python')
-    script_cmd = [python_path]
+    script_cmd = [sys.executable]
     script_cmd.extend(cmd)
     for output in execute_subprocess(script_cmd):
         print(output, end="")
+
+def get_package_info(package_name: str):
+    """
+    Return a package and its version if installed. Otherwise None
+    package_name    -- package name to test for existence
+    """
+    class Result(object):
+        def __init__(self, *args, **kwargs):
+            try:
+                import pkg_resources
+                dist = pkg_resources.get_distribution(package_name)
+                self.name = dist.key
+                self.version = dist.version
+            except:
+                self.name = None
+                self.version = None
+            return super().__init__(*args, **kwargs)
+    return Result()
 
 def get_type_of_script():
     """
@@ -67,6 +87,12 @@ def get_type_of_script():
             return 'terminal'
         else:
             return "executable"
+
+def install(package: str):
+    """
+    Launch the installer process
+    """
+    execute_script(['-m', 'pip', 'install', '--upgrade', package])
 
 def is_executable():
     """
