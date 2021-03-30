@@ -2,7 +2,6 @@
 #@title #Utility functions
 #@markdown Some utility functions used for the train steps.
 
-from    absl import flags
 import  os
 from    pathlib import Path
 import  subprocess
@@ -13,6 +12,7 @@ def allow_flags_override():
     Allow the argv flags override.
     """
     # Avoiding the absl error for duplicated flags if defined more than one time
+    from absl import flags
     for f in flags.FLAGS.flag_values_dict():
         flags.FLAGS[f].allow_override = True
 
