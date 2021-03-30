@@ -18,7 +18,7 @@ def main(unused_argv):
         if (not is_executable()):
             print('=' * 80)
             print('Train')
-        from    train_main import train_main
+        from train_main import train_main
         train_main(unused_argv)
     except (KeyboardInterrupt, SystemExit):
         pass
@@ -29,7 +29,7 @@ def main(unused_argv):
             print('=' * 80)
             print('=' * 80)
             print('Export to pb SavedModel')
-        from    export_main import export_main
+        from export_main import export_main
         export_main(unused_argv)
     except (KeyboardInterrupt, SystemExit):
         pass
@@ -46,6 +46,10 @@ if __name__ == '__main__':
             from object_detection import model_main_tf2
             allow_flags_override()
             from object_detection import exporter_main_v2
+            allow_flags_override()
+            from train_main import train_main
+            allow_flags_override()
+            from export_main import export_main
             # Validate the hypothetical empty mandatory flags values and call the main
             from absl import flags
             for flag in ['pipeline_config_path', 'trained_checkpoint_dir', 'output_directory']:
