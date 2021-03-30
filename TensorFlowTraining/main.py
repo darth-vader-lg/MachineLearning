@@ -46,17 +46,11 @@ if __name__ == '__main__':
             from object_detection import model_main_tf2
             allow_flags_override()
             from object_detection import exporter_main_v2
-            # Function that restore the original mandatory flags values and call the export main
-            fake_flags = ['pipeline_config_path', 'trained_checkpoint_dir', 'output_directory']
-            def restore_and_run(unused_argv):
-                for flag in fake_flags:
-                    flags.FLAGS[flag].value = flags.FLAGS[flag].value if flags.FLAGS[flag].value != '?!?' else None
-                    flags.FLAGS[flag].validators.clear()
-                main(unused_argv)
-            # Put fake values fot the mandatory flags and run the restore and run function
-            for flag in fake_flags:
-                flags.FLAGS[flag].value = '?!?'
-            tf.compat.v1.app.run(restore_and_run)
+            # Validate the hypothetical empty mandatory flags values and call the main
+            from absl import flags
+            for flag in ['pipeline_config_path', 'trained_checkpoint_dir', 'output_directory']:
+                flags.FLAGS[flag].validators.clear()
+            tf.compat.v1.app.run(main)
         else:
             tf.compat.v1.app.run(main)
     except KeyboardInterrupt:
