@@ -53,7 +53,7 @@ def train_main(unused_argv):
         model_main_tf2.main(unused_argv)
     def run_notebook_mode():
         # Check if the numer of train steps is 0
-        if (train_parameters.num_train_steps == 0):
+        if (prm.num_train_steps == 0):
             return
         # Import the train main function
         from object_detection import model_main_tf2

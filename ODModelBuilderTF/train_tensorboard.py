@@ -23,10 +23,11 @@ def start_tensorboard(prm: BaseParameters):
         os.path.join(getattr(sys, '_MEIPASS', sys.executable), 'tensorboard')]
     for tensorboard_path in paths:
         try:
-            subprocess.Popen(
-                [tensorboard_path, '--port', str(prm.tensorboard_port), '--logdir', log_dir],
-                stdout = subprocess.PIPE,
-                universal_newlines = True)
+            cmd = [tensorboard_path]
+            if (not is_jupyter()):
+                cmd.extend(['--port', str(prm.tensorboard_port)])
+            cmd.extend(['--logdir', log_dir])
+            subprocess.Popen(cmd, stdout = subprocess.PIPE, universal_newlines = True)
             error = False
             break
         except:
@@ -37,7 +38,7 @@ def start_tensorboard(prm: BaseParameters):
         import tensorboard
         for i in range(5):
             try:
-                tensorboard.notebook.display(str(prm.tensorboard_port), 1024)
+                tensorboard.notebook.display()
                 break
             except:
                 time.sleep(1)

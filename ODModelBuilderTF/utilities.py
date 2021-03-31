@@ -25,9 +25,11 @@ def execute_subprocess(cmd: []):
     env = {
         **os.environ, 'PATH':
         os.path.dirname(sys.executable) + os.pathsep +
-        os.path.dirname(__file__) + os.pathsep +
+        ((os.path.dirname(__file__) + os.pathsep) if '__file__' in globals() else '') +
         os.environ['PATH']}
-    popen = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, universal_newlines=True,shell=True,creationflags=subprocess.CREATE_NO_WINDOW)
+    shell = 'CREATE_NO_WINDOW' in dir(subprocess)
+    creationflags = subprocess.CREATE_NO_WINDOW if shell else 0
+    popen = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, universal_newlines=True,shell=shell,creationflags=creationflags)
     for stdout_line in iter(popen.stdout.readline, ""):
         yield stdout_line 
     popen.stdout.close()

@@ -31,7 +31,7 @@ def export_main(unused_argv):
         exporter_main_v2.main(unused_argv)
     def run_notebook_mode():
         # Check if the export directory is specified
-        if (not export_parameters.output_directory or len(export_parameters.output_directory) < 1):
+        if (not prm.output_directory or len(prm.output_directory) < 1):
             return
         # Import the export main function
         from object_detection import exporter_main_v2
