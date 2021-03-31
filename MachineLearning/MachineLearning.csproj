@@ -11,6 +11,6 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="echo Compiling Tensorflow object detection train executable.&#xD;&#xA;cd $(SolutionDir)ODModelBuilderTF&#xD;&#xA;py -3.7 build_exe.py&#xD;&#xA;" />
+    <Exec Command="echo Building TenforFlow object detection model builder.&#xD;&#xA;cd $(SolutionDir)ODModelBuilderTF&#xD;&#xA;py -3.7 build_exe.py&#xD;&#xA;" />
   </Target>
 </Project>

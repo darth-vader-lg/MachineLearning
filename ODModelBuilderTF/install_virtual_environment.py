@@ -1,11 +1,6 @@
 # Module: install_virtual_environment.py
 # Script for installing the Python virtual environment
 
-import  os
-from    pathlib import Path
-import  subprocess
-import  sys
-
 # The name of the virtual environment
 env_name = 'env'
 
@@ -15,6 +10,10 @@ def install_virtual_environment(env_name: str = env_name):
     Keyword arguments:
     env_name    -- the name of the virtual environment
     """
+    import  os
+    from    pathlib import Path
+    import  subprocess
+    import  sys
     # Creation of the virtual environment
     env_name = str(Path(env_name).absolute().resolve())
     if ('win32' in sys.platform):

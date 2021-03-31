@@ -348,5 +348,5 @@ ODModelBuilderTF/annotations/
 ODModelBuilderTF/trained-model/
 ODModelBuilderTF/exported-model/
 ODModelBuilderTF/build/
-ODModelBuilderTF/tf-od-model-builder/
-ODModelBuilderTF/tf-od-model-builder.spec
+ODModelBuilderTF/ODModelBuilderTF/
+ODModelBuilderTF/ODModelBuilderTF.spec
