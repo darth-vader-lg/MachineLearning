@@ -5,8 +5,7 @@ using MachineLearning.Util;
 using Microsoft.ML;
 using NumSharp;
 using System;
-using System.Drawing;
-using System.Drawing.Drawing2D;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -83,16 +82,22 @@ namespace MachineLearning
       [Serializable]
       public sealed class Model :
          ModelBaseTensorFlow,
+         IDataStorageProvider,
          IDataTransformer,
          IInputSchema,
          IModelName,
-         IModelStorageProvider
+         IModelStorageProvider,
+         IModelTrainerProvider
       {
          #region Fields
          /// <summary>
          /// Label degli oggetti conosciuti dal modello
          /// </summary>
          private PbtxtItems _labels;
+         /// <summary>
+         /// Soglia punteggio minimo
+         /// </summary>
+         private const float _minimumScore = 0.5f;
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
@@ -102,19 +107,31 @@ namespace MachineLearning
          /// </summary>
          private Session _session;
          /// <summary>
-         /// Soglia punteggio minimo
+         /// Processo di training
          /// </summary>
-         private const float minimumScore = 0.5f;
+         private Process _trainProcess;
          #endregion
          #region Properties
+         /// <summary>
+         /// Storage di dati
+         /// </summary>
+         public IDataStorage DataStorage { get; } = new DataStorageBinaryMemory();
          /// <summary>
          /// Schema di input
          /// </summary>
          public DataViewSchema InputSchema => ((IInputSchema)_owner).InputSchema;
          /// <summary>
+         /// Numero massimo di tentativi di training del modello
+         /// </summary>
+         public int MaxTrainingCycles => 1;
+         /// <summary>
          /// Storage del modello
          /// </summary>
          public IModelStorage ModelStorage => ((IModelStorageProvider)_owner).ModelStorage;
+         /// <summary>
+         /// Trainer del modello
+         /// </summary>
+         public IModelTrainer ModelTrainer { get; } = new ModelTrainerAuto() { MaxTrainingCycles = 1 };
          /// <summary>
          /// Nome del modello
          /// </summary>
@@ -143,6 +160,114 @@ namespace MachineLearning
                ("ObjectTop", typeof(float)),
                ("ObjectWidth", typeof(float)),
                ("ObjectHeight", typeof(float)));
+         }
+         /// <summary>
+         /// Funzione di dispose
+         /// </summary>
+         /// <param name="disposing">Se true indica che il dispose dell'oggetto e' stato chiamato da programma</param>
+         protected override void Dispose(bool disposing)
+         {
+            base.Dispose(disposing);
+            var trainProcess = default(Process);
+            lock (this)
+               trainProcess = _trainProcess;
+            if (trainProcess != null) {
+               var taskKill = Task.Run(() =>
+               {
+                  _trainProcess = null;
+                  try {
+                     trainProcess.Kill(true);
+                  }
+                  catch (Exception) {
+                  }
+               });
+               if (disposing)
+                  taskKill.WaitSync();
+            }
+         }
+         /// <summary>
+         /// Restituisce il modello sottoposto al training
+         /// </summary>
+         /// <param name="trainer">Il trainer da utilizzare</param>
+         /// <param name="data">Dati di training</param>
+         /// <param name="metrics">Eventuale metrica</param>
+         /// <param name="cancellation">Token di cancellazione</param>
+         /// <returns>Il trasnformer di dati</returns>
+         protected override IDataTransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
+         {
+            // Processo di training
+            var trainProcess = default(Process);
+            try {
+               // Crea ed avvia i processo di training
+               lock (this)
+                  trainProcess = _trainProcess = new Process();
+               trainProcess.StartInfo.FileName = "ODModelBuilderTF.exe";
+               trainProcess.StartInfo.Arguments = @"--model_dir S:\ML.NET\MachineLearningStudio\ODModelBuilderTF\trained-model";
+               trainProcess.StartInfo.Arguments += @" --train_images_dir S:\ML.NET\MachineLearningStudio\ODModelBuilderTF\images\train";
+               trainProcess.StartInfo.Arguments += @" --eval_images_dir S:\ML.NET\MachineLearningStudio\ODModelBuilderTF\images\eval";
+               trainProcess.StartInfo.Arguments += @" --num_train_steps 5000";
+               trainProcess.StartInfo.Arguments += @" --batch_size 8";
+               trainProcess.StartInfo.UseShellExecute = false;
+               trainProcess.StartInfo.RedirectStandardOutput = true;
+               trainProcess.StartInfo.RedirectStandardError = true;
+               trainProcess.StartInfo.CreateNoWindow = true;
+               trainProcess.Start();
+               // Task di ascolto
+               Task.Run(() =>
+               {
+                  // Ascolto sullo standard output
+                  var taskLogOutput = Task.Run(() =>
+                  {
+                     try {
+                        for (var line = trainProcess.StandardOutput.ReadLine(); line != null && !cancellation.IsCancellationRequested; line = trainProcess.StandardOutput.ReadLine())
+                           Channel.WriteLog(line);
+                     }
+                     catch (Exception) { }
+                  });
+                  // Ascolto sullo standard error
+                  var taskLogError = Task.Run(() =>
+                  {
+                     try {
+                        for (var line = trainProcess.StandardError.ReadLine(); line != null && !cancellation.IsCancellationRequested; line = trainProcess.StandardError.ReadLine())
+                           Channel.WriteLog(line);
+                     }
+                     catch (Exception) { }
+                  });
+                  // Attesa fine training o cancellazione
+                  while (!taskLogOutput.IsCompleted && !taskLogError.IsCompleted && !cancellation.IsCancellationRequested)
+                     Thread.Sleep(1000);
+                  // Effettua il kill del processo se richiasta cancellazione
+                  if (cancellation.IsCancellationRequested) {
+                     try {
+                        try {
+                           trainProcess.CancelOutputRead();
+                           taskLogOutput.WaitSync();
+                        }
+                        catch (Exception) { }
+                        try {
+                           trainProcess.CancelErrorRead();
+                           taskLogError.WaitSync();
+                        }
+                        catch (Exception) { }
+                        trainProcess.Kill(true);
+                     }
+                     catch (Exception exc) {
+                        Trace.WriteLine(exc);
+                     }
+                  }
+                  // Attende termine processo
+                  trainProcess.WaitForExit();
+               }).WaitSync();
+               metrics = null;
+               return this;
+            }
+            finally {
+               // Finelizzazione operazioni
+               if (trainProcess != null)
+                  trainProcess.Dispose();
+               lock (this)
+                  _trainProcess = null;
+            }
          }
          /// <summary>
          /// Trasforma i dati di input per il modello
@@ -223,7 +348,7 @@ namespace MachineLearning
                // Riempe la vista di dati di output con le rilevazioni
                for (var i = 0; i < scores.Length; i++) {
                   var score = scores[i];
-                  if (score < minimumScore)
+                  if (score < _minimumScore)
                      continue;
                   var label = _labels.Items.Where(w => w.id == ids[i] + (1 - startId)).FirstOrDefault();
                   if (label == default)
@@ -247,7 +372,7 @@ namespace MachineLearning
          /// </summary>
          /// <param name="dataStorage">Storage di dati</param>
          /// <returns>La vista di dati</returns>
-         public override IDataAccess LoadData(IDataStorage dataStorage) => null;
+         public override IDataAccess LoadData(IDataStorage dataStorage) => DataViewGrid.Create(this, InputSchema);
          /// <summary>
          /// Carica il modello da uno storage
          /// </summary>
