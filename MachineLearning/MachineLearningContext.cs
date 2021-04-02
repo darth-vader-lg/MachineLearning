@@ -291,7 +291,11 @@ namespace MachineLearning
             }).Wait(timeoutMs);
          }
       }
-
+      /// <summary>
+      /// Log della TensorFlow
+      /// </summary>
+      /// <param name="sender">Contesto ML.NET</param>
+      /// <param name="e">Argomenti del log</param>
       private void TensorFlow_Log(object sender, TensorFlow.LoggingEventArgs e)
       {
          var kind = e.Kind switch
