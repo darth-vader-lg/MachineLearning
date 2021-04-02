@@ -284,7 +284,8 @@ namespace MachineLearning.Model
                         metrics = (TMetrics)owner.GetModelEvaluation(model, data);
                      }
                      lock (queue) {
-                        owner.Channel.WriteLog(model == null ? $"Autotraining complete" : $"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs");
+                        if (!autoTrainingTask.CancellationToken.IsCancellationRequested && !cancellation.IsCancellationRequested)
+                           owner.Channel.WriteLog(model == null ? $"Autotraining complete" : $"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs");
                         queue.Enqueue((model, metrics));
                         availableEvent.Set();
                      }
