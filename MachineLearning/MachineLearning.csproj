@@ -5,12 +5,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\ODModelBuilderTF\ODModelBuilderTF\ODModelBuilderTF.exe" Link="ODModelBuilderTF.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.ML.AutoML" Version="0.17.4" />
     <PackageReference Include="Microsoft.ML.TimeSeries" Version="1.5.4" />
     <PackageReference Include="SciSharp.TensorFlow.Redist" Version="2.4.1" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="echo Building TenforFlow object detection model builder.&#xD;&#xA;cd $(SolutionDir)ODModelBuilderTF&#xD;&#xA;py -3.7 build_exe.py&#xD;&#xA;" />
   </Target>
 </Project>
