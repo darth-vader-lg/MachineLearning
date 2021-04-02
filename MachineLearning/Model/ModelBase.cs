@@ -318,11 +318,11 @@ namespace MachineLearning.Model
             }
             else
                createEvaluator = true;
+            if (currentEvaluator != null) {
+               if (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested)
+                  stopEvaluator = currentEvaluator;
+            }
             if (createEvaluator) {
-               if (currentEvaluator != null) {
-                  if (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested)
-                     stopEvaluator = currentEvaluator;
-               }
                startEvaluator = currentEvaluator = evaluator = new Evaluator
                {
                   DataStorage = _dataStorage,
@@ -399,7 +399,7 @@ namespace MachineLearning.Model
       /// <param name="data">Dati di training</param>
       /// <param name="metrics">Eventuale metrica</param>
       /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns></returns>
+      /// <returns>Il trasnformer di dati</returns>
       protected virtual IDataTransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
       {
          metrics = null;
@@ -570,7 +570,7 @@ namespace MachineLearning.Model
                   },
                   c,
                   TaskCreationOptions.LongRunning,
-                  TaskScheduler.Default),
+                  TaskScheduler.Default).WaitSync(),
                cancellation);
          }
          else
