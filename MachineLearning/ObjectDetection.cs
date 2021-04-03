@@ -6,8 +6,10 @@ using Microsoft.ML;
 using NumSharp;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Threading;
 using System.Threading.Tasks;
 using Tensorflow;
@@ -193,6 +195,7 @@ namespace MachineLearning
          /// <param name="metrics">Eventuale metrica</param>
          /// <param name="cancellation">Token di cancellazione</param>
          /// <returns>Il trasnformer di dati</returns>
+         [SuppressMessage("Interoperability", "CA1416:Convalida compatibilità della piattaforma", Justification = "Necessario per cancellare il processo di train esterno")]
          protected override IDataTransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
          {
             // Processo di training
@@ -211,58 +214,59 @@ namespace MachineLearning
                trainProcess.StartInfo.RedirectStandardOutput = true;
                trainProcess.StartInfo.RedirectStandardError = true;
                trainProcess.StartInfo.CreateNoWindow = true;
-               trainProcess.Start();
-               // Task di ascolto
-               Task.Run(() =>
+               trainProcess.OutputDataReceived += (sender, e) =>
                {
-                  // Ascolto sullo standard output
-                  var taskLogOutput = Task.Run(() =>
-                  {
-                     try {
-                        for (var line = trainProcess.StandardOutput.ReadLine(); line != null && !cancellation.IsCancellationRequested; line = trainProcess.StandardOutput.ReadLine())
-                           Channel.WriteLog(line);
-                     }
-                     catch (Exception) { }
-                  });
-                  // Ascolto sullo standard error
-                  var taskLogError = Task.Run(() =>
-                  {
-                     try {
-                        for (var line = trainProcess.StandardError.ReadLine(); line != null && !cancellation.IsCancellationRequested; line = trainProcess.StandardError.ReadLine())
-                           Channel.WriteLog(line);
-                     }
-                     catch (Exception) { }
-                  });
-                  // Attesa fine training o cancellazione
-                  while (!taskLogOutput.IsCompleted && !taskLogError.IsCompleted && !cancellation.IsCancellationRequested)
-                     Thread.Sleep(1000);
-                  // Effettua il kill del processo se richiasta cancellazione
-                  if (cancellation.IsCancellationRequested) {
-                     try {
-                        try {
-                           trainProcess.CancelOutputRead();
-                           taskLogOutput.WaitSync();
-                        }
-                        catch (Exception) { }
-                        try {
-                           trainProcess.CancelErrorRead();
-                           taskLogError.WaitSync();
-                        }
-                        catch (Exception) { }
-                        trainProcess.Kill(true);
-                     }
-                     catch (Exception exc) {
-                        Trace.WriteLine(exc);
+                  if (e.Data != null)
+                     Channel.WriteLog(e.Data);
+               };
+               trainProcess.ErrorDataReceived += (sender, e) =>
+               {
+                  if (e.Data != null)
+                     Channel.WriteLog(e.Data);
+               };
+               trainProcess.Start();
+               trainProcess.BeginOutputReadLine();
+               trainProcess.BeginErrorReadLine();
+               try {
+                  trainProcess.WaitForExitAsync(cancellation).WaitSync();
+               }
+               catch (OperationCanceledException) { }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+               }
+               trainProcess.CancelOutputRead();
+               trainProcess.CancelErrorRead();
+               // Funzione di chiusura dei processi children del processo
+               void KillProcessAndChildren(int pid)
+               {
+                  // Evita la chiusura del 'system idle process' e del processo stesso.
+                  if (pid == 0)
+                     return;
+                  var searcher = new ManagementObjectSearcher("Select * From Win32_Process Where ParentProcessID=" + pid);
+                  var moc = searcher.Get();
+                  foreach (var mo in moc)
+                     KillProcessAndChildren(Convert.ToInt32(mo["ProcessID"]));
+                  try {
+                     if (pid != trainProcess.Id) {
+                        Process proc = Process.GetProcessById(pid);
+                        proc.Kill();
                      }
                   }
-                  // Attende termine processo
-                  trainProcess.WaitForExit();
-               }).WaitSync();
+                  catch (Exception exc) {
+                     // Process already exited.
+                     Trace.WriteLine(exc);
+                  }
+               }
+               // Kill dei processi figlio. Il processo principale si chiudera' automaticamente
+               KillProcessAndChildren(trainProcess.Id);
+               // Attende il termine del processo
+               trainProcess.WaitForExit();
+               // Restituisce se stesso come risultato
                metrics = null;
                return this;
             }
             finally {
-               // Finelizzazione operazioni
+               // Finalizzazione operazioni
                if (trainProcess != null)
                   trainProcess.Dispose();
                lock (this)
