@@ -19,6 +19,7 @@ namespace MachineLearningStudio
          Application.EnableVisualStyles();
          Application.SetCompatibleTextRenderingDefault(false);
          Application.Run(new MainForm() { Text = Application.ProductName } );
+         MachineLearning.MachineLearningContext.StopAll();
       }
       #endregion
    }
