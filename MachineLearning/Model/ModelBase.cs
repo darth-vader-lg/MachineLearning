@@ -17,7 +17,7 @@ namespace MachineLearning.Model
    /// Classe base per i predittori
    /// </summary>
    [Serializable]
-   public abstract partial class ModelBase : ChannelProvider, IDataTransformer
+   public abstract partial class ModelBase : ChannelProvider, IDataTransformer, IModelTrainingControl
    {
       #region Fields
       /// <summary>
