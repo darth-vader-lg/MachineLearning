@@ -18,7 +18,7 @@ namespace MachineLearning.Model
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      Task StopTrainingAsync(CancellationToken cancellation = default);
+      Task StopTrainingAsync();
       #endregion
    }
 }

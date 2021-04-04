@@ -154,6 +154,7 @@ namespace MachineLearning.Model
       /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
       public void ClearModel() => ClearTrainingAsync().WaitSync();
+      //@@@public void ClearModel() => Task.Run(() => ClearTrainingAsync()).WaitSync();
       /// <summary>
       /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
@@ -297,12 +298,14 @@ namespace MachineLearning.Model
                   else if (trainer is IModelTrainerCycling cycling && currentEvaluator.TrainsCount < cycling.MaxTrainingCycles)
                      startCurrentEvaluator = true;
                }
-               if (((currentEvaluator.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
-                  createEvaluator = true;
-               else if (((currentEvaluator.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
-                  createEvaluator = true;
-               else if (((currentEvaluator.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
-                  createEvaluator = true;
+               if (currentEvaluator.Timestamp != default) {
+                  if (((currentEvaluator.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
+                     createEvaluator = true;
+                  else if (((currentEvaluator.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
+                     createEvaluator = true;
+                  else if (((currentEvaluator.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
+                     createEvaluator = true;
+               }
                else if (currentEvaluator.DataStorage != _dataStorage)
                   createEvaluator = true;
                else if (currentEvaluator.ModelStorage != _modelStorage)
@@ -318,7 +321,9 @@ namespace MachineLearning.Model
             }
             else
                createEvaluator = true;
-            if (currentEvaluator != null) {
+            if (createEvaluator)
+               stopEvaluator = currentEvaluator;
+            else if (currentEvaluator != null) {
                if (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested)
                   stopEvaluator = currentEvaluator;
             }
@@ -334,7 +339,7 @@ namespace MachineLearning.Model
                   Timestamp = default,
                   Trainer = trainer,
                   TrainingStorage = _trainingStorage,
-                  TrainsCount = 0
+                  TrainsCount = 0,
                };
             }
             else if (startCurrentEvaluator)
@@ -344,8 +349,8 @@ namespace MachineLearning.Model
             await StopTrainingInternalAsync(stopEvaluator);
             cancellation.ThrowIfCancellationRequested();
          }
-         if (startEvaluator != null)
-            _ = StartTrainingInternalAsync(startEvaluator, cancellation);
+         if (startEvaluator != null && startEvaluator.TaskTraining.Task.IsCompleted)
+            StartTrainingInternal(startEvaluator, stopEvaluator != null ? stopEvaluator.TaskTraining.ParentCancellationToken : cancellation);
          cancellation.ThrowIfCancellationRequested();
          return currentEvaluator;
       }
@@ -399,7 +404,7 @@ namespace MachineLearning.Model
       /// <param name="data">Dati di training</param>
       /// <param name="metrics">Eventuale metrica</param>
       /// <param name="cancellation">Token di cancellazione</param>
-      /// <returns>Il trasnformer di dati</returns>
+      /// <returns>Il transformer di dati</returns>
       protected virtual IDataTransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
       {
          metrics = null;
@@ -538,30 +543,31 @@ namespace MachineLearning.Model
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public async Task StartTrainingAsync(CancellationToken cancellation = default) =>
-         await StartTrainingInternalAsync((Evaluator)await GetEvaluatorAsync(ModelTrainer, cancellation), cancellation);
+      public Task StartTrainingAsync(CancellationToken cancellation = default) =>
+         GetEvaluatorAsync(ModelTrainer, cancellation);
       /// <summary>
       /// FUnzione interna di start del training
       /// </summary>
       /// <param name="evaluator">L'evaluator</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      private async Task StartTrainingInternalAsync(Evaluator evaluator, CancellationToken cancellation)
+      private void StartTrainingInternal(Evaluator evaluator, CancellationToken cancellation)
       {
          if (evaluator.TaskTraining.Task.IsCompleted) {
+            Channel.WriteLog("Start training");
             evaluator.Available.Reset();
-            await evaluator.TaskTraining.StartNew(
-               c => Task.Factory.StartNew(
-                  async () =>
+            evaluator.TaskTraining.StartNew(
+               c =>
+               Task.Factory.StartNew(
+                  () =>
                   {
                      var task = default(Task);
                      using var cts = CancellationTokenSource.CreateLinkedTokenSource(c);
                      try {
                         task = TrainingAsync(evaluator, cts.Token);
                         if (context is MachineLearningContext ml)
-                           await ml.AddWorkingTask(task, cts);
-                        else
-                           await task;
+                           ml.AddWorkingTask(task, cts);
+                        task.Wait();
                      }
                      finally {
                         if (task != null && context is MachineLearningContext ml)
@@ -570,36 +576,33 @@ namespace MachineLearning.Model
                   },
                   c,
                   TaskCreationOptions.LongRunning,
-                  TaskScheduler.Default).WaitSync(),
+                  TaskScheduler.Default),
                cancellation);
          }
-         else
-            await evaluator.TaskTraining;
       }
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
-      /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public virtual async Task StopTrainingAsync(CancellationToken cancellation = default)
+      public Task StopTrainingAsync()
       {
-         try {
-            if (this.evaluator is Evaluator evaluator && evaluator != null)
-               await StopTrainingInternalAsync(evaluator);
-         }
-         catch (OperationCanceledException) {
-         }
+         if (this.evaluator is Evaluator evaluator && evaluator != null)
+            return StopTrainingInternalAsync(evaluator);
+         return Task.CompletedTask;
       }
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="evaluator">L'evaluator da stoppare</param>
-      private async static Task StopTrainingInternalAsync(Evaluator evaluator)
+      private async Task StopTrainingInternalAsync(Evaluator evaluator)
       {
-         evaluator.TaskTraining.Cancel();
-         try {
-            await evaluator.TaskTraining.Task.ConfigureAwait(false);
-         }
-         catch (OperationCanceledException) {
+         if (!evaluator.TaskTraining.CancellationToken.IsCancellationRequested) {
+            evaluator.TaskTraining.Cancel();
+            Channel.WriteLog("Stop training");
+            try {
+               await evaluator.TaskTraining.Task;
+            }
+            catch (OperationCanceledException) {
+            }
          }
       }
       /// <summary>

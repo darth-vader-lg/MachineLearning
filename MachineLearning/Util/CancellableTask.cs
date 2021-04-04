@@ -22,6 +22,10 @@ namespace MachineLearning.Util
       /// </summary>
       public CancellationToken CancellationToken => cancellationTokenSource.Token;
       /// <summary>
+      /// Token di cancellazione passato alla creazione del task
+      /// </summary>
+      public CancellationToken ParentCancellationToken { get; private set; }
+      /// <summary>
       /// Task associato
       /// </summary>
       public Task Task { get; private set; }
@@ -58,6 +62,7 @@ namespace MachineLearning.Util
       /// <returns>Il task avviato</returns>
       public Task StartNew(Func<CancellationToken, Task> task)
       {
+         ParentCancellationToken = default;
          cancellationTokenSource = new CancellationTokenSource();
          return Task = task(CancellationToken);
       }
@@ -69,7 +74,7 @@ namespace MachineLearning.Util
       /// <returns>Il task avviato</returns>
       public Task StartNew(Func<CancellationToken, Task> task, CancellationToken cancellationToken)
       {
-         cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+         cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ParentCancellationToken = cancellationToken);
          return Task = task(CancellationToken);
       }
       #endregion

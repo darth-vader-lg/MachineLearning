@@ -129,6 +129,20 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Funzione di controllo abbandonato
+      /// </summary>
+      /// <param name="e"></param>
+      protected override void OnLeave(EventArgs e)
+      {
+         base.OnLeave(e);
+         try {
+            predictor?.StopTrainingAsync();
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
       /// Funzione di caricamento del controllo
       /// </summary>
       /// <param name="e"></param>
@@ -172,6 +186,8 @@ namespace MachineLearningStudio
       private async Task TaskPrediction(string imagePath, CancellationToken cancellation)
       {
          try {
+            cancellation.ThrowIfCancellationRequested();
+            await predictor.StartTrainingAsync();
             cancellation.ThrowIfCancellationRequested();
             if (predictor.ModelStorage != null && !string.IsNullOrEmpty(imagePath) && File.Exists(imagePath)) {
                var prediction = await Task.Run(() => predictor.GetPredictionAsync(imagePath, cancellation));

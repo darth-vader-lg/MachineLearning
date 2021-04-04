@@ -20,7 +20,8 @@ namespace MachineLearning
       IDataStorageProvider,
       IInputSchema,
       IModelStorageProvider,
-      IModelTrainerProvider
+      IModelTrainerProvider,
+      IModelTrainingControl
    {
       #region Fields
       /// <summary>
@@ -113,6 +114,16 @@ namespace MachineLearning
          _model.LabelColumnName = columnsNames[predictionColumnIndex];
          InputSchema = DataViewSchemaBuilder.Build(columnsNames.Select(c => (c, typeof(string))).ToArray());
       }
+      /// <summary>
+      /// Avvia il training del modello
+      /// </summary>
+      /// <param name="cancellation">Eventuale token di cancellazione del training</param>
+      public Task StartTrainingAsync(CancellationToken cancellation = default) => _model.StartTrainingAsync(cancellation);
+      /// <summary>
+      /// Stoppa il training del modello
+      /// </summary>
+      /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
+      public Task StopTrainingAsync() => _model.StopTrainingAsync();
       #endregion
    }
 

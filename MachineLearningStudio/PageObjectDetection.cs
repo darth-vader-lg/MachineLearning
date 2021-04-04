@@ -140,6 +140,20 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Funzione di controllo abbandonato
+      /// </summary>
+      /// <param name="e"></param>
+      protected override void OnLeave(EventArgs e)
+      {
+         base.OnLeave(e);
+         try {
+            predictor?.StopTrainingAsync();
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
       /// Funzione di caricamento del controllo
       /// </summary>
       /// <param name="e"></param>
@@ -181,7 +195,9 @@ namespace MachineLearningStudio
          try {
             cancellation.ThrowIfCancellationRequested();
             if (predictor.ModelStorage != null && !string.IsNullOrEmpty(imagePath) && File.Exists(imagePath)) {
-               var prediction = await Task.Run(() => predictor.GetPredictionAsync(imagePath, cancellation));
+               await predictor.StartTrainingAsync();
+               cancellation.ThrowIfCancellationRequested();
+               var prediction = await predictor.GetPredictionAsync(imagePath, cancellation);
                if (prediction.Boxes.Length > 0) {
                   labelClassResult.Text = $"{prediction.Boxes[0].Name} ({prediction.Boxes[0].Score * 100f:0.#}%)";
                   var bmp = new Bitmap(imagePath);

@@ -101,6 +101,20 @@ namespace MachineLearningStudio
          }
       }
       /// <summary>
+      /// Funzione di controllo abbandonato
+      /// </summary>
+      /// <param name="e"></param>
+      protected override void OnLeave(EventArgs e)
+      {
+         base.OnLeave(e);
+         try {
+            predictor?.StopTrainingAsync();
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
       /// Funzione di caricamento del controllo
       /// </summary>
       /// <param name="e"></param>
@@ -141,17 +155,19 @@ namespace MachineLearningStudio
       /// </summary>
       /// <param name="sentence">Sentenza attuale</param>
       /// <param name="delay">Ritardo dell'avvio</param>
-      /// <param name="cancel">Token di cancellazione</param>
+      /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      private async Task TaskPrediction(string sentence, TimeSpan delay = default, CancellationToken cancel = default)
+      private async Task TaskPrediction(string sentence, TimeSpan delay = default, CancellationToken cancellation = default)
       {
          try {
             // Attende la pausa
-            await Task.Delay(delay, cancel);
-            cancel.ThrowIfCancellationRequested();
+            await Task.Delay(delay, cancellation);
+            cancellation.ThrowIfCancellationRequested();
             // Effettua la previsione
+            await predictor.StartTrainingAsync();
+            cancellation.ThrowIfCancellationRequested();
             if (predictor.ModelStorage != null && predictor.DataStorage != null && !string.IsNullOrEmpty(sentence))
-               textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await predictor.GetPredictionAsync(cancel, sentence)).Meaning;
+               textBoxIntent.Text = string.IsNullOrWhiteSpace(sentence) ? "" : (await predictor.GetPredictionAsync(cancellation, sentence)).Meaning;
             else
                textBoxIntent.Text = "";
             textBoxIntent.BackColor = textBoxBackColor;

@@ -95,11 +95,24 @@ namespace MachineLearningStudio
             taskPrediction.cancellation.Cancel();
             taskPrediction.cancellation = new CancellationTokenSource();
             taskPrediction.task = TaskPrediction(
-               textBoxDataSetName.Text.Trim(),
                float.TryParse(textBoxLength.Text.Trim(), out var length) ? length : float.NaN,
                float.TryParse(textBoxInstep.Text.Trim(), out var instep) ? instep : float.NaN,
                taskPrediction.cancellation.Token,
                delay);
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+      }
+      /// <summary>
+      /// Funzione di controllo abbandonato
+      /// </summary>
+      /// <param name="e"></param>
+      protected override void OnLeave(EventArgs e)
+      {
+         base.OnLeave(e);
+         try {
+            predictor?.StopTrainingAsync();
          }
          catch (Exception exc) {
             Trace.WriteLine(exc);
@@ -140,24 +153,26 @@ namespace MachineLearningStudio
       /// <summary>
       /// Task di previsione
       /// </summary>
-      /// <param name="dataSetName">Nome del set di dati</param>
       /// <param name="length">Lunghezza aderente</param>
       /// <param name="instep">Calzata</param>
-      /// <param name="cancel">Token di cancellazione</param>
+      /// <param name="cancellation">Token di cancellazione</param>
       /// <param name="delay">Ritardo dell'avvio</param>
       /// <returns>Il task</returns>
-      private async Task TaskPrediction(string dataSetName, float length, float instep, CancellationToken cancel, TimeSpan delay = default)
+      private async Task TaskPrediction(float length, float instep, CancellationToken cancellation, TimeSpan delay = default)
       {
          try {
             // Attende la pausa
-            await Task.Delay(delay, cancel);
-            // Rilancia o avvia il task di training
-            cancel.ThrowIfCancellationRequested();
+            await Task.Delay(delay, cancellation);
+            // Avvia il task di training
+            cancellation.ThrowIfCancellationRequested();
+            await predictor.StartTrainingAsync();
+            // Effettua la previsione
+            cancellation.ThrowIfCancellationRequested();
             if (float.IsNaN(length) || float.IsNaN(instep)) {
                labelNumberResult.Text = "";
                return;
             }
-            labelNumberResult.Text = (await predictor.GetPredictionAsync(cancel, length, instep)).Size.ToString("0.#");
+            labelNumberResult.Text = (await predictor.GetPredictionAsync(cancellation, length, instep)).Size.ToString("0.#");
          }
          catch (OperationCanceledException) { }
          catch (Exception exc) {

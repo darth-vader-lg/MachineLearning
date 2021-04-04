@@ -266,7 +266,9 @@ namespace MachineLearning.Model
             CancellationToken cancellation = default)
          {
             // Avvia il task di autotraining se necessario
-            if (autoTrainingModels.Count == 0 && (autoTrainingTask.Task.IsCompleted || autoTrainingTask.CancellationToken.IsCancellationRequested)) {
+            if (autoTrainingTask.CancellationToken.IsCancellationRequested)
+               autoTrainingTask.Task.Wait();
+            if (autoTrainingModels.Count == 0 || autoTrainingTask.Task.IsCompleted) {
                // Ottiene le pipe
                var pipes = owner.GetPipes();
                // Coda dei modelli di training calcolati
