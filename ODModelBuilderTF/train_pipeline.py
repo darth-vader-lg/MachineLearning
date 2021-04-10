@@ -1,9 +1,3 @@
-# Module: train_pipeline
-#@title #Train pipeline configuration { form-width: "20%" }
-#@markdown Configuration of the train pipeline using the original train pipeline
-#@markdown of the pre-trained model but modifing some parameters as paths,
-#@markdown number of labels, etc... 
-
 import  os
 import  shutil
 
@@ -61,5 +55,3 @@ def config_train_pipeline(prm: TrainParameters):
 if __name__ == '__main__':
     prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     config_train_pipeline(prm)
-
-#@markdown ---

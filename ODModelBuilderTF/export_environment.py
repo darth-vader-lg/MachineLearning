@@ -1,10 +1,3 @@
-# Module export_environment.py
-#@title #Export's environment initialization { form-width: "30%" }
-#@markdown In this section the environment for the export will be initialized.
-#@markdown
-#@markdown All necessary directories will be mounted from the Google drive.
-#@markdown Follow the instruction for the mounting during the execution.
-
 import  os
 from    pathlib import Path
 import  shutil
@@ -71,5 +64,3 @@ def init_export_environment(prm: ExportParameters):
 if __name__ == '__main__':
     prm = ('prm' in locals() and isinstance(prm, ExportParameters) and prm) or ExportParameters.default
     init_export_environment(prm)
-
-#@markdown ---

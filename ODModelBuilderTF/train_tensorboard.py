@@ -1,11 +1,3 @@
-# Module: train_tensorboard
-#@title #Start the TensorBoard { vertical-output: true }
-#@markdown The TensorBoard is run for checking the progress.
-#@markdown
-#@markdown Warning: an error message will be displayed if no data are yet present.
-#@markdown Wait that the train it will be started (loss messages on output) and
-#@markdown just click the refresh button.
-
 try:    from base_parameters import BaseParameters
 except: pass
 import  subprocess
@@ -46,5 +38,3 @@ def start_tensorboard(prm: BaseParameters):
 if __name__ == '__main__':
     prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     start_tensorboard(prm)
-
-#@markdown ---

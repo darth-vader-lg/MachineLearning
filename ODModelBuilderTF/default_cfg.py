@@ -1,5 +1,3 @@
-# Module: default_cfg.py
-#@title #Notebook configuration
 class Cfg(object):
     #@markdown ## Data on Google Drive:
     #@markdown (The data will be treated in a Google Drive space if enabled)

@@ -1,4 +1,3 @@
-# Module: build_exe.py
 # Script to build the executable file for the object detection tarin and export
 
 exe_name = 'ODModelBuilderTF'

@@ -1,4 +1,3 @@
-# Module: install_virtual_environment.py
 # Script for installing the Python virtual environment
 
 # The name of the virtual environment
@@ -46,4 +45,3 @@ def install_virtual_environment(env_name: str = env_name):
 
 if __name__ == '__main__':
     exit(install_virtual_environment(env_name))
-

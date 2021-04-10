@@ -1,7 +1,3 @@
-# Module: utilities.py
-#@title #Utility functions
-#@markdown Some utility functions used for the train steps.
-
 import  os
 from    pathlib import Path
 import  subprocess
@@ -122,5 +118,3 @@ def is_terminal():
 
 if __name__ == '__main__':
     print('Utilities functions initialized')
-
-#@markdown ---

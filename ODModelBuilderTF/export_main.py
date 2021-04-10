@@ -1,7 +1,3 @@
-# Module: export_main.py
-#@title #Export { form-width: "20%" }
-#@markdown The export action. It export the last checkpoint in a saved model.
-
 from    absl import flags
 import  os
 import  sys
@@ -73,5 +69,3 @@ if __name__ == '__main__':
     else:
         if (not is_executable()):
             print('Export complete')
-
-#@markdown ---

@@ -1,7 +1,3 @@
-# Module: pretrained_model.py
-#@title #Pre-trained model download { form-width: "20%" }
-#@markdown Download of the pre-trained model from the TensorFlow 2 model zoo.
-
 import  os
 from    pathlib import Path
 from    urllib import request
@@ -35,5 +31,3 @@ def download_pretrained_model(prm: BaseParameters):
 if __name__ == '__main__':
     prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     download_pretrained_model(prm)
-
-#@markdown ---

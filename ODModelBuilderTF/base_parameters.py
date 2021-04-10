@@ -1,7 +1,3 @@
-# Module: base_parameters.py
-#@title #Base parameters { form-width: "20%" }
-#@markdown Definition of the base parameters class.
-
 from    absl import flags
 import  os
 from    pathlib import Path
@@ -105,5 +101,3 @@ if __name__ == '__main__':
     prm = ('prm' in locals() and isinstance(prm, BaseParameters) and prm) or BaseParameters.default
     print(prm)
     print('Base parameters configured')
-
-#@markdown ---

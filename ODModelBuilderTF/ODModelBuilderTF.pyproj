@@ -82,8 +82,10 @@
   <ItemGroup>
     <Content Include="build_exe.bat" />
     <Content Include="install_virtual_environment.bat" />
+    <Content Include="py_to_train_ipynb.bat" />
     <Content Include="requirements.txt" />
     <Content Include="train.ipynb" />
+    <Content Include="train_ipynb_to_py.bat" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env\">

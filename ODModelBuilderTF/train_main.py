@@ -1,10 +1,3 @@
-# Module: train_main.py
-#@title #Train { form-width: "20%" }
-#@markdown The main train loop. It trains the model and put it in the output directory.
-#@markdown 
-#@markdown It can be stopped before the completion when
-#@markdown a considerable result is reached and restart after for enhancing the tuning.
-
 from    absl import flags
 import  os
 import  sys
@@ -87,5 +80,3 @@ if __name__ == '__main__':
     else:
         if (not is_executable()):
             print('Train complete')
-
-#@markdown ---

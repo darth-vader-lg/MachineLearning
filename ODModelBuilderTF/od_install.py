@@ -1,7 +1,3 @@
-# Module od_install.py
-#@title #Object detection libraries installation { form-width: "20%" }
-#@markdown This step installs a well known Python environment for the train.
-
 import  os
 import  datetime
 from    pathlib import Path
@@ -119,5 +115,3 @@ def install_object_detection():
 
 if __name__ == '__main__':
     install_object_detection()
-
-#@markdown ---

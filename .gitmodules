@@ -1,0 +1,3 @@
+[submodule "SyncJupyterNotebook"]
+	path = SyncJupyterNotebook
+	url = P:/Git/SyncJupyterNotebook.git

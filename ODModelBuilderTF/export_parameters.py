@@ -1,9 +1,3 @@
-#module export_parameters.py
-#@title #Export parameters { form-width: "20%" }
-#@markdown Definition of the export parameters. Read the comments in the flags
-#@markdown section of the exporter main module
-#@markdown https://raw.githubusercontent.com/tensorflow/models/e356598a5b79a768942168b10d9c1acaa923bdb4/research/object_detection/exporter_main_v2.py
-
 import  os
 
 try:    from    base_parameters import BaseParameters
@@ -44,5 +38,3 @@ if __name__ == '__main__':
     prm = ('prm' in locals() and isinstance(prm, ExportParameters) and prm) or ExportParameters.default
     print(prm)
     print('Export parameters configured')
-
-#@markdown ---

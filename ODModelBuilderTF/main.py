@@ -1,4 +1,3 @@
-# Module: main.py
 # Main script for training and exporting a model
 
 from    pathlib import Path

@@ -1,9 +1,3 @@
-#module train_parameters.py
-#@title #Train parameters { form-width: "20%" }
-#@markdown Definition of the train parameters. Read the comments in the flags
-#@markdown section of the train main module
-#@markdown https://raw.githubusercontent.com/tensorflow/models/e356598a5b79a768942168b10d9c1acaa923bdb4/research/object_detection/model_main_tf2.py
-
 import  os
 
 try:    from    base_parameters import BaseParameters
@@ -97,5 +91,3 @@ if __name__ == '__main__':
     prm = ('prm' in locals() and isinstance(prm, TrainParameters) and prm) or TrainParameters.default
     print(prm)
     print('Train parameters configured')
-
-#@markdown ---
