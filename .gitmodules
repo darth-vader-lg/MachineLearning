@@ -4,3 +4,6 @@
 [submodule "ODModelBuilderTF"]
 	path = ODModelBuilderTF
 	url = P:/Git/ODModelBuilderTF.git
+[submodule "ODModelBuilderYolov5"]
+	path = ODModelBuilderYolov5
+	url = P:/Git/ODModelBuilderYolov5.git
