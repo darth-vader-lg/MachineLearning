@@ -1,3 +1,6 @@
 [submodule "SyncJupyterNotebook"]
 	path = SyncJupyterNotebook
 	url = P:/Git/SyncJupyterNotebook.git
+[submodule "ODModelBuilderTF"]
+	path = ODModelBuilderTF
+	url = P:/Git/ODModelBuilderTF.git
