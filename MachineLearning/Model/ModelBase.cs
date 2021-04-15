@@ -154,7 +154,6 @@ namespace MachineLearning.Model
       /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
       public void ClearModel() => ClearTrainingAsync().WaitSync();
-      //@@@public void ClearModel() => Task.Run(() => ClearTrainingAsync()).WaitSync();
       /// <summary>
       /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
