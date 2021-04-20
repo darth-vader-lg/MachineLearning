@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\ODModelBuilderTF\ODModelBuilderTF\ODModelBuilderTF.exe" Link="ODModelBuilderTF.exe">
+    <None Include="..\ODModelBuilderTF\ODModelBuilderTF\ODModelBuilderTF.exe" Link="ODModelBuilderTF.exe" Condition="Exists('..\ODModelBuilderTF')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -18,6 +18,6 @@
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="echo Building TenforFlow object detection model builder.&#xD;&#xA;if exist $(SolutionDir)ODModelBuilderTF (&#xD;&#xA;   cd $(SolutionDir)ODModelBuilderTF&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA;)&#xD;&#xA;if exist $(ProjectDir)ODModelBuilderTF (&#xD;&#xA;   cd $(ProjectDir)ODModelBuilderTF&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA;)&#xD;&#xA;" />
+    <Exec Command="if exist &quot;$(SolutionDir)ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(SolutionDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA;)&#xD;&#xA;if exist &quot;$(ProjectDir)ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(ProjectDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA; )&#xD;&#xA;" />
   </Target>
 </Project>
