@@ -283,7 +283,8 @@ namespace MachineLearning.Model
          {
             // Avvia il task di autotraining se necessario
             if (autoTrainingTask.CancellationToken.IsCancellationRequested)
-               autoTrainingTask.Task.Wait();
+               autoTrainingTask.Task.Wait(cancellation);
+            cancellation.ThrowIfCancellationRequested();
             if (autoTrainingModels.Count == 0 || autoTrainingTask.Task.IsCompleted) {
                // Ottiene le pipe
                var pipes = owner.GetPipes();
