@@ -12,12 +12,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ML.AutoML" Version="0.17.5" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.7.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.7.1" />
+    <PackageReference Include="Microsoft.ML.OnnxTransformer" Version="1.5.5" />
     <PackageReference Include="Microsoft.ML.TimeSeries" Version="1.5.5" />
     <PackageReference Include="SciSharp.TensorFlow.Redist" Version="2.3.1" />
     <PackageReference Include="System.Management" Version="6.0.0-preview.2.21154.6" />
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="if exist &quot;$(SolutionDir)ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(SolutionDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA;)&#xD;&#xA;if exist &quot;$(ProjectDir)ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(ProjectDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA; )&#xD;&#xA;" />
+    <Exec Command="if exist &quot;$(SolutionDir)_ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(SolutionDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA;)&#xD;&#xA;if exist &quot;$(ProjectDir)_ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(ProjectDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA; )&#xD;&#xA;" />
   </Target>
 </Project>

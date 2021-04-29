@@ -1,25 +1,18 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
-using MachineLearning.TensorFlow;
 using MachineLearning.Util;
 using Microsoft.ML;
-using NumSharp;
+using Microsoft.ML.Transforms.Image;
 using System;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Management;
 using System.Threading;
 using System.Threading.Tasks;
-using Tensorflow;
 
 namespace MachineLearning
 {
-   /// <summary>
-   /// Classe per il rilevamento di oggetti nelle immagini
-   /// </summary>
-   [Serializable]
    public sealed partial class ObjectDetection :
       IInputSchema,
       IModelStorageProvider,
@@ -37,9 +30,12 @@ namespace MachineLearning
       /// </summary>
       public DataViewSchema InputSchema { get; private set; }
       /// <summary>
+      /// Schema di input dei dati
+      /// </summary>
+      public ReadOnlyCollection<string> Labels => _model?.Labels;
+      /// <summary>
       /// Storage del modello
       /// </summary>
-      //public string ModelStorage { get; set; }
       public IModelStorage ModelStorage { get; set; }
       /// <summary>
       /// Nome del modello
@@ -51,7 +47,7 @@ namespace MachineLearning
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      public ObjectDetection(IContextProvider<TFContext> context = default)
+      public ObjectDetection(IContextProvider<MLContext> context = default)
       {
          _model = new Model(this, context);
          InputSchema = DataViewSchemaBuilder.Build((Name: "ImagePath", Type: typeof(string)));
@@ -73,7 +69,7 @@ namespace MachineLearning
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
       public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) =>
-         new Prediction(await _model.GetPredictionDataAsync(new[] { imagePath }, cancel));
+         new Prediction(_model, await _model.GetPredictionDataAsync(new[] { imagePath }, cancel));
       /// <summary>
       /// Avvia il training del modello
       /// </summary>
@@ -94,37 +90,29 @@ namespace MachineLearning
    {
       [Serializable]
       public sealed class Model :
-         ModelBaseTensorFlow,
+         ModelBaseMLNet,
          IDataStorageProvider,
          IDataTransformer,
          IInputSchema,
          IModelName,
-         IModelStorageProvider,
-         IModelTrainerProvider
+         IModelStorageProvider
       {
          #region Fields
-         /// <summary>
-         /// Label degli oggetti conosciuti dal modello
-         /// </summary>
-         private PbtxtItems _labels;
-         /// <summary>
-         /// Soglia punteggio minimo
-         /// </summary>
-         private const float _minimumScore = 0.5f;
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
          private readonly ObjectDetection _owner;
          /// <summary>
-         /// Sessione TensorFlow
+         /// Pipe di training
          /// </summary>
-         private Session _session;
-         /// <summary>
-         /// Processo di training
-         /// </summary>
-         private Process _trainProcess;
+         [NonSerialized]
+         private ModelPipes _pipes;
          #endregion
          #region Properties
+         /// <summary>
+         /// Configurazione del modello
+         /// </summary>
+         internal ODModelConfig Config { get; private set; }
          /// <summary>
          /// Storage di dati
          /// </summary>
@@ -134,25 +122,17 @@ namespace MachineLearning
          /// </summary>
          public DataViewSchema InputSchema => ((IInputSchema)_owner).InputSchema;
          /// <summary>
-         /// Numero massimo di tentativi di training del modello
+         /// Labels
          /// </summary>
-         public int MaxTrainingCycles => 1;
+         public ReadOnlyCollection<string> Labels => Config.Labels;
          /// <summary>
          /// Storage del modello
          /// </summary>
          public IModelStorage ModelStorage => ((IModelStorageProvider)_owner).ModelStorage;
          /// <summary>
-         /// Trainer del modello
-         /// </summary>
-         public IModelTrainer ModelTrainer { get; } = new ModelTrainerAuto() { MaxTrainingCycles = 1 };
-         /// <summary>
          /// Nome del modello
          /// </summary>
          public string ModelName => _owner.Name;
-         /// <summary>
-         /// Schema di output
-         /// </summary>
-         private DataViewSchema OutputSchema { get; }
          #endregion
          #region Methods
          /// <summary>
@@ -160,282 +140,101 @@ namespace MachineLearning
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="contextProvider">Provider di contesto di machine learning</param>
-         internal Model(ObjectDetection owner, IContextProvider<TFContext> contextProvider = default) : base(contextProvider)
+         internal Model(ObjectDetection owner, IContextProvider<MLContext> contextProvider = default) : base(contextProvider) => _owner = owner;
+         /// <summary>
+         /// Restituisce le pipe di training del modello
+         /// </summary>
+         /// <returns>Le pipe</returns>
+         public override ModelPipes GetPipes()
          {
-            _owner = owner;
-            OutputSchema = DataViewSchemaBuilder.Build(
-               ("ImagePath", typeof(string)),
-               ("ObjectId", typeof(int)),
-               ("ObjectName", typeof(string)),
-               ("ObjectDisplayName", typeof(string)),
-               ("Score", typeof(float)),
-               ("ObjectLeft", typeof(float)),
-               ("ObjectTop", typeof(float)),
-               ("ObjectWidth", typeof(float)),
-               ("ObjectHeight", typeof(float)));
+            // Crea la pipeline di output
+            var outputEstimators = new List<IEstimator<ITransformer>>();
+            var columnNameTransform = (
+               from g in new[] { Config.Inputs, Config.Outputs }
+               from c in g
+               where c.Name != c.ColumnName
+               select c).ToArray();
+            foreach (var c in columnNameTransform)
+               outputEstimators.Add(Context.Transforms.CopyColumns(inputColumnName: c.ColumnName, outputColumnName: c.Name));
+            if (columnNameTransform.Length > 0)
+               outputEstimators.Add(Context.Transforms.DropColumns((from c in columnNameTransform where c.Name != c.ColumnName select c.ColumnName).ToArray()));
+            var outputPipeline = outputEstimators.Count < 1 ? null : outputEstimators.Count > 1 ? outputEstimators[0].Append(outputEstimators[1]) : outputEstimators[0];
+            for (var i = 2; i < outputEstimators.Count; i++)
+               outputPipeline = outputPipeline.Append(outputEstimators[i]);
+            // Restituisce le tre pipe di learning
+            return _pipes ??= new()
+            {
+               Input =
+                  Context.Transforms.LoadImages(
+                     inputColumnName: "ImagePath",
+                     outputColumnName: "Image",
+                     imageFolder: "")
+                  .Append(Context.Transforms.ResizeImages(
+                     inputColumnName: "Image",
+                     outputColumnName: "ResizedImage",
+                     imageWidth: Config.ImageSize.Width,
+                     imageHeight: Config.ImageSize.Height,
+                     resizing: ImageResizingEstimator.ResizingKind.Fill))
+                  .Append(Context.Transforms.ExtractPixels(
+                     inputColumnName: "ResizedImage",
+                     outputColumnName: Config.Inputs[0].ColumnName,
+                     interleavePixelColors: true,
+                     outputAsFloatArray: Config.Inputs[0].DataType == typeof(float))),
+               Trainer =
+                  Config.Format switch
+                  {
+                     ODModelConfig.ModelFormat.Onnx =>
+                        Context.Transforms.ApplyOnnxModel(
+                           inputColumnNames: new[] { Config.Inputs[0].ColumnName },
+                           outputColumnNames: (from c in Config.Outputs select c.ColumnName).ToArray(),
+                           modelFile: Config.ModelFilePath,
+                           shapeDictionary: new Dictionary<string, int[]>()
+                           {
+                              {
+                                 Config.Inputs[0].ColumnName,
+                                 Config.Inputs[0].Dim.Take(1).Concat(new[] { Config.ImageSize.Width, Config.ImageSize.Height }).Concat(Config.Inputs[0].Dim.Skip(3).Take(1)).ToArray()
+                              }
+                           }),
+                     ODModelConfig.ModelFormat.TF2SavedModel =>
+                        Context.Model.LoadTensorFlowModel(Path.GetDirectoryName(Config.ModelFilePath)).ScoreTensorFlowModel(
+                           inputColumnNames: new[] { Config.Inputs[0].ColumnName },
+                           outputColumnNames: (from c in Config.Outputs select c.ColumnName).ToArray()),
+                     _ => throw new FormatException("Unknown model format")
+                  },
+               Output = outputPipeline
+            };
          }
          /// <summary>
-         /// Funzione di dispose
-         /// </summary>
-         /// <param name="disposing">Se true indica che il dispose dell'oggetto e' stato chiamato da programma</param>
-         protected override void Dispose(bool disposing)
-         {
-            base.Dispose(disposing);
-            var trainProcess = default(Process);
-            lock (this)
-               trainProcess = _trainProcess;
-            if (trainProcess != null) {
-               var taskKill = Task.Run(() =>
-               {
-                  _trainProcess = null;
-                  try {
-                     trainProcess.Kill(true);
-                  }
-                  catch (Exception) {
-                  }
-               });
-               if (disposing)
-                  taskKill.WaitSync();
-            }
-         }
-         /// <summary>
-         /// Restituisce il modello sottoposto al training
-         /// </summary>
-         /// <param name="trainer">Il trainer da utilizzare</param>
-         /// <param name="data">Dati di training</param>
-         /// <param name="metrics">Eventuale metrica</param>
-         /// <param name="cancellation">Token di cancellazione</param>
-         /// <returns>Il trasnformer di dati</returns>
-         [SuppressMessage("Interoperability", "CA1416:Convalida compatibilità della piattaforma", Justification = "Necessario per cancellare il processo di train esterno")]
-         protected override IDataTransformer GetTrainedModel(IModelTrainer trainer, IDataAccess data, out object metrics, CancellationToken cancellation)
-         {
-            // Processo di training
-            var trainProcess = default(Process);
-            try {
-               // Crea ed avvia i processo di training
-               lock (this)
-                  trainProcess = _trainProcess = new Process();
-               trainProcess.StartInfo.FileName = "ODModelBuilderTF.exe";
-               trainProcess.StartInfo.Arguments = @"--model_dir S:\ML.NET\MachineLearningStudio\ODModelBuilderTF\trained-model";
-               trainProcess.StartInfo.Arguments += @" --train_images_dir S:\ML.NET\MachineLearningStudio\ODModelBuilderTF\images\train";
-               trainProcess.StartInfo.Arguments += @" --eval_images_dir S:\ML.NET\MachineLearningStudio\ODModelBuilderTF\images\eval";
-               trainProcess.StartInfo.Arguments += @" --num_train_steps 5000";
-               trainProcess.StartInfo.Arguments += @" --batch_size 8";
-               trainProcess.StartInfo.UseShellExecute = false;
-               trainProcess.StartInfo.RedirectStandardOutput = true;
-               trainProcess.StartInfo.RedirectStandardError = true;
-               trainProcess.StartInfo.CreateNoWindow = true;
-               trainProcess.OutputDataReceived += (sender, e) =>
-               {
-                  if (e.Data != null)
-                     Channel.WriteLog(e.Data);
-               };
-               trainProcess.ErrorDataReceived += (sender, e) =>
-               {
-                  if (e.Data != null)
-                     Channel.WriteLog(e.Data);
-               };
-               trainProcess.Start();
-               trainProcess.BeginOutputReadLine();
-               trainProcess.BeginErrorReadLine();
-               try {
-                  trainProcess.WaitForExitAsync(cancellation).WaitSync();
-               }
-               catch (OperationCanceledException) { }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-               }
-               trainProcess.CancelOutputRead();
-               trainProcess.CancelErrorRead();
-               // Funzione di chiusura dei processi children del processo
-               void KillProcessAndChildren(int pid)
-               {
-                  // Evita la chiusura del 'system idle process' e del processo stesso.
-                  if (pid == 0)
-                     return;
-                  var searcher = new ManagementObjectSearcher("Select * From Win32_Process Where ParentProcessID=" + pid);
-                  var moc = searcher.Get();
-                  foreach (var mo in moc)
-                     KillProcessAndChildren(Convert.ToInt32(mo["ProcessID"]));
-                  try {
-                     if (pid != trainProcess.Id) {
-                        Process proc = Process.GetProcessById(pid);
-                        proc.Kill();
-                     }
-                  }
-                  catch (Exception exc) {
-                     // Process already exited.
-                     Trace.WriteLine(exc);
-                  }
-               }
-               // Kill dei processi figlio. Il processo principale si chiudera' automaticamente
-               KillProcessAndChildren(trainProcess.Id);
-               // Attende il termine del processo
-               trainProcess.WaitForExit();
-               // Restituisce se stesso come risultato
-               cancellation.ThrowIfCancellationRequested();
-               metrics = null;
-               return this;
-            }
-            finally {
-               // Finalizzazione operazioni
-               if (trainProcess != null)
-                  trainProcess.Dispose();
-               lock (this)
-                  _trainProcess = null;
-            }
-         }
-         /// <summary>
-         /// Trasforma i dati di input per il modello
-         /// </summary>
-         /// <param name="data">Dati di input</param>
-         /// <param name="cancellation">Eventuale token di cancellazione</param>
-         /// <returns>I dati trasformati</returns>
-         IDataAccess IDataTransformer.Transform(IDataAccess data, CancellationToken cancellation)
-         {
-            // Crea la sessione di trasformazione
-            cancellation.ThrowIfCancellationRequested();
-            // Prepara la configurazione della rete neurale
-            // Dati di input e di output
-            var input = data.ToDataViewGrid();
-            var output = DataViewGrid.Create(this, OutputSchema);
-            // Loop su tutte le righe di input
-            foreach (var row in data.GetRowCursor(data.Schema).AsEnumerable()) {
-               // Path dell'immagine
-               var imagePath = (string)row.ToDataViewValuesRow(this)["ImagePath"];
-               // Trasforma l'immagine in dati numerici
-               var imageTensor = ReadTensorFromImageFile(imagePath);
-               // La passa per la rete neurale
-               cancellation.ThrowIfCancellationRequested();
-               var graph = _session.as_default().graph.as_default();
-               // Tensore di input
-               Tensor inputTensor;
-               var mobilenetV2 = false;
-               try {
-                  // Tensore standard
-                  inputTensor = graph.OperationByName("serving_default_input_tensor").outputs[0];
-               }
-               catch (Exception) {
-                  // Tensore per la CenterNet MobileNetV2 FPN 512x512 che hanno deciso di definire diversamente...
-                  inputTensor = graph.OperationByName("serving_default_input").outputs[0];
-                  mobilenetV2 = true;
-               }
-               var outputTensors = graph.OperationByName("StatefulPartitionedCall").outputs;
-               Tensor numDetectionsTensor, boxesTensor, scoresTensor, classesTensor;
-               int startId = 1;
-               // Modello tipo Mask R-CNN Inception ResNet V2
-               if (outputTensors.Length == 23) {
-                  numDetectionsTensor = outputTensors[12];
-                  boxesTensor = outputTensors[4];
-                  scoresTensor = outputTensors[8];
-                  classesTensor = outputTensors[5];
-               }
-               // Centernet ResNet / Centernet HourGlass
-               else if (outputTensors.Length == 4) {
-                  if (!mobilenetV2) {
-                     numDetectionsTensor = outputTensors[3];
-                     boxesTensor = outputTensors[0];
-                     scoresTensor = outputTensors[2];
-                     classesTensor = outputTensors[1];
-                  }
-                  else {
-                     numDetectionsTensor = outputTensors[0];
-                     boxesTensor = outputTensors[3];
-                     scoresTensor = outputTensors[1];
-                     classesTensor = outputTensors[2];
-                  }
-               }
-               // EfficientDet / SSD / Faster R-CCN
-               else if (outputTensors.Length == 8) {
-                  numDetectionsTensor = outputTensors[5];
-                  boxesTensor = outputTensors[1];
-                  scoresTensor = outputTensors[4];
-                  classesTensor = outputTensors[2];
-               }
-               else
-                  throw new Exception("Can't infer the model type");
-               var outTensorArr = new Tensor[] { numDetectionsTensor, boxesTensor, scoresTensor, classesTensor };
-               var results = _session.as_default().run(outTensorArr, new FeedItem(inputTensor, imageTensor));
-               // Ottiene i risultati
-               cancellation.ThrowIfCancellationRequested();
-               var scores = results[2].AsIterator<float>().ToArray();
-               var boxes = results[1].GetData<float>().ToArray();
-               var ids = np.squeeze(results[3]).GetData<float>().ToArray();
-               // Riempe la vista di dati di output con le rilevazioni
-               for (var i = 0; i < scores.Length; i++) {
-                  var score = scores[i];
-                  if (score < _minimumScore)
-                     continue;
-                  var label = _labels.Items.Where(w => w.id == ids[i] + (1 - startId)).FirstOrDefault();
-                  if (label == default)
-                     continue;
-                  output.Add(
-                     ("ImagePath", imagePath),
-                     ("ObjectId", label.id),
-                     ("ObjectName", label.name),
-                     ("ObjectDisplayName", label.display_name),
-                     ("Score", score),
-                     ("ObjectLeft", boxes[i * 4 + 1]),
-                     ("ObjectTop", boxes[i * 4]),
-                     ("ObjectWidth", boxes[i * 4 + 3] - boxes[i * 4 + 1]),
-                     ("ObjectHeight", boxes[i * 4 + 2] - boxes[i * 4]));
-               }
-            }
-            return output;
-         }
-         /// <summary>
-         /// Carica i dati da uno storage
-         /// </summary>
-         /// <param name="dataStorage">Storage di dati</param>
-         /// <returns>La vista di dati</returns>
-         public override IDataAccess LoadData(IDataStorage dataStorage) => DataViewGrid.Create(this, InputSchema);
-         /// <summary>
-         /// Carica il modello da uno storage
+         /// Importa un modello esterno
          /// </summary>
          /// <param name="modelStorage">Storage del modello</param>
          /// <param name="schema">Lo schema del modello</param>
          /// <returns>Il modello</returns>
-         public override IDataTransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema)
+         public override IDataTransformer ImportModel(IModelStorage modelStorage, out DataViewSchema schema)
          {
-            // Disalloca l'eventuale modello precedente
-            if (_session != null)
-               _session.Dispose();
-            // Carica modello e labels
-            _session = Session.LoadFromSavedModel(Path.Combine((ModelStorage as ModelStorageFile).FilePath, "saved_model"));
-            _labels = PbtxtParser.ParsePbtxtFile(Path.Combine((ModelStorage as ModelStorageFile).FilePath, "label_map.pbtxt"));
+            schema = null;
+            // Carica la configurazione del modello
+            var config = ODModelConfig.Load(modelStorage.ImportPath);
+            // Verifica se il modello e' di tipo noto
+            if (config.Format != ODModelConfig.ModelFormat.Onnx && config.Format != ODModelConfig.ModelFormat.TF2SavedModel)
+               return null;
+            // Memorizza la configurazione
+            Config = config;
+            // Verifica se il modello ML.NET e' piu' recente del modello da importare
+            if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTime(config.ModelFilePath))
+               return null;
+            // Ottiene le pipes
+            var pipelines = GetPipes();
+            // Crea il modello
+            var dataView = DataViewGrid.Create(this, InputSchema);
+            var model = pipelines.Merged.Fit(dataView);
             schema = InputSchema;
-            return this;
+            var result = new DataTransformerMLNet(this, model);
+            // Salva modello. Non per il Tensorflow saved_model: baco della ML.NET nel salvataggio.
+            if (config.Format != ODModelConfig.ModelFormat.TF2SavedModel)
+               SaveModel(modelStorage, result, schema);
+            return result;
          }
-         /// <summary>
-         /// Legge un immagine e ne crea il tensore
-         /// </summary>
-         /// <param name="filePath">Path del file</param>
-         /// <returns>Il tensore</returns>
-         private NDArray ReadTensorFromImageFile(string filePath)
-         {
-            using var graph = Context.Graph().as_default();
-            Context.compat.v1.disable_eager_execution();
-            using var file_reader = Context.io.read_file(filePath, "file_reader");
-            using var decodeJpeg = Context.image.decode_jpeg(file_reader, channels: 3, name: "DecodeJpeg");
-            using var casted = Context.cast(decodeJpeg, TF_DataType.TF_UINT8);
-            using var dims_expander = Context.expand_dims(casted, 0);
-            Context.enable_eager_execution();
-            using var sess = Context.Session(graph).as_default();
-            return sess.run(dims_expander);
-         }
-         /// <summary>
-         /// Salva i dati in uno storage
-         /// </summary>
-         /// <param name="dataStorage">Storage di dati</param>
-         /// <param name="data">Dati</param>
-         public override void SaveData(IDataStorage dataStorage, IDataAccess data) { }
-         /// <summary>
-         /// Salva il modello in uno storage
-         /// </summary>
-         /// <param name="modelStorage">Storage del modello</param>
-         /// <param name="model">Modello</param>
-         /// <param name="schema">Lo schema del modello</param>
-         public override void SaveModel(IModelStorage modelStorage, IDataTransformer model, DataViewSchema schema) { }
          #endregion
       }
    }
@@ -446,23 +245,114 @@ namespace MachineLearning
    public sealed partial class ObjectDetection // Prediction
    {
       [Serializable]
-      public class Prediction
+      public partial class Prediction
       {
-         #region class Box
+         #region Fields
          /// <summary>
-         /// Box contenitivo
+         /// Dizionario di trasformazione da nome colonna a indice
          /// </summary>
+         private static Dictionary<string, int> columnToIndex;
+         #endregion
+         #region Properties
+         /// <summary>
+         /// Labels
+         /// </summary>
+         public ReadOnlyCollection<string> Labels { get; }
+         /// <summary>
+         /// Output per i riquadri di contenimento
+         /// </summary>
+         public float[] DetectionBoxes { get; }
+         /// <summary>
+         /// Output per le classi di previsione
+         /// </summary>
+         public float[] DetectionClasses { get; }
+         /// <summary>
+         /// Output per gli scores
+         /// </summary>
+         public float[] DetectionScores { get; }
+         #endregion
+         #region Methods
+         /// <summary>
+         /// Costruttore
+         /// </summary>
+         /// <param name="data">Dati della previsione</param>
+         internal Prediction(Model owner, IDataAccess data)
+         {
+            var grid = data.ToDataViewGrid();
+            Labels = owner.Labels;
+            DetectionBoxes = grid[0]["detection_boxes"];
+            DetectionClasses = grid[0]["detection_classes"];
+            DetectionScores = grid[0]["detection_scores"];
+            //if (columnToIndex == null) {
+            //   var meaning = new TextMeaningRecognizer(owner)
+            //   {
+            //      DataStorage = new DataStorageBinaryMemory()
+            //   };
+            //   var texts = DataViewGrid.Create(owner, meaning.InputSchema);
+            //   texts.Add(nameof(DetectionBoxes), "detection boxes");
+            //   texts.Add(nameof(DetectionBoxes), "detection_boxes");
+            //   texts.Add(nameof(DetectionBoxes), "detected boxes");
+            //   texts.Add(nameof(DetectionBoxes), "boxes");
+            //   texts.Add(nameof(DetectionClasses), "detection classes");
+            //   texts.Add(nameof(DetectionClasses), "detection_classes");
+            //   texts.Add(nameof(DetectionClasses), "detected classes");
+            //   texts.Add(nameof(DetectionClasses), "classes");
+            //   texts.Add(nameof(DetectionScores), "detection scores");
+            //   texts.Add(nameof(DetectionScores), "detection_scores");
+            //   texts.Add(nameof(DetectionScores), "detected_scores");
+            //   texts.Add(nameof(DetectionScores), "scores");
+            //   meaning.DataStorage.SaveData(owner.Context, texts);
+
+            //   meaning.GetPredictionAsync(default, "detection_scores").WaitSync();
+
+            //   var meanings =
+            //      (from c in grid.Schema
+            //       select new { Meaning = meaning.GetPrediction(c.Name), c.Index }).ToArray();
+            //   columnToIndex = new();
+            //   columnToIndex[nameof(DetectionBoxes)] = meanings.OrderByDescending(m => m.Meaning.Score).First().Index;
+            //}
+
+            //Kind = grid[0]["PredictedLabel"];
+            //var scores = (float[])grid[0]["Score"];
+            //var slotNames = grid.Schema["Score"].GetSlotNames();
+            //Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
+            //Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
+         }
+         /// <summary>
+         /// Restituisce i bounding box filtrati
+         /// </summary>
+         /// <param name="minScore">Punteggio minimo (0 ... 1)</param>
+         /// <returns>La lista di bounding box</returns>
+         public List<Box> GetBoxes(double minScore = 0.75)
+         {
+            var result = new List<Box>();
+            int startId = 1;
+            for (var i = 0; i < DetectionScores.Length; i++) {
+               if (DetectionScores[i] < minScore)
+                  continue;
+               if (DetectionClasses[i] < startId)
+                  continue;
+               var detectionClass = (int)DetectionClasses[i] - startId;
+               result.Add(new Box(
+                  detectionClass,
+                  detectionClass > -1 && detectionClass < Labels.Count ? Labels[detectionClass] : detectionClass.ToString(),
+                  DetectionScores[i],
+                  DetectionBoxes[i * 4 + 1],
+                  DetectionBoxes[i * 4 + 0],
+                  DetectionBoxes[i * 4 + 3] - DetectionBoxes[i * 4 + 1],
+                  DetectionBoxes[i * 4 + 2] - DetectionBoxes[i * 4 + 0]));
+            }
+            return result;
+         }
+         #endregion
+      }
+
+      public partial class Prediction // Box
+      {
+         [Serializable]
          public class Box
          {
             #region Properties
-            /// <summary>
-            /// Eventuale definizione di nome da visualizzare
-            /// </summary>
-            public string DisplayedName { get; }
-            /// <summary>
-            /// Nome oggetto. Prioritario il Displayed name, altrimenti il kind.
-            /// </summary>
-            public string Name => !string.IsNullOrEmpty(DisplayedName) ? DisplayedName : Kind;
             /// <summary>
             /// Altezza
             /// </summary>
@@ -476,9 +366,9 @@ namespace MachineLearning
             /// </summary>
             public float Left { get; }
             /// <summary>
-            /// Tipo di oggetto
+            /// Nome
             /// </summary>
-            public string Kind { get; }
+            public string Name { get; }
             /// <summary>
             /// Punteggio
             /// </summary>
@@ -497,56 +387,24 @@ namespace MachineLearning
             /// Costruttore
             /// </summary>
             /// <param name="id">Identificatore oggetto</param>
-            /// <param name="kind">Tipo di oggetto</param>
-            /// <param name="displayedName">Eventuale definizione di nome da visualizzare</param>
+            /// <param name="name">Nome dell'oggetto</param>
             /// <param name="score">Punteggio</param>
             /// <param name="left">Lato sinistro</param>
             /// <param name="top">Lato superiore</param>
             /// <param name="width">Larghezza</param>
             /// <param name="height">Altezza</param>
-            public Box(int id, string kind, string displayedName, float score, float left, float top, float width, float height)
+            public Box(int id, string name, float score, float left, float top, float width, float height)
             {
                Id = id;
-               DisplayedName = displayedName;
+               Name = name;
                Height = height;
                Left = left;
-               Kind = kind;
                Score = score;
                Top = top;
                Width = width;
             }
             #endregion
          }
-         #endregion
-         #region Properties
-         /// <summary>
-         /// Box di contenimento oggetti
-         /// </summary>
-         public Box[] Boxes { get; }
-         #endregion
-         #region Methods
-         /// <summary>
-         /// Costruttore
-         /// </summary>
-         /// <param name="data">Dati della previsione</param>
-         internal Prediction(IDataAccess data)
-         {
-            var grid = data.ToDataViewGrid();
-            Boxes = new Box[grid.Rows.Count];
-            for (var i = 0; i < Boxes.Length; i++) {
-               var row = grid.Rows[i];
-               Boxes[i] = new Box(
-                  row["ObjectId"],
-                  row["ObjectName"],
-                  row["ObjectDisplayName"],
-                  row["Score"],
-                  row["ObjectLeft"],
-                  row["ObjectTop"],
-                  row["ObjectWidth"],
-                  row["ObjectHeight"]);
-            }
-         }
-         #endregion
       }
    }
 }
