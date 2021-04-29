@@ -14,14 +14,18 @@ namespace MachineLearning.Model
    {
       #region Properties
       /// <summary>
+      /// Data e ora dell'oggetto
+      /// </summary>
+      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
+      /// <summary>
+      /// Eventuale path di importazione di un modello esterno (ONNX / TensorFlow, ecc...)
+      /// </summary>
+      public string ImportPath { get; set; }
+      /// <summary>
       /// Funzione di ottenimento dello stream di lettura
       /// </summary>
       [field: NonSerialized]
       public Func<Stream> ReadStream { get; set; }
-      /// <summary>
-      /// Data e ora dell'oggetto
-      /// </summary>
-      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
       /// <summary>
       /// Funzione di ottenimento dello stream di scrittura
       /// </summary>

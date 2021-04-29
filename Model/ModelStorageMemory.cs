@@ -21,6 +21,10 @@ namespace MachineLearning.Model
       /// Data e ora dell'oggetto
       /// </summary>
       public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
+      /// <summary>
+      /// Eventuale path di importazione di un modello esterno (ONNX / TensorFlow, ecc...)
+      /// </summary>
+      public string ImportPath { get; set; }
       #endregion
       #region Methods
       /// <summary>

@@ -14,13 +14,17 @@ namespace MachineLearning.Model
    {
       #region Properties
       /// <summary>
+      /// Data e ora dell'oggetto
+      /// </summary>
+      public DateTime DataTimestamp => File.GetLastWriteTimeUtc(FilePath);
+      /// <summary>
       /// Path del file
       /// </summary>
       public string FilePath { get; private set; }
       /// <summary>
-      /// Data e ora dell'oggetto
+      /// Eventuale path di importazione di un modello esterno (ONNX / TensorFlow, ecc...)
       /// </summary>
-      public DateTime DataTimestamp => File.GetLastWriteTimeUtc(FilePath);
+      public string ImportPath { get; set; }
       #endregion
       #region Methods
       /// <summary>

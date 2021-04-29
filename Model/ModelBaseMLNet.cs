@@ -114,6 +114,11 @@ namespace MachineLearning.Model
       public sealed override IDataTransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema)
       {
          Channel.CheckValue(modelStorage, nameof(modelStorage));
+         if (!string.IsNullOrEmpty(modelStorage.ImportPath)) {
+            var import = ImportModel(modelStorage, out schema);
+            if (import != null)
+               return import;
+         }
          return new DataTransformerMLNet(this, modelStorage.LoadModel(Context, out schema));
       }
       /// <summary>
@@ -125,6 +130,17 @@ namespace MachineLearning.Model
          var evaluation = GetEvaluation(new ModelTrainerStandard());
          if (evaluation.Model != null && evaluation.ModelStorage != null && evaluation.Model is ITransformer transformer)
             evaluation.ModelStorage.SaveModel(Context, transformer, evaluation.InputSchema);
+      }
+      /// <summary>
+      /// Importa un modello esterno
+      /// </summary>
+      /// <param name="modelStorage">Storage del modello</param>
+      /// <param name="schema">Lo schema del modello</param>
+      /// <returns>Il modello</returns>
+      public virtual IDataTransformer ImportModel(IModelStorage modelStorage, out DataViewSchema schema)
+      {
+         schema = null;
+         return null;
       }
       /// <summary>
       /// Salva i dati in uno storage

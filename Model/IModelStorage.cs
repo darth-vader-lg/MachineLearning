@@ -9,6 +9,10 @@ namespace MachineLearning.Model
    {
       #region Methods
       /// <summary>
+      /// Eventuale path di importazione di un modello esterno (ONNX / TensorFlow, ecc...)
+      /// </summary>
+      public string ImportPath { get; }
+      /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>

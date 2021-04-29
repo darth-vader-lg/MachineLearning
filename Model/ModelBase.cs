@@ -657,7 +657,7 @@ namespace MachineLearning.Model
                   var loadExistingModel =
                      ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
                      ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
-                     ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > e.Timestamp;
+                     (((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > e.Timestamp || e.Model == null);
                   if (loadExistingModel) {
                      try {
                         timestamp = DateTime.UtcNow;
