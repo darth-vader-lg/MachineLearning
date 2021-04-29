@@ -16,7 +16,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
+      public DateTime DataTimestamp { get; private set; }
       /// <summary>
       /// Eventuale path di importazione di un modello esterno (ONNX / TensorFlow, ecc...)
       /// </summary>
@@ -45,6 +45,7 @@ namespace MachineLearning.Model
          var stream = ReadStream?.Invoke();
          if (stream == null)
             throw new InvalidOperationException("Cannot read from the stream");
+         DataTimestamp = DateTime.UtcNow;
          return context.Model.Load(stream, out inputSchema);
       }
       /// <summary>
@@ -56,10 +57,12 @@ namespace MachineLearning.Model
       public void SaveModel(MLContext context, ITransformer model, DataViewSchema inputSchema)
       {
          Contracts.CheckValue(context, nameof(context));
+         var timestamp = DateTime.UtcNow;
          var stream = WriteStream?.Invoke();
          if (stream == null)
             throw new InvalidOperationException("Cannot write to the stream");
          context.Model.Save(model, inputSchema, stream);
+         DataTimestamp = timestamp;
       }
       #endregion
    }

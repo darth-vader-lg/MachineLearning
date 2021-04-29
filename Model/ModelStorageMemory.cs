@@ -20,7 +20,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime DataTimestamp { get; private set; } = DateTime.UtcNow;
+      public DateTime DataTimestamp { get; private set; }
       /// <summary>
       /// Eventuale path di importazione di un modello esterno (ONNX / TensorFlow, ecc...)
       /// </summary>
@@ -35,7 +35,11 @@ namespace MachineLearning.Model
       /// Costruttore
       /// </summary>
       /// <param name="memory">Contenuto iniziale</param>
-      public ModelStorageMemory(byte[] bytes) => Bytes = bytes;
+      public ModelStorageMemory(byte[] bytes)
+      {
+         Bytes = bytes;
+         DataTimestamp = DateTime.UtcNow;
+      }
       /// <summary>
       /// Funzione di caricamento modello
       /// </summary>
