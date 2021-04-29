@@ -15,7 +15,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Dizionario di conversione da tipo standard a tipo vista di dati
       /// </summary>
-      private static readonly Dictionary<Type, Func<DataViewType>> _typeToDataView = new Dictionary<Type, Func<DataViewType>>
+      private static readonly Dictionary<Type, Func<DataViewType>> _typeToDataView = new()
       {
          { typeof(bool), () => BooleanDataViewType.Instance },
          { typeof(sbyte), () => NumberDataViewType.SByte },
@@ -36,7 +36,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Costruttore di schema
       /// </summary>
-      private readonly DataViewSchema.Builder _builder = new DataViewSchema.Builder();
+      private readonly DataViewSchema.Builder _builder = new();
       #endregion
       #region Methods
       /// <summary>

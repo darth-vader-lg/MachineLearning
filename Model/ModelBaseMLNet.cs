@@ -177,11 +177,11 @@ namespace MachineLearning.Model
          /// <summary>
          /// Coda di modelli di autotraining
          /// </summary>
-         private Queue<(DataTransformerMLNet Model, TMetrics Metrics)> autoTrainingModels = new Queue<(DataTransformerMLNet Model, TMetrics Metrics)>();
+         private Queue<(DataTransformerMLNet Model, TMetrics Metrics)> autoTrainingModels = new();
          /// <summary>
          /// Task di autotraining
          /// </summary>
-         private readonly CancellableTask autoTrainingTask = new CancellableTask(cancellation => Task.CompletedTask);
+         private readonly CancellableTask autoTrainingTask = new(cancellation => Task.CompletedTask);
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>

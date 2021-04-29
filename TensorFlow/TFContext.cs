@@ -13,7 +13,7 @@ namespace MachineLearning.TensorFlow
       /// <summary>
       /// Sincronizzatore messaggi dei canali
       /// </summary>
-      private readonly object channelSync = new object();
+      private readonly object channelSync = new();
       #endregion
       #region Properties
       /// <summary>
