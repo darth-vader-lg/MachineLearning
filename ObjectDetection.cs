@@ -249,9 +249,9 @@ namespace MachineLearning
       {
          #region Fields
          /// <summary>
-         /// Dizionario di trasformazione da nome colonna a indice
+         /// Modello per ricavare il nome di una colonna dal nome della proprieta' a cui accedere
          /// </summary>
-         private static Dictionary<string, int> columnToIndex;
+         private static Dictionary<string, int> columnIndex;
          #endregion
          #region Properties
          /// <summary>
@@ -278,45 +278,45 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(Model owner, IDataAccess data)
          {
+            // Crea la griglia del risultato
             var grid = data.ToDataViewGrid();
+            // Memorizza le labels
             Labels = owner.Labels;
-            DetectionBoxes = grid[0]["detection_boxes"];
-            DetectionClasses = grid[0]["detection_classes"];
-            DetectionScores = grid[0]["detection_scores"];
-            //if (columnToIndex == null) {
-            //   var meaning = new TextMeaningRecognizer(owner)
-            //   {
-            //      DataStorage = new DataStorageBinaryMemory()
-            //   };
-            //   var texts = DataViewGrid.Create(owner, meaning.InputSchema);
-            //   texts.Add(nameof(DetectionBoxes), "detection boxes");
-            //   texts.Add(nameof(DetectionBoxes), "detection_boxes");
-            //   texts.Add(nameof(DetectionBoxes), "detected boxes");
-            //   texts.Add(nameof(DetectionBoxes), "boxes");
-            //   texts.Add(nameof(DetectionClasses), "detection classes");
-            //   texts.Add(nameof(DetectionClasses), "detection_classes");
-            //   texts.Add(nameof(DetectionClasses), "detected classes");
-            //   texts.Add(nameof(DetectionClasses), "classes");
-            //   texts.Add(nameof(DetectionScores), "detection scores");
-            //   texts.Add(nameof(DetectionScores), "detection_scores");
-            //   texts.Add(nameof(DetectionScores), "detected_scores");
-            //   texts.Add(nameof(DetectionScores), "scores");
-            //   meaning.DataStorage.SaveData(owner.Context, texts);
-
-            //   meaning.GetPredictionAsync(default, "detection_scores").WaitSync();
-
-            //   var meanings =
-            //      (from c in grid.Schema
-            //       select new { Meaning = meaning.GetPrediction(c.Name), c.Index }).ToArray();
-            //   columnToIndex = new();
-            //   columnToIndex[nameof(DetectionBoxes)] = meanings.OrderByDescending(m => m.Meaning.Score).First().Index;
-            //}
-
-            //Kind = grid[0]["PredictedLabel"];
-            //var scores = (float[])grid[0]["Score"];
-            //var slotNames = grid.Schema["Score"].GetSlotNames();
-            //Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
-            //Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
+            // Crea il dizionario intelligente di mappatura degli ingressi uscite
+            if (columnIndex == null) {
+               // Modello di interpretazione del testo in base ai nomi delle colonne del modello
+               var ml = owner.Context;
+               var pipe =
+                  ml.Transforms.Text.NormalizeText("Text")
+                  .Append(ml.Transforms.Text.TokenizeIntoWords("Text", null, new[] { '_', ',', ':', '[', ']', ' ' }))
+                  .Append(ml.Transforms.Text.FeaturizeText("Text", "Text"))
+                  .Append(ml.Transforms.Conversion.MapValueToKey("ColumnName"))
+                  .Append(ml.MulticlassClassification.Trainers.NaiveBayes("ColumnName", "Text"))
+                  .Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel"))
+                  ;
+               var inputOutputs = ml.Data.LoadFromEnumerable(from g in new[] { owner.Config.Inputs, owner.Config.Outputs }
+                                                             from c in g
+                                                             select new { ColumnName = c.Name, Text = c.Name });
+               var model = pipe.Fit(inputOutputs);
+               // Predice il nome della colonna che assomiglia di piu' all'oggetto richiesto
+               var predictions = DataViewGrid.Create(new DataAccess(ml, model.Transform(ml.Data.LoadFromEnumerable(new[]
+               {
+                  new { ColumnName = "", Text = "boxes" },
+                  new { ColumnName = "", Text = "classes" },
+                  new { ColumnName = "", Text = "scores" },
+               }))));
+               // Crea il dizionario di corrispondenze proprieta' / indice colonna
+               columnIndex = new()
+               {
+                  { nameof(DetectionBoxes), grid.Schema[(string)predictions[0]["PredictedLabel"]].Index },
+                  { nameof(DetectionClasses), grid.Schema[(string)predictions[1]["PredictedLabel"]].Index },
+                  { nameof(DetectionScores), grid.Schema[(string)predictions[2]["PredictedLabel"]].Index },
+               };
+            }
+            // Memorizza i risultati della previsione
+            DetectionBoxes = grid[0][columnIndex[nameof(DetectionBoxes)]];
+            DetectionClasses = grid[0][columnIndex[nameof(DetectionClasses)]];
+            DetectionScores = grid[0][columnIndex[nameof(DetectionScores)]];
          }
          /// <summary>
          /// Restituisce i bounding box filtrati
