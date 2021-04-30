@@ -66,36 +66,24 @@ namespace MachineLearning
       /// Aggiunge un elenco di dati di training
       /// </summary>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      /// <param name="data">Dati</param>
-      public void AddTrainingData(bool checkForDuplicates, params float[] data) => AddTrainingDataAsync(checkForDuplicates, default, data).WaitSync();
-      /// <summary>
-      /// Aggiunge un elenco di dati di training
-      /// </summary>
-      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <param name="data">Dati</param>
-      public Task AddTrainingDataAsync(bool checkForDuplicates, CancellationToken cancellation, params float[] data)
+      public void AddTrainingData(bool checkForDuplicates, CancellationToken cancellation, params float[] data)
       {
          var dataGrid = DataViewGrid.Create(_model, _model.InputSchema);
          dataGrid.Add(data);
-         return _model.AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
+         _model.AddTrainingData(dataGrid, checkForDuplicates, cancellation);
       }
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
       /// <param name="values">Valori di input</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(params float[] values) => GetPredictionAsync(default, values).WaitSync();
-      /// <summary>
-      /// Restituisce la previsione
-      /// </summary>
-      /// <param name="values">Valori di input</param>
-      /// <returns>Il task della previsione</returns>
-      public async Task<Prediction> GetPredictionAsync(CancellationToken cancel = default, params float[] values)
+      public Prediction GetPrediction(CancellationToken cancel = default, params float[] values)
       {
          var schema = InputSchema;
          var valueIx = 0;
-         return new Prediction(await _model.GetPredictionDataAsync(schema.Select(c => (object)(c.Name == _model.LabelColumnName ? 0f : values[valueIx++])).ToArray(), cancel));
+         return new Prediction(_model.GetPredictionData(schema.Select(c => (object)(c.Name == _model.LabelColumnName ? 0f : values[valueIx++])).ToArray(), cancel));
       }
       /// <summary>
       /// Imposta lo schema dei dati
@@ -115,12 +103,12 @@ namespace MachineLearning
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public Task StartTrainingAsync(CancellationToken cancellation = default) => _model.StartTrainingAsync(cancellation);
+      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public Task StopTrainingAsync() => _model.StopTrainingAsync();
+      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
       #endregion
    }
 

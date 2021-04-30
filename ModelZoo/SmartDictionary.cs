@@ -1,12 +1,12 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
-using MachineLearning.Util;
 using Microsoft.ML;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 
 namespace MachineLearning.ModelZoo
 {
@@ -140,8 +140,9 @@ namespace MachineLearning.ModelZoo
       /// Restituisce la chiave, contenuta nel dizionario, piu' simile a quella specificata
       /// </summary>
       /// <param name="key">La chiave</param>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
       /// <returns>La chiave piu' simile</returns>
-      public string GetSimilarKey(string key) => model.GetPredictionData(new[] { "", key }).ToDataViewGrid()[0]["PredictedLabel"];
+      public string GetSimilarKey(string key, CancellationToken cancellation = default) => model.GetPredictionData(new[] { "", key }, cancellation).ToDataViewGrid()[0]["PredictedLabel"];
       /// <summary>
       /// Restituisce l'enumeratore
       /// </summary>
@@ -252,8 +253,8 @@ namespace MachineLearning.ModelZoo
          {
             var data = DataViewGrid.Create(this, InputSchema);
             data.Add(key, key);
-            StopTrainingAsync();
-            AddTrainingDataAsync(data, false, default).WaitSync();
+            StopTraining();
+            AddTrainingData(data, false);
          }
          /// <summary>
          /// Aggiunge una chiave al modello
@@ -264,8 +265,8 @@ namespace MachineLearning.ModelZoo
             var data = DataViewGrid.Create(this, InputSchema);
             foreach (var key in keys)
                data.Add(key, key);
-            StopTrainingAsync();
-            AddTrainingDataAsync(data, false, default).WaitSync();
+            StopTraining();
+            AddTrainingData(data, false);
          }
          /// <summary>
          /// Restituisce le pipes

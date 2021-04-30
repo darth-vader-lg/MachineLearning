@@ -73,95 +73,85 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="data">Dati</param>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      /// <param name="cancellation">Token di cancellazione</param>
+      /// <param name="cancellation">Eventuale token di cancellazione</param>
       /// <returns>Il task</returns>
-      public Task AddTrainingDataAsync(IDataAccess data, bool checkForDuplicates, CancellationToken cancellation)
+      public void AddTrainingData(IDataAccess data, bool checkForDuplicates, CancellationToken cancellation = default)
       {
          if (!checkForDuplicates) {
-            return Task.Run(async () =>
-            {
-               // Ottiene e verifica l'evaluator
-               var evaluator = await GetEvaluatorAsync(ModelTrainer, cancellation);
-               var trainingStorage = evaluator.TrainingStorage;
-               if (trainingStorage == null)
-                  throw new InvalidOperationException("The object doesn't have training data characteristics");
-               // Effettua l'accodamento
-               var currentTrainingData = LoadData(trainingStorage);
+            // Ottiene e verifica l'evaluator
+            var evaluator = this.evaluator;
+            var trainingStorage = evaluator != null ? evaluator.TrainingStorage : (this as ITrainingStorageProvider)?.TrainingStorage;
+            if (trainingStorage == null)
+               throw new InvalidOperationException("The object doesn't have training data characteristics");
+            // Effettua l'accodamento
+            var currentTrainingData = LoadData(trainingStorage);
+            if (currentTrainingData != null) {
+               var merged = currentTrainingData.Merge(new DataAccess(this, data));
+               var temp = new DataStorageBinaryTempFile();
+               SaveData(temp, merged);
+               SaveData(trainingStorage, LoadData(temp));
+            }
+            else
+               SaveData(trainingStorage, data);
+            cancellation.ThrowIfCancellationRequested();
+         }
+         else {
+            // Ottiene e verifica l'evaluator
+            var evaluator = this.evaluator;
+            var trainingStorage = evaluator != null ? evaluator.TrainingStorage : (this as ITrainingStorageProvider)?.TrainingStorage;
+            if (trainingStorage == null)
+               throw new InvalidOperationException("The object doesn't have training data characteristics");
+            // Set di righe duplicate di training
+            var invalidRows = new HashSet<long>();
+            // Dati di training attuali
+            var currentTrainingData = LoadData(trainingStorage);
+            var currentStorageData = evaluator.DataStorage == null ? null : LoadData(evaluator.DataStorage);
+            // Loop su tutti i dati di training
+            var rowsCount = 0;
+            foreach (var dataCursor in data.GetRowCursor(data.Schema).AsEnumerable()) {
+               // Ottiene i valori
+               var dataRow = dataCursor.ToDataViewValuesRow(this);
+               rowsCount++;
+               // Loop sui set di dati
+               foreach (var dataSet in new[] { currentStorageData, currentTrainingData }) {
+                  // Loop sui dati di training gia' esistenti
+                  if (dataSet != null) {
+                     foreach (var dataSetCursor in dataSet.GetRowCursor(dataSet.Schema).AsEnumerable()) {
+                        var dataSetRow = dataSetCursor.ToDataViewValuesRow(this);
+                        if (dataRow.Zip(dataSetRow).All(item => item.First == item.Second)) {
+                           invalidRows.Add(dataRow.Position);
+                           break;
+                        }
+                        cancellation.ThrowIfCancellationRequested();
+                     }
+                     if (invalidRows.Contains(dataRow.Position))
+                        continue;
+                  }
+               }
+            }
+            // Verifica se deve aggiornare i dati di training
+            cancellation.ThrowIfCancellationRequested();
+            if (invalidRows.Count < rowsCount) {
                if (currentTrainingData != null) {
-                  var merged = currentTrainingData.Merge(new DataAccess(this, data));
-                  var temp = new DataStorageBinaryTempFile();
+                  var merged = currentTrainingData.Merge(new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
+                  using var temp = new DataStorageBinaryTempFile();
                   SaveData(temp, merged);
                   SaveData(trainingStorage, LoadData(temp));
                }
                else
-                  SaveData(trainingStorage, data);
-               cancellation.ThrowIfCancellationRequested();
-            }, cancellation);
-         }
-         else {
-            return Task.Run(async () =>
-            {
-               // Ottiene e verifica l'evaluator
-               var evaluator = await GetEvaluatorAsync(ModelTrainer, cancellation);
-               var trainingStorage = evaluator.TrainingStorage;
-               if (trainingStorage == null)
-                  throw new InvalidOperationException("The object doesn't have training data characteristics");
-               // Set di righe duplicate di training
-               var invalidRows = new HashSet<long>();
-               // Dati di training attuali
-               var currentTrainingData = LoadData(trainingStorage);
-               var currentStorageData = evaluator.DataStorage == null ? null : LoadData(evaluator.DataStorage);
-               // Loop su tutti i dati di training
-               var rowsCount = 0;
-               foreach (var dataCursor in data.GetRowCursor(data.Schema).AsEnumerable()) {
-                  // Ottiene i valori
-                  var dataRow = dataCursor.ToDataViewValuesRow(this);
-                  rowsCount++;
-                  // Loop sui set di dati
-                  foreach (var dataSet in new[] { currentStorageData, currentTrainingData }) {
-                     // Loop sui dati di training gia' esistenti
-                     if (dataSet != null) {
-                        foreach (var dataSetCursor in dataSet.GetRowCursor(dataSet.Schema).AsEnumerable()) {
-                           var dataSetRow = dataSetCursor.ToDataViewValuesRow(this);
-                           if (dataRow.Zip(dataSetRow).All(item => item.First == item.Second)) {
-                              invalidRows.Add(dataRow.Position);
-                              break;
-                           }
-                           cancellation.ThrowIfCancellationRequested();
-                        }
-                        if (invalidRows.Contains(dataRow.Position))
-                           continue;
-                     }
-                  }
-               }
-               // Verifica se deve aggiornare i dati di training
-               cancellation.ThrowIfCancellationRequested();
-               if (invalidRows.Count < rowsCount) {
-                  if (currentTrainingData != null) {
-                     var merged = currentTrainingData.Merge(new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
-                     using var temp = new DataStorageBinaryTempFile();
-                     SaveData(temp, merged);
-                     SaveData(trainingStorage, LoadData(temp));
-                  }
-                  else
-                     SaveData(trainingStorage, new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
-               }
-               cancellation.ThrowIfCancellationRequested();
-            }, cancellation);
+                  SaveData(trainingStorage, new DataAccess(this, data).ToDataViewFiltered(row => !invalidRows.Contains(row.Position)));
+            }
+            cancellation.ThrowIfCancellationRequested();
          }
       }
       /// <summary>
       /// Stoppa il training ed annulla la validita' del modello
       /// </summary>
-      public void ClearModel() => ClearTrainingAsync().WaitSync();
-      /// <summary>
-      /// Stoppa il training ed annulla la validita' del modello
-      /// </summary>
-      public async Task ClearTrainingAsync()
+      public void ClearModel()
       {
          if (this.evaluator is Evaluator evaluator && evaluator != null) {
             // Stoppa il training
-            await StopTrainingInternalAsync(evaluator);
+            StopTrainingInternal(evaluator);
             // Invalida la valutazione
             lock (evaluator)
                SetEvaluation(evaluator, null, null, evaluator.Timestamp);
@@ -199,7 +189,8 @@ namespace MachineLearning.Model
          var tmpFileName = Path.GetTempFileName();
          try {
             // Dati di storage e di training concatenati
-            var mergedData = LoadData(dataStorage).Merge(LoadData(trainingStorage));
+            var mergedData = LoadData(dataStorage);
+            mergedData = mergedData?.Merge(LoadData(trainingStorage)) ?? LoadData(trainingStorage);
             // Salva in un file temporaneo il merge
             var tmpStorage = new DataStorageBinaryFile(tmpFileName) { KeepHidden = true };
             SaveData(tmpStorage, mergedData);
@@ -239,19 +230,12 @@ namespace MachineLearning.Model
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La valutazione</returns>
-      protected IModelEvaluator GetEvaluation(IModelTrainer trainer, CancellationToken cancellation = default) => GetEvaluationAsync(trainer, cancellation).WaitSync();
-      /// <summary>
-      /// Restituisce la valutazione
-      /// </summary>
-      /// <param name="trainer">Il trainer</param>
-      /// <param name="cancellation">Eventule token di cancellazione attesa</param>
-      /// <returns>La valutazione</returns>
-      protected async Task<IModelEvaluator> GetEvaluationAsync(IModelTrainer trainer, CancellationToken cancellation = default)
+      protected IModelEvaluator GetEvaluation(IModelTrainer trainer, CancellationToken cancellation = default)
       {
          // Ottiene l'evaluator
-         var evaluator = await GetEvaluatorAsync(trainer, cancellation);
+         var evaluator = GetEvaluator(trainer, cancellation);
          // Attende la valutazione o la cancellazione del training
-         var waitResult = await Task.Run(() => WaitHandle.WaitAny(new[] { evaluator.Available, cancellation.WaitHandle, evaluator.Cancellation.WaitHandle }));
+         var waitResult = Task.Run(() => WaitHandle.WaitAny(new[] { evaluator.Available, cancellation.WaitHandle, evaluator.Cancellation.WaitHandle })).Result;
          // Se il task non era quello di valutazione valida propaga l'eventuale eccezione del task di training
          switch (waitResult) {
             case 0:
@@ -260,8 +244,7 @@ namespace MachineLearning.Model
                throw new OperationCanceledException();
             case 2:
                // Await per propagare eventuale eccezione
-               await evaluator.Task;
-               break;
+               throw evaluator.Task.Exception;
          }
          // Verifica che sia veramente disponibile un risultato
          if (!evaluator.Available.WaitOne(0))
@@ -274,7 +257,7 @@ namespace MachineLearning.Model
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      protected async Task<IModelEvaluator> GetEvaluatorAsync(IModelTrainer trainer, CancellationToken cancellation = default)
+      protected IModelEvaluator GetEvaluator(IModelTrainer trainer, CancellationToken cancellation = default)
       {
          var currentEvaluator = default(Evaluator);
          var stopEvaluator = default(Evaluator);
@@ -345,7 +328,7 @@ namespace MachineLearning.Model
                startEvaluator = currentEvaluator;
          }
          if (stopEvaluator != null) {
-            await StopTrainingInternalAsync(stopEvaluator);
+            StopTrainingInternal(stopEvaluator);
             cancellation.ThrowIfCancellationRequested();
          }
          if (startEvaluator != null && startEvaluator.TaskTraining.Task.IsCompleted)
@@ -371,19 +354,12 @@ namespace MachineLearning.Model
       /// Restituisce la previsione
       /// </summary>
       /// <param name="data">Riga di dati da usare per la previsione</param>
-      /// <returns>La previsione</returns>
-      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public IDataAccess GetPredictionData(IEnumerable<object> data) => GetPredictionDataAsync(data, default).WaitSync();
-      /// <summary>
-      /// Restituisce il task di previsione
-      /// </summary>
-      /// <param name="data">Riga di dati da usare per la previsione</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      public async Task<IDataAccess> GetPredictionDataAsync(IEnumerable<object> data, CancellationToken cancellation)
+      public IDataAccess GetPredictionData(IEnumerable<object> data, CancellationToken cancellation = default)
       {
          // Attande il modello od un eventuale errore di training
-         var evaluation = await GetEvaluationAsync(ModelTrainer, cancellation);
+         var evaluation = GetEvaluation(ModelTrainer, cancellation);
          lock (evaluation) {
             cancellation.ThrowIfCancellationRequested();
             // Crea la vista di dati per la previsione
@@ -542,8 +518,7 @@ namespace MachineLearning.Model
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public Task StartTrainingAsync(CancellationToken cancellation = default) =>
-         GetEvaluatorAsync(ModelTrainer, cancellation);
+      public void StartTraining(CancellationToken cancellation = default) => GetEvaluator(ModelTrainer, cancellation);
       /// <summary>
       /// FUnzione interna di start del training
       /// </summary>
@@ -582,23 +557,22 @@ namespace MachineLearning.Model
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
-      public Task StopTrainingAsync()
+      public void StopTraining(CancellationToken cancellation = default)
       {
          if (this.evaluator is Evaluator evaluator && evaluator != null)
-            return StopTrainingInternalAsync(evaluator);
-         return Task.CompletedTask;
+            StopTrainingInternal(evaluator);
       }
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="evaluator">L'evaluator da stoppare</param>
-      private async Task StopTrainingInternalAsync(Evaluator evaluator)
+      private void StopTrainingInternal(Evaluator evaluator)
       {
          if (!evaluator.TaskTraining.CancellationToken.IsCancellationRequested) {
             evaluator.TaskTraining.Cancel();
             Channel.WriteLog("Stop training");
             try {
-               await evaluator.TaskTraining.Task;
+               evaluator.TaskTraining.Task.Wait();
             }
             catch (OperationCanceledException) {
             }
@@ -852,13 +826,8 @@ namespace MachineLearning.Model
       /// <param name="data">Dati di input</param>
       /// <param name="cancellation">Eventuale token di cancellazione</param>
       /// <returns>I dati trasformati</returns>
-      public IDataAccess Transform(IDataAccess data, CancellationToken cancellation = default)
-      {
-         if (cancellation != default)
-            return new DataAccess(this, GetEvaluationAsync((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).ConfigureAwait(false).GetAwaiter().GetResult().Model?.Transform(data, cancellation));
-         else
-            return new DataAccess(this, GetEvaluation((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).Model?.Transform(data, cancellation));
-      }
+      public IDataAccess Transform(IDataAccess data, CancellationToken cancellation = default) =>
+         new DataAccess(this, GetEvaluation((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).Model?.Transform(data, cancellation));
       #endregion
    }
 

@@ -1,5 +1,6 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
+using MachineLearning.ModelZoo;
 using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Transforms.Image;
@@ -9,7 +10,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace MachineLearning
 {
@@ -60,26 +60,20 @@ namespace MachineLearning
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
-      /// <returns>Il tipo di immagine</returns>
-      public Prediction GetPrediction(string imagePath) => GetPredictionAsync(imagePath, default).WaitSync();
-      /// <summary>
-      /// Restituisce il tipo di immagine
-      /// </summary>
-      /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
-      /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) =>
-         new Prediction(_model, await _model.GetPredictionDataAsync(new[] { imagePath }, cancel));
+      /// <returns>I box dei rilevamenti</returns>
+      public Prediction GetPrediction(string imagePath, CancellationToken cancel = default) =>
+         new(_model, _model.GetPredictionData(new[] { imagePath }, cancel));
       /// <summary>
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public Task StartTrainingAsync(CancellationToken cancellation = default) => _model.StartTrainingAsync(cancellation);
+      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public Task StopTrainingAsync() => _model.StopTrainingAsync();
+      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
       #endregion
    }
 
@@ -251,7 +245,7 @@ namespace MachineLearning
          /// <summary>
          /// Modello per ricavare il nome di una colonna dal nome della proprieta' a cui accedere
          /// </summary>
-         private static Dictionary<string, int> columnIndex;
+         private static Dictionary<string, Func<DataViewGrid, float[]>> readOutput;
          #endregion
          #region Properties
          /// <summary>
@@ -278,45 +272,31 @@ namespace MachineLearning
          /// <param name="data">Dati della previsione</param>
          internal Prediction(Model owner, IDataAccess data)
          {
+            // Crea il dizionario intelligente di mappatura degli ingressi uscite
+            if (readOutput == null) {
+               var sd = new SmartDictionary<string>(from item in owner.Config.Inputs.Concat(owner.Config.Outputs)
+                                                    select new KeyValuePair<string, string>(item.Name, item.Name));
+               var columnIndex = new Dictionary<string, int>
+               {
+                  { nameof(DetectionBoxes), data.Schema[sd.Similar["boxes"]].Index },
+                  { nameof(DetectionClasses), data.Schema[sd.Similar["classes"]].Index },
+                  { nameof(DetectionScores), data.Schema[sd.Similar["scores"]].Index },
+               };
+               readOutput = new()
+               {
+                  { nameof(DetectionBoxes), grid => grid[0][columnIndex[nameof(DetectionBoxes)]] },
+                  { nameof(DetectionClasses), grid => grid[0][columnIndex[nameof(DetectionClasses)]] },
+                  { nameof(DetectionScores), grid => grid[0][columnIndex[nameof(DetectionScores)]] },
+               };
+            }
             // Crea la griglia del risultato
             var grid = data.ToDataViewGrid();
             // Memorizza le labels
             Labels = owner.Labels;
-            // Crea il dizionario intelligente di mappatura degli ingressi uscite
-            if (columnIndex == null) {
-               // Modello di interpretazione del testo in base ai nomi delle colonne del modello
-               var ml = owner.Context;
-               var pipe =
-                  ml.Transforms.Text.NormalizeText("Text")
-                  .Append(ml.Transforms.Text.TokenizeIntoWords("Text", null, new[] { '_', ',', ':', '[', ']', ' ' }))
-                  .Append(ml.Transforms.Text.FeaturizeText("Text", "Text"))
-                  .Append(ml.Transforms.Conversion.MapValueToKey("ColumnName"))
-                  .Append(ml.MulticlassClassification.Trainers.NaiveBayes("ColumnName", "Text"))
-                  .Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel"))
-                  ;
-               var inputOutputs = ml.Data.LoadFromEnumerable(from g in new[] { owner.Config.Inputs, owner.Config.Outputs }
-                                                             from c in g
-                                                             select new { ColumnName = c.Name, Text = c.Name });
-               var model = pipe.Fit(inputOutputs);
-               // Predice il nome della colonna che assomiglia di piu' all'oggetto richiesto
-               var predictions = DataViewGrid.Create(new DataAccess(ml, model.Transform(ml.Data.LoadFromEnumerable(new[]
-               {
-                  new { ColumnName = "", Text = "boxes" },
-                  new { ColumnName = "", Text = "classes" },
-                  new { ColumnName = "", Text = "scores" },
-               }))));
-               // Crea il dizionario di corrispondenze proprieta' / indice colonna
-               columnIndex = new()
-               {
-                  { nameof(DetectionBoxes), grid.Schema[(string)predictions[0]["PredictedLabel"]].Index },
-                  { nameof(DetectionClasses), grid.Schema[(string)predictions[1]["PredictedLabel"]].Index },
-                  { nameof(DetectionScores), grid.Schema[(string)predictions[2]["PredictedLabel"]].Index },
-               };
-            }
             // Memorizza i risultati della previsione
-            DetectionBoxes = grid[0][columnIndex[nameof(DetectionBoxes)]];
-            DetectionClasses = grid[0][columnIndex[nameof(DetectionClasses)]];
-            DetectionScores = grid[0][columnIndex[nameof(DetectionScores)]];
+            DetectionBoxes = readOutput[nameof(DetectionBoxes)](grid);
+            DetectionClasses = readOutput[nameof(DetectionClasses)](grid);
+            DetectionScores = readOutput[nameof(DetectionScores)](grid);
          }
          /// <summary>
          /// Restituisce i bounding box filtrati

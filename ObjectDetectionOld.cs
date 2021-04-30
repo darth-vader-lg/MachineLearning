@@ -64,26 +64,20 @@ namespace MachineLearning
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
-      /// <returns>Il tipo di immagine</returns>
-      public Prediction GetPrediction(string imagePath) => GetPredictionAsync(imagePath, default).WaitSync();
-      /// <summary>
-      /// Restituisce il tipo di immagine
-      /// </summary>
-      /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
-      /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default) =>
-         new Prediction(await _model.GetPredictionDataAsync(new[] { imagePath }, cancel));
+      /// <returns>I box dei rilevamenti</returns>
+      public Prediction GetPrediction(string imagePath, CancellationToken cancel = default) =>
+         new(_model.GetPredictionData(new[] { imagePath }, cancel));
       /// <summary>
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public Task StartTrainingAsync(CancellationToken cancellation = default) => _model.StartTrainingAsync(cancellation);
+      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public Task StopTrainingAsync() => _model.StopTrainingAsync();
+      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
       #endregion
    }
 
@@ -195,7 +189,7 @@ namespace MachineLearning
                   }
                });
                if (disposing)
-                  taskKill.WaitSync();
+                  taskKill.Wait();
             }
          }
          /// <summary>
@@ -239,7 +233,7 @@ namespace MachineLearning
                trainProcess.BeginOutputReadLine();
                trainProcess.BeginErrorReadLine();
                try {
-                  trainProcess.WaitForExitAsync(cancellation).WaitSync();
+                  trainProcess.WaitForExitAsync(cancellation).Wait(cancellation);
                }
                catch (OperationCanceledException) { }
                catch (Exception exc) {

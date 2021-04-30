@@ -1,6 +1,5 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
-using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.Text;
@@ -8,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace MachineLearning
 {
@@ -65,19 +63,13 @@ namespace MachineLearning
       /// Aggiunge un elenco di dati di training
       /// </summary>
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
-      /// <param name="data">Dati</param>
-      public void AddTrainingData(bool checkForDuplicates, params string[] data) => AddTrainingDataAsync(checkForDuplicates, default, data).WaitSync();
-      /// <summary>
-      /// Aggiunge un elenco di dati di training
-      /// </summary>
-      /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <param name="data">Dati</param>
-      public Task AddTrainingDataAsync(bool checkForDuplicates, CancellationToken cancellation, params string[] data)
+      public void AddTrainingData(bool checkForDuplicates, CancellationToken cancellation, params string[] data)
       {
          var dataGrid = DataViewGrid.Create(_model, InputSchema);
          dataGrid.Add(data);
-         return _model.AddTrainingDataAsync(dataGrid, checkForDuplicates, cancellation);
+         _model.AddTrainingData(dataGrid, checkForDuplicates, cancellation);
       }
       /// <summary>
       /// Pulisce il modello
@@ -86,19 +78,14 @@ namespace MachineLearning
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
+      /// <param name="cancel">L'eventuale tokehn di cancellazione</param>
       /// <param name="sentences">Elenco di sentenze di cui prevedere il significato</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(params string[] sentences) => GetPredictionAsync(default, sentences).WaitSync();
-      /// <summary>
-      /// Restituisce la previsione
-      /// </summary>
-      /// <param name="sentences">Elenco di sentenze di cui prevedere il significato</param>
-      /// <returns>Il task della previsione</returns>
-      public async Task<Prediction> GetPredictionAsync(CancellationToken cancel = default, params string[] sentences)
+      public Prediction GetPrediction(CancellationToken cancel = default, params string[] sentences)
       {
          var schema = InputSchema;
          var valueIx = 0;
-         return new Prediction(await _model.GetPredictionDataAsync(schema.Select(c => c.Name == _model.LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
+         return new Prediction(_model.GetPredictionData(schema.Select(c => c.Name == _model.LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
       }
       /// <summary>
       /// Imposta lo schema dei dati
@@ -118,12 +105,12 @@ namespace MachineLearning
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public Task StartTrainingAsync(CancellationToken cancellation = default) => _model.StartTrainingAsync(cancellation);
+      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public Task StopTrainingAsync() => _model.StopTrainingAsync();
+      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
       #endregion
    }
 

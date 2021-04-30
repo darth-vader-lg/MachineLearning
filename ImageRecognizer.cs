@@ -1,6 +1,5 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
-using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
@@ -73,18 +72,12 @@ namespace MachineLearning
       /// Restituisce il tipo di immagine
       /// </summary>
       /// <param name="imagePath">Path dell'immagine</param>
-      /// <returns>Il tipo di immagine</returns>
-      public Prediction GetPrediction(string imagePath) => GetPredictionAsync(imagePath, default).WaitSync();
-      /// <summary>
-      /// Restituisce il tipo di immagine
-      /// </summary>
-      /// <param name="imagePath">Path dell'immagine</param>
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>Il task di previsione del tipo di immagine</returns>
-      public async Task<Prediction> GetPredictionAsync(string imagePath, CancellationToken cancel = default)
+      public Prediction GetPrediction(string imagePath, CancellationToken cancel = default)
       {
          var schema = InputSchema;
-         return new Prediction(await _model.GetPredictionDataAsync(schema.Select(c => c.Name == _model.ImagePathColumnName ? imagePath : null).ToArray(), cancel));
+         return new Prediction(_model.GetPredictionData(schema.Select(c => c.Name == _model.ImagePathColumnName ? imagePath : null).ToArray(), cancel));
       }
       /// <summary>
       /// Imposta lo schema dei dati
@@ -112,12 +105,12 @@ namespace MachineLearning
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public Task StartTrainingAsync(CancellationToken cancellation = default) => _model.StartTrainingAsync(cancellation);
+      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
       /// <summary>
       /// Stoppa il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public Task StopTrainingAsync() => _model.StopTrainingAsync();
+      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
       #endregion
    }
 
@@ -232,37 +225,34 @@ namespace MachineLearning
          /// <param name="cancellation">Token di cancellazione</param>
          /// <returns>La lista di dati di training</returns>
          /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
-         private async Task<DataViewGrid> GetTrainingDataFromPathAsync(string[] dirs, CancellationToken cancellation = default)
+         private DataViewGrid GetTrainingDataFromPath(string[] dirs, CancellationToken cancellation = default)
          {
-            return await Task.Run(() =>
-            {
-               var folders = from dir in dirs ?? Array.Empty<string>()
-                             from item in Directory.GetDirectories(dir, "*.*", SearchOption.TopDirectoryOnly)
-                             where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
-                             select item;
-               var imageData = from folder in folders
-                               from file in Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly)
-                               let ext = Path.GetExtension(file).ToLower()
-                               where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
-                               let line = new { Label = Path.GetFileName(folder), ImagePath = file, Timestamp = File.GetLastWriteTimeUtc(file) }
-                               orderby line.ImagePath
-                               select line;
-               var inputSchema = InputSchema;
-               var dataGrid = DataViewGrid.Create(this, inputSchema);
-               var timestampColumnName = inputSchema.FirstOrDefault(c => c.Name == ImageTimestampColumnName);
-               foreach (var line in imageData) {
-                  var values = new List<(string Name, object Path)>
-                  {
-                     (LabelColumnName, line.Label),
-                     (ImagePathColumnName, line.ImagePath)
-                  };
-                  if (!string.IsNullOrWhiteSpace(ImageTimestampColumnName))
-                     values.Add((ImageTimestampColumnName, line.Timestamp));
-                  dataGrid.Add(values.ToArray());
-                  cancellation.ThrowIfCancellationRequested();
-               }
-               return dataGrid;
-            }, cancellation);
+            var folders = from dir in dirs ?? Array.Empty<string>()
+                           from item in Directory.GetDirectories(dir, "*.*", SearchOption.TopDirectoryOnly)
+                           where File.GetAttributes(item).HasFlag(FileAttributes.Directory)
+                           select item;
+            var imageData = from folder in folders
+                              from file in Directory.GetFiles(folder, "*.*", SearchOption.TopDirectoryOnly)
+                              let ext = Path.GetExtension(file).ToLower()
+                              where new[] { ".jpg", ".png", ".bmp" }.Contains(ext)
+                              let line = new { Label = Path.GetFileName(folder), ImagePath = file, Timestamp = File.GetLastWriteTimeUtc(file) }
+                              orderby line.ImagePath
+                              select line;
+            var inputSchema = InputSchema;
+            var dataGrid = DataViewGrid.Create(this, inputSchema);
+            var timestampColumnName = inputSchema.FirstOrDefault(c => c.Name == ImageTimestampColumnName);
+            foreach (var line in imageData) {
+               var values = new List<(string Name, object Path)>
+               {
+                  (LabelColumnName, line.Label),
+                  (ImagePathColumnName, line.ImagePath)
+               };
+               if (!string.IsNullOrWhiteSpace(ImageTimestampColumnName))
+                  values.Add((ImageTimestampColumnName, line.Timestamp));
+               dataGrid.Add(values.ToArray());
+               cancellation.ThrowIfCancellationRequested();
+            }
+            return dataGrid;
          }
          /// <summary>
          /// Funzione di start del training
@@ -273,7 +263,7 @@ namespace MachineLearning
             base.OnTrainingCycleStarted(e);
             if (e.Evaluator.Cancellation.IsCancellationRequested)
                return;
-            UpdateStorageAsync(_owner.ImagesSources, e.Evaluator.Cancellation).WaitSync();
+            UpdateStorage(_owner.ImagesSources, e.Evaluator.Cancellation);
          }
          /// <summary>
          /// Aggiorna lo storage di dati con l'elenco delle immagini categorizzate contenute nella directory indicata
@@ -281,87 +271,84 @@ namespace MachineLearning
          /// <param name="dirs">Le directory radice delle immagini</param>
          /// <param name="cancellation">Token di cancellazione</param>
          /// <remarks>Le immagini vanno oganizzate in sottodirectory della radice, in cui il nome della sottodirectory specifica la label delle immagini contenute.</remarks>
-         private async Task UpdateStorageAsync(string[] dirs, CancellationToken cancellation = default)
+         private void UpdateStorage(string[] dirs, CancellationToken cancellation = default)
          {
             // Verifica che sia definito uno storage di dati
             if (DataStorage == null)
                return;
             // Ottiene i dati di training (l'elenco delle immagini classificate e datate)
-            var trainingData = await GetTrainingDataFromPathAsync(dirs, cancellation);
+            var trainingData = GetTrainingDataFromPath(dirs, cancellation);
             cancellation.ThrowIfCancellationRequested();
             Channel.WriteLog("Updating image list");
             // Effettua l'aggiornamento dello storage di dati sincronizzandolo con lo stato delle immagini
-            await Task.Run(async () =>
-            {
-               // Immagini da scartare nello storage
-               var invalidStorageImages = new HashSet<long>();
-               // Immagini da scartare nel training
-               var invalidTrainingImages = new HashSet<long>();
-               // Task per parallelizzare i confronti
-               var tasks = Enumerable.Range(0, Environment.ProcessorCount).Select(i => Task.CompletedTask).ToArray();
-               var taskIx = 0;
-               // Scandisce lo storage alla ricerca di elementi non piu' validi o aggiornati
-               foreach (var cursor in LoadData(DataStorage).GetRowCursor(trainingData.Schema).AsEnumerable()) {
-                  cancellation.ThrowIfCancellationRequested();
-                  // Riga di dati di storage
-                  var storageRow = cursor.ToDataViewValuesRow(this);
-                  var position = cursor.Position;
-                  // Task di comparazione
-                  tasks[taskIx] = Task.Run(() =>
-                  {
-                     // Verifica esistenza del file
-                     if (!File.Exists(storageRow[ImagePathColumnName])) {
-                        lock (invalidStorageImages)
-                           invalidStorageImages.Add(position);
-                     }
-                     else {
-                        // Verifica incrociata con i dati di training
-                        foreach (var dataRow in trainingData) {
-                           cancellation.ThrowIfCancellationRequested();
-                           // Verifica se nel training esiste un immagine con lo stesso path del file nello storage
-                           if (storageRow[ImagePathColumnName] == dataRow[ImagePathColumnName]) {
-                              // Verifica se i dati relativi all'immagine sono variati
-                              if (storageRow.ToString() != dataRow.ToString()) {
-                                 lock (invalidStorageImages)
-                                    invalidStorageImages.Add(position);
-                                 break;
-                              }
-                              else {
-                                 lock (invalidTrainingImages)
-                                    invalidTrainingImages.Add(dataRow.Position);
-                              }
+            // Immagini da scartare nello storage
+            var invalidStorageImages = new HashSet<long>();
+            // Immagini da scartare nel training
+            var invalidTrainingImages = new HashSet<long>();
+            // Task per parallelizzare i confronti
+            var tasks = Enumerable.Range(0, Environment.ProcessorCount).Select(i => Task.CompletedTask).ToArray();
+            var taskIx = 0;
+            // Scandisce lo storage alla ricerca di elementi non piu' validi o aggiornati
+            foreach (var cursor in LoadData(DataStorage).GetRowCursor(trainingData.Schema).AsEnumerable()) {
+               cancellation.ThrowIfCancellationRequested();
+               // Riga di dati di storage
+               var storageRow = cursor.ToDataViewValuesRow(this);
+               var position = cursor.Position;
+               // Task di comparazione
+               tasks[taskIx] = Task.Run(() =>
+               {
+                  // Verifica esistenza del file
+                  if (!File.Exists(storageRow[ImagePathColumnName])) {
+                     lock (invalidStorageImages)
+                        invalidStorageImages.Add(position);
+                  }
+                  else {
+                     // Verifica incrociata con i dati di training
+                     foreach (var dataRow in trainingData) {
+                        cancellation.ThrowIfCancellationRequested();
+                        // Verifica se nel training esiste un immagine con lo stesso path del file nello storage
+                        if (storageRow[ImagePathColumnName] == dataRow[ImagePathColumnName]) {
+                           // Verifica se i dati relativi all'immagine sono variati
+                           if (storageRow.ToString() != dataRow.ToString()) {
+                              lock (invalidStorageImages)
+                                 invalidStorageImages.Add(position);
+                              break;
+                           }
+                           else {
+                              lock (invalidTrainingImages)
+                                 invalidTrainingImages.Add(dataRow.Position);
                            }
                         }
                      }
-                  }, cancellation);
-                  // Attende i task
-                  if (++taskIx == tasks.Length) {
-                     await Task.WhenAll(tasks);
-                     taskIx = 0;
                   }
+               }, cancellation);
+               // Attende i task
+               if (++taskIx == tasks.Length) {
+                  Task.WhenAll(tasks).Wait(cancellation);
+                  taskIx = 0;
                }
-               // Attende termine di tutti i task
+            }
+            // Attende termine di tutti i task
+            cancellation.ThrowIfCancellationRequested();
+            Task.WhenAll(tasks).Wait(cancellation);
+            // Verifica se deve aggiornare lo storage
+            if (invalidStorageImages.Count > 0 || (invalidTrainingImages.Count == 0 && (trainingData.GetRowCount() ?? 0L) > 0)) {
+               // Crea la vista dati mergiata e filtrata
+               var mergedDataView =
+                  LoadData(DataStorage).ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).
+                  Merge(trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position)));
                cancellation.ThrowIfCancellationRequested();
-               await Task.WhenAll(tasks);
-               // Verifica se deve aggiornare lo storage
-               if (invalidStorageImages.Count > 0 || (invalidTrainingImages.Count == 0 && (trainingData.GetRowCount() ?? 0L) > 0)) {
-                  // Crea la vista dati mergiata e filtrata
-                  var mergedDataView =
-                     LoadData(DataStorage).ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).
-                     Merge(trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position)));
-                  cancellation.ThrowIfCancellationRequested();
-                  // File temporaneo per il merge
-                  using var mergedStorage = new DataStorageBinaryTempFile();
-                  // Salva il mix di dati nel file temporaneo
-                  SaveData(mergedStorage, mergedDataView);
-                  // Salva il file temporaneo nello storage
-                  mergedDataView = LoadData(mergedStorage);
-                  SaveData(DataStorage, LoadData(mergedStorage));
-                  Channel.WriteLog("Image list updated");
-               }
-               else
-                  Channel.WriteLog("Image list is still valid");
-            }, cancellation);
+               // File temporaneo per il merge
+               using var mergedStorage = new DataStorageBinaryTempFile();
+               // Salva il mix di dati nel file temporaneo
+               SaveData(mergedStorage, mergedDataView);
+               // Salva il file temporaneo nello storage
+               mergedDataView = LoadData(mergedStorage);
+               SaveData(DataStorage, LoadData(mergedStorage));
+               Channel.WriteLog("Image list updated");
+            }
+            else
+               Channel.WriteLog("Image list is still valid");
             cancellation.ThrowIfCancellationRequested();
          }
          #endregion

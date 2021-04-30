@@ -1,12 +1,10 @@
 ﻿using MachineLearning.Data;
-using MachineLearning.Util;
 using Microsoft.ML.Runtime;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace MachineLearning.Model
 {
@@ -19,7 +17,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Lista di transformers
       /// </summary>
-      private readonly List<IDataTransformer> models = new List<IDataTransformer>();
+      private readonly List<IDataTransformer> models = new();
       #endregion
       #region Properties
       /// <summary>
@@ -69,36 +67,26 @@ namespace MachineLearning.Model
       /// <returns>L'enumeratore</returns>
       public IEnumerator<IDataTransformer> GetEnumerator() => ((IEnumerable<IDataTransformer>)models).GetEnumerator();
       /// <summary>
-      /// Restituisce la previsione
-      /// </summary>
-      /// <param name="data">Riga di dati da usare per la previsione</param>
-      /// <returns>La previsione</returns>
-      /// <remarks>La posizione corrispondente alla label puo' essere lasciata vuota</remarks>
-      public IDataAccess GetPredictionData(IEnumerable<object> data) => GetPredictionDataAsync(data, default).WaitSync();
-      /// <summary>
       /// Restituisce il task di previsione
       /// </summary>
       /// <param name="data">Riga di dati da usare per la previsione</param>
       /// <param name="cancellation">Eventule token di cancellazione attesa</param>
       /// <returns>La previsione</returns>
-      public Task<IDataAccess> GetPredictionDataAsync(IEnumerable<object> data, CancellationToken cancellation)
+      public IDataAccess GetPredictionData(IEnumerable<object> data, CancellationToken cancellation = default)
       {
          if (Count < 1)
             return null;
          if (this[0] is not IInputSchema inputSchema)
             throw new InvalidOperationException("Cannot infer the input schema of the model chain");
-         return Task.Run(() =>
-         {
-            var dataViewGrid = DataViewGrid.Create(this[0] as IChannelProvider ?? MachineLearningContext.Default, inputSchema.InputSchema);
-            dataViewGrid.Add(data.ToArray());
-            var result = (IDataAccess)dataViewGrid;
+         var dataViewGrid = DataViewGrid.Create(this[0] as IChannelProvider ?? MachineLearningContext.Default, inputSchema.InputSchema);
+         dataViewGrid.Add(data.ToArray());
+         var result = (IDataAccess)dataViewGrid;
+         cancellation.ThrowIfCancellationRequested();
+         for (var i = 0; i < Count; i++) {
+            result = this[i].Transform(result, cancellation);
             cancellation.ThrowIfCancellationRequested();
-            for (var i = 0; i < Count; i++) {
-               result = this[i].Transform(result, cancellation);
-               cancellation.ThrowIfCancellationRequested();
-            }
-            return result;
-         });
+         }
+         return result;
       }
       /// <summary>
       /// Restituisce l'enumeratore

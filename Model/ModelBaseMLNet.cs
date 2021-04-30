@@ -282,10 +282,12 @@ namespace MachineLearning.Model
             CancellationToken cancellation = default)
          {
             // Avvia il task di autotraining se necessario
-            if (autoTrainingTask.CancellationToken.IsCancellationRequested)
+            if (autoTrainingTask.CancellationToken.IsCancellationRequested) {
                autoTrainingTask.Task.Wait(cancellation);
+               autoTrainingModels.Clear();
+            }
             cancellation.ThrowIfCancellationRequested();
-            if (autoTrainingModels.Count == 0 || autoTrainingTask.Task.IsCompleted) {
+            if (autoTrainingModels.Count == 0 && autoTrainingTask.Task.IsCompleted) {
                // Ottiene le pipe
                var pipes = owner.GetPipes();
                // Coda dei modelli di training calcolati
@@ -305,8 +307,10 @@ namespace MachineLearning.Model
                      lock (queue) {
                         if (!autoTrainingTask.CancellationToken.IsCancellationRequested && !cancellation.IsCancellationRequested)
                            owner.Channel.WriteLog(model == null ? $"Autotraining complete" : $"Trainer: {trainerName}\t{runtimeInSeconds:0.#} secs");
-                        queue.Enqueue((model, metrics));
-                        availableEvent.Set();
+                        if (model != null) {
+                           queue.Enqueue((model, metrics));
+                           availableEvent.Set();
+                        }
                      }
                   }
                   catch (Exception exc) {
@@ -340,13 +344,15 @@ namespace MachineLearning.Model
                {
                   // Impostazioni dell'esperimento
                   try {
-                     // Crea l'esperimento
-                     var experiment = ExperimentCreator();
-                     // Avvia
-                     if (numberOfFolds > 1)
-                        experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), labelColumnName, null, pipes.Input, progress);
-                     else
-                        experiment.Execute(data, labelColumnName, null, pipes.Input, progress);
+                     while (!cancellation.IsCancellationRequested) {
+                        // Crea l'esperimento
+                        var experiment = ExperimentCreator();
+                        // Avvia
+                        if (numberOfFolds > 1)
+                           experiment.Execute(data, (uint)Math.Max(0, numberOfFolds), labelColumnName, null, pipes.Input, progress);
+                        else
+                           experiment.Execute(data, labelColumnName, null, pipes.Input, progress);
+                     }
                   }
                   catch (Exception exc) {
                      Trace.WriteLine(exc);
