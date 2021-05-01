@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Tensorflow;
 
 namespace MachineLearning.Util
@@ -44,7 +45,7 @@ namespace MachineLearning.Util
       /// <summary>
       /// Dimensione dell'immagine nel modello
       /// </summary>
-      public Size ImageSize { get; private set; } = new Size(300, 300);//@@@
+      public Size ImageSize { get; private set; } = new Size(640, 640);
       /// <summary>
       /// Ingressi del modello
       /// </summary>
@@ -54,9 +55,17 @@ namespace MachineLearning.Util
       /// </summary>
       public ReadOnlyCollection<string> Labels { get; private set; } = new List<string>().AsReadOnly();
       /// <summary>
+      /// Informazioni generiche sul modello
+      /// </summary>
+      public JsonElement Model { get; private set; }
+      /// <summary>
       /// Path del file del modello
       /// </summary>
       public string ModelFilePath { get; private set; }
+      /// <summary>
+      /// Tipo di modello
+      /// </summary>
+      public string ModelType { get; private set; }
       /// <summary>
       /// Uscite del modello
       /// </summary>
@@ -117,7 +126,7 @@ namespace MachineLearning.Util
                   };
                }
                // Legge le labels dal file di configurazione associato
-               config.Labels = ReadLabelsFromConfig(configFile).AsReadOnly();
+               config.ReadInfoFromConfig(configFile);
                config.ModelFilePath = modelPath;
             }
          }
@@ -150,7 +159,7 @@ namespace MachineLearning.Util
                      Format = ModelFormat.Onnx,
                   };
                   // Legge le labels dal file di configurazione associato
-                  config.Labels = ReadLabelsFromConfig(Path.ChangeExtension(filePath, ".config")).AsReadOnly();
+                  config.ReadInfoFromConfig(Path.ChangeExtension(filePath, ".config"));
                   config.ModelFilePath = filePath;
                }
             }
@@ -161,26 +170,55 @@ namespace MachineLearning.Util
          return config;
       }
       /// <summary>
-      /// Legge le labels da un file di configurazione
+      /// Legge le informazioni dal file di configurazione
       /// </summary>
       /// <param name="path">Path del file di configurazione</param>
       /// <returns>La lista delle labels</returns>
-      private static List<string> ReadLabelsFromConfig(string path)
+      private void ReadInfoFromConfig(string path)
       {
          // Legge le labels dal file di configurazione associato
          try {
             if (File.Exists(path)) {
-               dynamic jsonConfig = Newtonsoft.Json.JsonConvert.DeserializeObject(File.ReadAllText(path));
-               return (from label in (jsonConfig.labels as IEnumerable<dynamic>)
-                       select (string)(!string.IsNullOrEmpty(label.displayed_name) ? label.displayed_name : label.name)).ToList();
+               var jsonConfig = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(File.ReadAllText(path));
+               try {
+                  Labels = (from label in jsonConfig["labels"].EnumerateArray()
+                            let l = new
+                            {
+                               Name = label.GetProperty("name").GetString(),
+                               DisplayedName = label.GetProperty("display_name").GetString(),
+                               Id = label.GetProperty("id").GetInt32().ToString()
+                            }
+                            select !string.IsNullOrEmpty(l.DisplayedName) ? l.DisplayedName : !string.IsNullOrEmpty(l.Name) ? l.Name : l.Id).ToList().AsReadOnly();
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine($"Warning: cannot load the labels. {exc.Message}");
+               }
+               try {
+                  ImageSize = new Size(jsonConfig["image_width"].GetInt32(), jsonConfig["image_height"].GetInt32());
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine($"Warning: cannot load the image size. {exc.Message}");
+               }
+               try {
+                  Model = jsonConfig["model"];
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine($"Warning: cannot read the model's generic informations. {exc.Message}");
+               }
+               try {
+                  ModelType = jsonConfig["model_type"].GetString();
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine($"Warning: cannot determine the model type. {exc.Message}");
+                  throw;
+               }
             }
             else
-               Trace.WriteLine("Warning: unable to find the model's associated configuration file");
+               Trace.WriteLine("Warning: unable to find the configuration file associated to the model");
          }
-         catch (Exception) {
-            Trace.WriteLine("Warning: cannot load the labels");
+         catch (Exception exc) {
+            Trace.WriteLine($"Warning: cannot load the configuration file associated to the model. {exc.Message}");
          }
-         return new();
       }
       #endregion
    }
