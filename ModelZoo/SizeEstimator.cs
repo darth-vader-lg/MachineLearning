@@ -1,14 +1,12 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
-using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
-namespace MachineLearning
+namespace MachineLearning.ModelZoo
 {
    /// <summary>
    /// Classe per la previsione delle taglie

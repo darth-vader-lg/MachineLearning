@@ -1,6 +1,5 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
-using MachineLearning.ModelZoo;
 using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Transforms.Image;
@@ -11,7 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 
-namespace MachineLearning
+namespace MachineLearning.ModelZoo
 {
    public sealed partial class ObjectDetection :
       IInputSchema,

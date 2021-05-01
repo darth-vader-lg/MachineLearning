@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
-namespace MachineLearning
+namespace MachineLearning.ModelZoo
 {
    /// <summary>
    /// Classe per l'interpretazione del significato si testi

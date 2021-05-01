@@ -14,13 +14,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Tensorflow;
 
-namespace MachineLearning
+namespace MachineLearning.ModelZoo
 {
    /// <summary>
    /// Classe per il rilevamento di oggetti nelle immagini
    /// </summary>
    [Serializable]
-   public sealed partial class ObjectDetectionOld :
+   internal sealed partial class ObjectDetectionOld :
       IInputSchema,
       IModelStorageProvider,
       IModelTrainingControl
@@ -84,7 +84,7 @@ namespace MachineLearning
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class ObjectDetectionOld // Prediction
+   internal sealed partial class ObjectDetectionOld // Prediction
    {
       [Serializable]
       public sealed class Model :
@@ -437,7 +437,7 @@ namespace MachineLearning
    /// <summary>
    /// Risultato della previsione
    /// </summary>
-   public sealed partial class ObjectDetectionOld // Prediction
+   internal sealed partial class ObjectDetectionOld // Prediction
    {
       [Serializable]
       public class Prediction
