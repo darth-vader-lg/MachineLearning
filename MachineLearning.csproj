@@ -21,6 +21,6 @@
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="if exist &quot;$(SolutionDir)_ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(SolutionDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA;)&#xD;&#xA;if exist &quot;$(ProjectDir)_ODModelBuilderTF&quot; (&#xD;&#xA;   echo Building TenforFlow object detection model builder.&#xD;&#xA;   cd &quot;$(ProjectDir)ODModelBuilderTF&quot;&#xD;&#xA;   py -3.7 build_exe.py&#xD;&#xA; )&#xD;&#xA;" />
+    <Exec Command="if $(ConfigurationName) neq Debug (&#xD;&#xA;   if exist &quot;$(SolutionDir)ODModelBuilderTF&quot; (&#xD;&#xA;      echo Building TenforFlow object detection model builder.&#xD;&#xA;      cd &quot;$(SolutionDir)ODModelBuilderTF&quot;&#xD;&#xA;      py -3.7 build_exe.py&#xD;&#xA;   )&#xD;&#xA;   if exist &quot;$(ProjectDir)ODModelBuilderTF&quot; (&#xD;&#xA;      echo Building TenforFlow object detection model builder.&#xD;&#xA;      cd &quot;$(ProjectDir)ODModelBuilderTF&quot;&#xD;&#xA;      py -3.7 build_exe.py&#xD;&#xA;    )&#xD;&#xA;)&#xD;&#xA;" />
   </Target>
 </Project>
