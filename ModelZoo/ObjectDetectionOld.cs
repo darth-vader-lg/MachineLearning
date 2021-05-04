@@ -100,7 +100,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Label degli oggetti conosciuti dal modello
          /// </summary>
-         private PbtxtItems _labels;
+         private ODModelConfig.LabelMapItems _labels;
          /// <summary>
          /// Soglia punteggio minimo
          /// </summary>
@@ -396,7 +396,7 @@ namespace MachineLearning.ModelZoo
                _session.Dispose();
             // Carica modello e labels
             _session = Session.LoadFromSavedModel(Path.Combine((ModelStorage as ModelStorageFile).FilePath, "saved_model"));
-            _labels = PbtxtParser.ParsePbtxtFile(Path.Combine((ModelStorage as ModelStorageFile).FilePath, "label_map.pbtxt"));
+            _labels = ODModelConfig.LabelMapParser.ParseFile(Path.Combine((ModelStorage as ModelStorageFile).FilePath, "label_map.pbtxt"));
             schema = InputSchema;
             return this;
          }

@@ -188,8 +188,8 @@ namespace MachineLearning.ModelZoo
                                  Config.Inputs[0].Dim.Take(1).Concat(new[] { Config.ImageSize.Width, Config.ImageSize.Height }).Concat(Config.Inputs[0].Dim.Skip(3).Take(1)).ToArray()
                               }
                            }),
-                     ODModelConfig.ModelFormat.TF2SavedModel =>
-                        Context.Model.LoadTensorFlowModel(Path.GetDirectoryName(Config.ModelFilePath)).ScoreTensorFlowModel(
+                     var tf when tf == ODModelConfig.ModelFormat.TF2SavedModel || tf == ODModelConfig.ModelFormat.TFFrozenGraph =>
+                        Context.Model.LoadTensorFlowModel(Config.ModelFilePath).ScoreTensorFlowModel(
                            inputColumnNames: new[] { Config.Inputs[0].ColumnName },
                            outputColumnNames: (from c in Config.Outputs select c.ColumnName).ToArray()),
                      _ => throw new FormatException("Unknown model format")
@@ -207,14 +207,12 @@ namespace MachineLearning.ModelZoo
          {
             schema = null;
             // Carica la configurazione del modello
-            var config = ODModelConfig.Load(modelStorage.ImportPath);
+            Config = ODModelConfig.Load(modelStorage.ImportPath);
             // Verifica se il modello e' di tipo noto
-            if (config.Format != ODModelConfig.ModelFormat.Onnx && config.Format != ODModelConfig.ModelFormat.TF2SavedModel)
+            if (Config.Format == ODModelConfig.ModelFormat.Unknown)
                return null;
-            // Memorizza la configurazione
-            Config = config;
             // Verifica se il modello ML.NET e' piu' recente del modello da importare
-            if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTime(config.ModelFilePath))
+            if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTimeUtc(Config.ModelFilePath))
                return null;
             // Ottiene le pipes
             var pipelines = GetPipes();
@@ -224,7 +222,7 @@ namespace MachineLearning.ModelZoo
             schema = InputSchema;
             var result = new DataTransformerMLNet(this, model);
             // Salva modello. Non per il Tensorflow saved_model: baco della ML.NET nel salvataggio.
-            if (config.Format != ODModelConfig.ModelFormat.TF2SavedModel)
+            if (Config.Format != ODModelConfig.ModelFormat.TF2SavedModel)
                SaveModel(modelStorage, result, schema);
             return result;
          }
