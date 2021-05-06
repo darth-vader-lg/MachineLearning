@@ -246,10 +246,6 @@ namespace MachineLearning.ModelZoo
          #endregion
          #region Properties
          /// <summary>
-         /// Labels
-         /// </summary>
-         public ReadOnlyCollection<string> Labels { get; }
-         /// <summary>
          /// Output per i riquadri di contenimento
          /// </summary>
          public float[] DetectionBoxes { get; }
@@ -261,6 +257,14 @@ namespace MachineLearning.ModelZoo
          /// Output per gli scores
          /// </summary>
          public float[] DetectionScores { get; }
+         /// <summary>
+         /// Path dell'immagine
+         /// </summary>
+         public string ImagePath { get; }
+         /// <summary>
+         /// Labels
+         /// </summary>
+         public ReadOnlyCollection<string> Labels { get; }
          #endregion
          #region Methods
          /// <summary>
@@ -291,6 +295,7 @@ namespace MachineLearning.ModelZoo
             // Memorizza le labels
             Labels = owner.Labels;
             // Memorizza i risultati della previsione
+            ImagePath = grid[0]["ImagePath"];
             DetectionBoxes = readOutput[nameof(DetectionBoxes)](grid);
             DetectionClasses = readOutput[nameof(DetectionClasses)](grid);
             DetectionScores = readOutput[nameof(DetectionScores)](grid);
@@ -300,7 +305,7 @@ namespace MachineLearning.ModelZoo
          /// </summary>
          /// <param name="minScore">Punteggio minimo (0 ... 1)</param>
          /// <returns>La lista di bounding box</returns>
-         public List<Box> GetBoxes(double minScore = 0.75)
+         public List<Box> GetBoxes(double minScore = 0.0)
          {
             var result = new List<Box>();
             int startId = 1;
