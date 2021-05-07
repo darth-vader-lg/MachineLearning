@@ -2,10 +2,13 @@
 using MachineLearning.Model;
 using MachineLearning.Util;
 using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.Transforms;
 using Microsoft.ML.Transforms.Image;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -162,6 +165,8 @@ namespace MachineLearning.ModelZoo
                      inputColumnName: "ImagePath",
                      outputColumnName: "Image",
                      imageFolder: "")
+                  .Append(Context.Transforms.Expression(inputColumnNames: new[] { "ImagePath" }, outputColumnName: "ModelWidth", expression: $"w => {Config.ImageSize.Width}f"))
+                  .Append(Context.Transforms.Expression(inputColumnNames: new[] { "ImagePath" }, outputColumnName: "ModelHeight", expression: $"w => {Config.ImageSize.Height}f"))
                   .Append(Context.Transforms.ResizeImages(
                      inputColumnName: "Image",
                      outputColumnName: "ResizedImage",
@@ -171,12 +176,14 @@ namespace MachineLearning.ModelZoo
                   .Append(Context.Transforms.ExtractPixels(
                      inputColumnName: "ResizedImage",
                      outputColumnName: Config.Inputs[0].ColumnName,
-                     interleavePixelColors: true,
+                     scaleImage: !Config.ModelType.ToLower().Contains("yolo") ? 1f : 1f /255f,
+                     interleavePixelColors: !Config.ModelType.ToLower().Contains("yolo"),
                      outputAsFloatArray: Config.Inputs[0].DataType == typeof(float))),
                Trainer =
                   Config.Format switch
                   {
-                     ODModelConfig.ModelFormat.Onnx =>
+                     // Onnx TensorFlow
+                     var tf when tf == ODModelConfig.ModelFormat.Onnx && !Config.ModelType.ToLower().Contains("yolo") =>
                         Context.Transforms.ApplyOnnxModel(
                            inputColumnNames: new[] { Config.Inputs[0].ColumnName },
                            outputColumnNames: (from c in Config.Outputs select c.ColumnName).ToArray(),
@@ -188,6 +195,15 @@ namespace MachineLearning.ModelZoo
                                  Config.Inputs[0].Dim.Take(1).Concat(new[] { Config.ImageSize.Width, Config.ImageSize.Height }).Concat(Config.Inputs[0].Dim.Skip(3).Take(1)).ToArray()
                               }
                            }),
+                     // Onnx Yolo
+                     var tf when tf == ODModelConfig.ModelFormat.Onnx && Config.ModelType.ToLower().Contains("yolo") =>
+                        new OnnxYolov5Estimator(
+                           Context,
+                           inputColumnName: Config.Inputs[0].ColumnName,
+                           outputColumnNames: (from c in Config.Outputs select c.ColumnName).ToArray(),
+                           outputShapes: (from c in Config.Outputs select c.Dim).ToArray(),
+                           modelFile: Config.ModelFilePath),
+                     // saved_model o frozen graph TensorFlow
                      var tf when tf == ODModelConfig.ModelFormat.TF2SavedModel || tf == ODModelConfig.ModelFormat.TFFrozenGraph =>
                         Context.Model.LoadTensorFlowModel(Config.ModelFilePath).ScoreTensorFlowModel(
                            inputColumnNames: new[] { Config.Inputs[0].ColumnName },
@@ -275,13 +291,12 @@ namespace MachineLearning.ModelZoo
          {
             // Crea il dizionario intelligente di mappatura degli ingressi uscite
             if (readOutput == null) {
-               var sd = new SmartDictionary<string>(from item in owner.Config.Inputs.Concat(owner.Config.Outputs)
-                                                    select new KeyValuePair<string, string>(item.Name, item.Name));
+               var sd = new SmartDictionary<string>(from c in data.Schema select new KeyValuePair<string, string>(c.Name, c.Name));
                var columnIndex = new Dictionary<string, int>
                {
-                  { nameof(DetectionBoxes), data.Schema[sd.Similar["boxes"]].Index },
-                  { nameof(DetectionClasses), data.Schema[sd.Similar["classes"]].Index },
-                  { nameof(DetectionScores), data.Schema[sd.Similar["scores"]].Index },
+                  { nameof(DetectionBoxes), data.Schema[sd.Similar["detection boxes"]].Index },
+                  { nameof(DetectionClasses), data.Schema[sd.Similar["detection classes"]].Index },
+                  { nameof(DetectionScores), data.Schema[sd.Similar["detection scores"]].Index },
                };
                readOutput = new()
                {
@@ -387,6 +402,228 @@ namespace MachineLearning.ModelZoo
             }
             #endregion
          }
+      }
+   }
+   [CustomMappingFactoryAttribute(nameof(OnnxYolov5Estimator))]
+   internal class OnnxYolov5Estimator : CustomMappingFactory<OnnxYolov5Estimator.Input, OnnxYolov5Estimator.Output>, IEstimator<OnnxYolov5Estimator>, ITransformer
+   {
+      #region Fields
+      /// <summary>
+      /// La pipeline
+      /// </summary>
+      IEstimator<ITransformer> pipeline;
+      /// <summary>
+      /// Il transformer
+      /// </summary>
+      ITransformer transformer;
+      #endregion
+      #region Properties
+      /// <summary>
+      /// Indicatore di RowToRowMapper
+      /// </summary>
+      public bool IsRowToRowMapper => true;
+      #endregion
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      public OnnxYolov5Estimator() { }
+      /// <summary>
+      /// Costruttore
+      /// </summary>
+      /// <param name="ml">Contesto di machine learning</param>
+      /// <param name="outputColumnNames">Nomi delle colonne di output</param>
+      /// <param name="inputColumnName">Nome della colonna di input</param>
+      /// <param name="outputShapes"></param>
+      /// <param name="modelFile"></param>
+      public OnnxYolov5Estimator(MLContext ml, string[] outputColumnNames, int[][] outputShapes, string inputColumnName, string modelFile)
+      {
+         // Elenco di estimatore
+         var estimators = new List<IEstimator<ITransformer>>();
+         // Aggiunge il modello onnx
+         estimators.Add(
+            ml.Transforms.ApplyOnnxModel(
+               inputColumnNames: new[] { inputColumnName },
+               outputColumnNames: outputColumnNames,
+               modelFile: modelFile));
+         // Copia la colonna di output nel input del custom mapping
+         if (outputShapes != null) {
+            // Sceglie la l'output del modello piu' grande, quello con tutti gli anchors concatenati
+            var (Name, Shape) =
+               outputColumnNames
+               .Zip(outputShapes)
+               .Select(item => (Name: item.First, Shape: item.Second))
+               .OrderBy(item => { var m = 1; item.Shape.ToList().ForEach(s => m *= s); return m; })
+               .Last();
+            estimators.Add(ml.Transforms.CopyColumns(nameof(Input.Detections), Name));
+         }
+         // Se non specificate le shapes, sceglie il primo output
+         else
+            estimators.Add(ml.Transforms.CopyColumns(nameof(Input.Detections), outputColumnNames[0]));
+         // Aggiunge il custom mapping per l'interpretazione dell'output del modello, la conversione in previsione standard e il NMS
+         estimators.Add(ml.Transforms.CustomMapping(GetMapping(), nameof(OnnxYolov5Estimator)));
+         // Elimina le colonne temporanee
+         estimators.Add(ml.Transforms.DropColumns((from c in new[] { nameof(Input.Detections) }.Concat(outputColumnNames) select c).ToArray()));
+         // Costruisce la pipe
+         pipeline = estimators.Count < 1 ? null : estimators.Count > 1 ? estimators[0].Append(estimators[1]) : estimators[0];
+         for (var i = 2; i < estimators.Count; i++)
+            pipeline = pipeline.Append(estimators[i]);
+      }
+      /// <summary>
+      /// Implementazione della fit
+      /// </summary>
+      /// <param name="input">Dati di input</param>
+      /// <returns>l'Estimator</returns>
+      public OnnxYolov5Estimator Fit(IDataView input)
+      {
+         transformer = pipeline.Fit(input);
+         return this;
+      }
+      /// <summary>
+      /// Restituisce la shape dello schema di output dell'estimator
+      /// </summary>
+      /// <param name="inputSchema">Schema di input</param>
+      /// <returns>La shape dello schema</returns>
+      public SchemaShape GetOutputSchema(SchemaShape inputSchema) => pipeline.GetOutputSchema(inputSchema);
+      /// <summary>
+      /// Restituisce lo schema di output dei dati
+      /// </summary>
+      /// <param name="inputSchema">Schema di input</param>
+      /// <returns>Lo schema di output</returns>
+      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => transformer.GetOutputSchema(inputSchema);
+      /// <summary>
+      /// Implementazione della transform
+      /// </summary>
+      /// <param name="input">Dati di input</param>
+      /// <returns>I dati trafromati</returns>
+      public IDataView Transform(IDataView input) => transformer.Transform(input);
+      /// <summary>
+      /// Restituisce il row to row mapper
+      /// </summary>
+      /// <param name="inputSchema">Schema dei dati d input</param>
+      /// <returns>L'interfaccia del mappatore</returns>
+      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => transformer.GetRowToRowMapper(inputSchema);
+      /// <summary>
+      /// Implementazione della save
+      /// </summary>
+      /// <param name="ctx">Contesto di salvataggio</param>
+      public void Save(ModelSaveContext ctx) => transformer.Save(ctx);
+      /// <summary>
+      /// Azione di rimappatura
+      /// </summary>
+      /// <returns>L'azione</returns>
+      public override Action<Input, Output> GetMapping() => new((In, Out) =>
+      {
+         var numLabels = 1; //@@@
+         var characteristics = 5 + numLabels; // @@@
+         var scoreConfidence = 0.2f;
+         var perCategoryConfidence = 0.25f;
+         var results = new List<(RectangleF Box, float Class, float Score, bool Valid)>();
+         //var boxes = new List<RectangleF>();
+         //var classes = new List<float>();
+         //var scores = new List<float>();
+         for (int i = 0; i < In.Detections.Length; i += characteristics) {
+            // Get offset in float array
+            int offset = characteristics * i;
+            // Filtra alcuni box
+            var objConf = In.Detections[i + 4];
+            if (objConf <= scoreConfidence)
+               continue;
+            // Ottiene il punteggio reale della classe
+            var classProbs = new List<float>();
+            for (var j = 0; j < numLabels; j++)
+               classProbs.Add(In.Detections[i + 5 + j]);
+            var allScores = classProbs.Select(p => p * objConf).ToList();
+            // Ottiene la miglior classe ed indice
+            float maxConf = allScores.Max();
+            if (maxConf < perCategoryConfidence)
+               continue;
+            float maxClass = allScores.ToList().IndexOf(maxConf);
+            // Aggiunge il risultato
+            var x1 = (In.Detections[i + 1] - In.Detections[i + 3] / 2) / In.ModelWidth; //top left x
+            var y1 = (In.Detections[i + 0] - In.Detections[i + 2] / 2) / In.ModelHeight; //top left y
+            var x2 = (In.Detections[i + 1] + In.Detections[i + 3] / 2) / In.ModelWidth; //bottom right x
+            var y2 = (In.Detections[i + 0] + In.Detections[i + 2] / 2) / In.ModelHeight; //bottom right y
+            results.Add((Box: new RectangleF(x1, y1, x2 - x1, y2 - y1), Class: maxClass + 1, Score: maxConf, Valid: true));
+         }
+         // NMS
+         var nmsOverlapRatio = 0.45f;
+         for (var i = 0; i < results.Count; i++) {
+            var item = results[i];
+            if (!item.Valid)
+               continue;
+            for (var j = 0; j < results.Count; j++) {
+               var current = results[j];
+               if (current == item || !current.Valid)
+                  continue;
+               var intersection = RectangleF.Intersect(item.Box, current.Box);
+               var intArea = intersection.Width * intersection.Height;
+               var unionArea = item.Box.Width * item.Box.Height + current.Box.Width * current.Box.Height - intArea;
+               var overlap = intArea / unionArea;
+               if (overlap > nmsOverlapRatio) {
+                  if (item.Score > current.Score) {
+                     current.Valid = false;
+                     results[j] = current;
+                  }
+               }
+            }
+         }
+         results = results.Where(item => item.Valid).ToList();
+         Out.Boxes = new float[results.Count * 4];
+         Out.Classes = new float[results.Count];
+         Out.Scores = new float[results.Count];
+         for (var i = 0; i < results.Count; i++) {
+            var (Box, Class, Score, Valid) = results[i];
+            var iBox = i * 4;
+            Out.Boxes[iBox + 0] = Box.Left;
+            Out.Boxes[iBox + 1] = Box.Top;
+            Out.Boxes[iBox + 2] = Box.Right;
+            Out.Boxes[iBox + 3] = Box.Bottom;
+            Out.Classes[i] = Class;
+            Out.Scores[i] = Score;
+         }
+      });
+      /// <summary>
+      /// Classe di dati di input del mappatore
+      /// </summary>
+      internal class Input
+      {
+         #region Properties
+         /// <summary>
+         /// Array di rilevamenti
+         /// </summary>
+         public float[] Detections { get; set; }
+         /// <summary>
+         /// Altezza del modello
+         /// </summary>
+         public float ModelHeight { get; set; }
+         /// <summary>
+         /// Larghezza del modello
+         /// </summary>
+         public float ModelWidth { get; set; }
+         #endregion
+      }
+      /// <summary>
+      /// Classe di dati di output del mappatore
+      /// </summary>
+      internal class Output
+      {
+         #region Properties
+         /// <summary>
+         /// Classi di rilevamento
+         /// </summary>
+         [ColumnName("detection_classes")]
+         public float[] Classes { get; set; }
+         /// <summary>
+         /// Punteggi di rilevamento
+         /// </summary>
+         [ColumnName("detection_scores")]
+         public float[] Scores { get; set; }
+         /// <summary>
+         /// Box di rilevamento
+         /// </summary>
+         [ColumnName("detection_boxes")]
+         public float[] Boxes { get; set; }
+         #endregion
       }
    }
 }

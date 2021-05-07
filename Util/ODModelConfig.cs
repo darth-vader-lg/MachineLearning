@@ -1,6 +1,6 @@
 ﻿using Google.Protobuf;
 using Google.Protobuf.Collections;
-using Microsoft.ML;
+using MachineLearning.ModelZoo;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System;
@@ -11,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using Tensorflow;
 
@@ -22,6 +23,26 @@ namespace MachineLearning.Util
    internal partial class ODModelConfig
    {
       #region Fields
+      private static readonly SmartDictionary<string> modelTypeDictionary = new()
+      {
+         {
+            "images[1,3,640,640] "+
+            "detections[1,25200,?] " +
+            "grid80x80[1,3,80,80,?] " +
+            "grid40x40[1,3,40,40,?] " +
+            "grid20x20[1,3,20,20,?]", "Yolov5" },
+         { 
+            "input_tensor:0[1,-1,-1,3] " +
+            "detection_anchor_indices[1,-1] " +
+            "detection_boxes[1,-1,-1] " +
+            "detection_classes[1,-1] " +
+            "detection_multiclass_scores[1,-1,-1] " +
+            "detection_scores[1,-1] " +
+            "num_detections[1] " +
+            "raw_detection_boxes[1,76725,4] " +
+            "raw_detection_scores[1,7625,90]", "ssd"
+         }
+      };
       /// <summary>
       /// Dizionario di conversione fra i tipi di dati Tensorflow e i dati NET
       /// </summary>
@@ -67,7 +88,7 @@ namespace MachineLearning.Util
       /// <summary>
       /// Dimensione dell'immagine nel modello
       /// </summary>
-      public Size ImageSize { get; set; } = new Size(300, 300);
+      public Size ImageSize { get; set; } = new Size(0, 0);
       /// <summary>
       /// Ingressi del modello
       /// </summary>
@@ -355,9 +376,8 @@ namespace MachineLearning.Util
                      }
                      if (Inputs.Count == 0 && onnxModel != null)
                         Inputs = SortedTensors(onnxModel.InputMetadata);
-                     if (Outputs.Count == 0 && onnxModel != null) {
+                     if (Outputs.Count == 0 && onnxModel != null)
                         Outputs = SortedTensors(onnxModel.OutputMetadata);
-                     }
                      break;
                   }
                }
@@ -385,6 +405,38 @@ namespace MachineLearning.Util
                   }
                }
                catch (Exception) { }
+            }
+            // Interpretazione del tipo di modello
+            if (string.IsNullOrEmpty(ModelType)) {
+               var sb = new StringBuilder();
+               foreach (var io in new[] { Inputs, Outputs }) {
+                  foreach (var item in io) {
+                     sb.Append($"{(sb.Length > 0 ? " " : "")}{item.Name}");
+                     if (item.Dim != null) {
+                        var sbDim = new StringBuilder();
+                        sbDim.Append("[");
+                        foreach (var d in item.Dim)
+                           sbDim.Append($"{(sbDim.Length > 1 ? "," : "")}{d}");
+                        sbDim.Append("]");
+                        sb.Append(sbDim.ToString());
+                     }
+                  }
+               }
+               ModelType = modelTypeDictionary.Similar[sb.ToString()];
+            }
+            // Interpretazione della dimensione dell'immagine
+            try {
+               switch (ModelType) {
+                  case "Yolov5":
+                     ImageSize = new Size(Inputs[0].Dim[2], Inputs[0].Dim[3]);
+                     break;
+               }
+               if (ImageSize.Width < 1 || ImageSize.Height < 1)
+                  throw new Exception("Cannot infer image size from the input tensor");
+            }
+            catch (Exception exc) {
+               Trace.WriteLine($"Error: unknown image size. {exc.Message}");
+               throw;
             }
          }
          catch (Exception exc) {
