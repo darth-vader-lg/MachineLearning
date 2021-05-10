@@ -1,6 +1,5 @@
 ﻿using MachineLearning.Data;
 using Microsoft.ML;
-using Microsoft.ML.Data;
 using Microsoft.ML.Transforms;
 using System;
 using System.Collections.Generic;
@@ -14,7 +13,7 @@ namespace MachineLearning.Transforms
    /// <summary>
    /// Estimator dei dati di uscita Yolov5 in boxes, scores e classes
    /// </summary>
-   public class Yolov5Estimator : IEstimator<Yolov5Transformer>
+   public sealed class Yolov5Estimator : IEstimator<Yolov5Transformer>
    {
       #region Properties
       /// <summary>
@@ -42,99 +41,62 @@ namespace MachineLearning.Transforms
       /// </summary>
       /// <param name="input">Dati di input</param>
       /// <returns>Il transformer</returns>
-      public Yolov5Transformer Fit(IDataView input) => new(Transforms, Options);
+      public Yolov5Transformer Fit(IDataView input) => new(Transforms, Options, input.Schema);
       /// <summary>
       /// Restituisce lo schema di output dell'estimatore
       /// </summary>
       /// <param name="inputSchema">Lo schema di input</param>
       /// <returns>Lo schema di output</returns>
-      public SchemaShape GetOutputSchema(SchemaShape inputSchema)
-      {
-         var pipeline = new EstimatorChain<Yolov5Transformer>();
-         return pipeline.GetOutputSchema(inputSchema);
-      }
+      public SchemaShape GetOutputSchema(SchemaShape inputSchema) => new Yolov5Transformer(Transforms, Options).Pipe.GetOutputSchema(inputSchema);
       #endregion
    }
 
    /// <summary>
    /// Transformer
    /// </summary>
-   public partial class Yolov5Transformer : ITransformer
+   public sealed partial class Yolov5Transformer : TransformerBase
    {
-      #region Fields
-      /// <summary>
-      /// Transformer
-      /// </summary>
-      private ITransformer transformer;
-      #endregion
       #region Properties
       /// <summary>
-      /// Catalogo trasformazioni
+      /// Schema di input
       /// </summary>
-      private TransformsCatalog Transforms { get; }
+      public sealed override DataViewSchema InputSchema { get; }
       /// <summary>
-      /// Indicatore di trasformatore riga a riga
+      /// Pipe di trasformazione
       /// </summary>
-      public bool IsRowToRowMapper => GetTransformer().IsRowToRowMapper;
-      /// <summary>
-      /// Opzioni
-      /// </summary>
-      private Options Opts { get; }
+      internal sealed override IEstimator<ITransformer> Pipe { get; }
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
-      /// <param name="transformCatalog">Catalogo di trasformazioni</param>
+      /// <param name="transformsCatalog">Catalogo di trasformazioni</param>
       /// <param name="options">Opzioni</param>
-      internal Yolov5Transformer(TransformsCatalog transformCatalog, Options options)
-      {
-         Transforms = transformCatalog;
-         Opts = options;
-      }
-      /// <summary>
-      /// Restituisce lo schema di output
-      /// </summary>
       /// <param name="inputSchema">Schema di input</param>
-      /// <returns>Lo schema di output</returns>
-      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => GetTransformer().GetOutputSchema(inputSchema);
-      /// <summary>
-      /// Restituisce il mappatore riga a riga
-      /// </summary>
-      /// <param name="inputSchema">Schema di input</param>
-      /// <returns>Il mappatore</returns>
-      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => GetTransformer().GetRowToRowMapper(inputSchema);
-      /// <summary>
-      /// Restituisce o costruisce il transformer
-      /// </summary>
-      /// <returns></returns>
-      private ITransformer GetTransformer()
+      internal Yolov5Transformer(TransformsCatalog transformsCatalog, Options options, DataViewSchema inputSchema = null) : base(transformsCatalog)
       {
-         // Verifica se gia' definito
-         if (transformer != null)
-            return transformer;
          // Lista di estimatori
          var estimators = new EstimatorList();
          // Rinomina la colonna di input se ha un nome diverso dallo standard
-         if (Opts.InputColumnName != nameof(Mapper.Input.detection))
-            estimators.Add(Transforms.CopyColumns(nameof(Mapper.Input.detection), Opts.InputColumnName));
+         if (options.InputColumnName != nameof(Mapper.Input.detection))
+            estimators.Add(transformsCatalog.CopyColumns(nameof(Mapper.Input.detection), options.InputColumnName));
          // Aggiunge le informazioni sul modello in modo che possano essere sia salvate che rilette dal custom mapper
          estimators.Add(
-            Transforms.AddConst(
-               FormattableString.Invariant($"\"{Opts.ModelImageWidth}|{Opts.ModelImageHeight}|{Opts.MinScoreConfidence}|{Opts.MinPerCategoryConfidence}|{Opts.NmsOverlapRatio}\""),
-               nameof(Mapper.Input.D73BD0CB_FEA4_4EC9_9CD0_74B88DFF44F2)));
+            transformsCatalog.AddConst(
+               nameof(Mapper.Input.D73BD0CB_FEA4_4EC9_9CD0_74B88DFF44F2),
+               FormattableString.Invariant($"\"{options.ModelImageWidth}|{options.ModelImageHeight}|{options.MinScoreConfidence}|{options.MinPerCategoryConfidence}|{options.NmsOverlapRatio}\"")));
          // Aggiunge la mappatura custom per la trasformazione dell'output Yolov5 in output standard dei modelli di rilevamento oggetti
-         estimators.Add(Transforms.CustomMapping(new Mapper().GetMapping(), nameof(Yolov5Transformer) + "." + nameof(Mapper)));
+         estimators.Add(transformsCatalog.CustomMapping(new Mapper().GetMapping(), nameof(Mapper.Input.D73BD0CB_FEA4_4EC9_9CD0_74B88DFF44F2)));
          // Colonne di output
          var outputColumnNames = new[] {
-            new { Standard = nameof(Mapper.Output.detection_boxes), Requested = Opts.BoxesColumnName },
-            new { Standard = nameof(Mapper.Output.detection_classes), Requested = Opts.ClassesColumnName },
-            new { Standard = nameof(Mapper.Output.detection_scores), Requested = Opts.ScoresColumnName }
+            new { Standard = nameof(Mapper.Output.detection_boxes), Requested = options.BoxesColumnName },
+            new { Standard = nameof(Mapper.Output.detection_classes), Requested = options.ClassesColumnName },
+            new { Standard = nameof(Mapper.Output.detection_scores), Requested = options.ScoresColumnName }
          };
          // Rinomina le colonne di output se hanno nomi diversi da quelli standard
          foreach (var names in outputColumnNames) {
             if (names.Standard != names.Requested)
-               estimators.Add(Transforms.CopyColumns(names.Requested, names.Standard));
+               estimators.Add(transformsCatalog.CopyColumns(names.Requested, names.Standard));
          }
          // Elimina le colonne temporanee diverse da quelle specificate dai parametri
          var dropColumns =
@@ -142,35 +104,23 @@ namespace MachineLearning.Transforms
             .Where(names => names.Standard != names.Requested)
             .Select(names => names.Standard)
             .Concat(new[] { nameof(Mapper.Input.detection) }
-            .Where(c => c != Opts.InputColumnName))
+            .Where(c => c != options.InputColumnName))
             .Concat(new[] { nameof(Mapper.Input.D73BD0CB_FEA4_4EC9_9CD0_74B88DFF44F2) })
             .ToArray();
          if (dropColumns.Length > 0)
-            estimators.Add(Transforms.DropColumns(dropColumns));
-         // Costruisce il modello
-         var dataView = DataViewGrid.Create(Transforms.GetChannelProvider(), DataViewSchemaBuilder.Build((Name: Opts.InputColumnName, Type: typeof(float[]))));
-         return transformer = estimators.GetPipe().Fit(dataView);
+            estimators.Add(transformsCatalog.DropColumns(dropColumns));
+         Pipe = estimators.GetPipe();
+         InputSchema = inputSchema ?? DataViewSchemaBuilder.Build((Name: options.InputColumnName, Type: typeof(float[])));
       }
-      /// <summary>
-      /// Effettua il salvataggio
-      /// </summary>
-      /// <param name="ctx">Contesto</param>
-      public void Save(ModelSaveContext ctx) => GetTransformer().Save(ctx);
-      /// <summary>
-      /// Effettua la trasformazione dei dati
-      /// </summary>
-      /// <param name="input">Dati di input</param>
-      /// <returns>I dati trasformati</returns>
-      public IDataView Transform(IDataView input) => GetTransformer().Transform(input);
       #endregion
    }
 
    /// <summary>
    /// Custom mapper di trasformazione dei dati
    /// </summary>
-   public partial class Yolov5Transformer // Mapper
+   public sealed partial class Yolov5Transformer // Mapper
    {
-      [CustomMappingFactoryAttribute(nameof(Yolov5Transformer) + "." + nameof(Mapper))]
+      [CustomMappingFactoryAttribute(nameof(Input.D73BD0CB_FEA4_4EC9_9CD0_74B88DFF44F2))]
       private class Mapper : CustomMappingFactory<Mapper.Input, Mapper.Output>
       {
          #region Input
@@ -309,9 +259,9 @@ namespace MachineLearning.Transforms
    /// <summary>
    /// Transformer
    /// </summary>
-   public partial class Yolov5Transformer // Options
+   public sealed partial class Yolov5Transformer // Options
    {
-      public class Options
+      public sealed class Options
       {
          #region Properties
          /// <summary>
@@ -323,7 +273,7 @@ namespace MachineLearning.Transforms
          /// </summary>
          public string ClassesColumnName { get; set; } = "detection_classes";
          /// <summary>
-         /// Colonna di input (dati che escono dal modello Yolov5
+         /// Colonne di input (dati che escono dal modello Yolov5)
          /// </summary>
          public string InputColumnName { get; set; } = "detection";
          /// <summary>

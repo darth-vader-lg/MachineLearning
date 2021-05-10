@@ -16,20 +16,14 @@ namespace Microsoft.ML
       /// Aggiunge una colonna con una costante
       /// </summary>
       /// <param name="catalog">Il catalogo di estensioni</param>
-      /// <param name="value">Il valore costante da aggiungere</param>
       /// <param name="outputColumnName">Nome della colonna contenente il valore costante</param>
+      /// <param name="value">Il valore costante da aggiungere</param>
       /// <returns>L'Estimator</returns>
       /// <remarks>
       /// L'aggiunta della costante viene effettuata utilizzando l'Expression.
       /// Considerare il testo passato come facente parte della parte destra dell'assegnazione.
       /// </remarks>
-      public static IEstimator<ITransformer> AddConst(this TransformsCatalog catalog, string value, string outputColumnName)
-      {
-         return
-            catalog.CustomMapping(new Action<ConstMapper.Input, ConstMapper.Output>((In, Out) => { }), nameof(ConstMapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1))
-            .Append(catalog.Expression(outputColumnName, $"i:{value}", nameof(ConstMapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1)))
-            .Append(catalog.DropColumns(nameof(ConstMapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1)));
-      }
+      public static ConstantValueEstimator AddConst(this TransformsCatalog catalog, string outputColumnName, string value) => new(catalog, outputColumnName, value);
       /// <summary>
       /// Restituisce l'interfaccia IChannelProvider di un catalogo
       /// </summary>
