@@ -146,9 +146,14 @@ namespace MachineLearning.ModelZoo
             var isYolo = Config.ModelType.ToLower().Contains("yolo");
             // Crea la pipeline di output
             var outputEstimators = new EstimatorList();
+            var dropColumns = new HashSet<string>();
             // Mapping dell'output dei modelli yolo
-            if (isYolo)
+            if (isYolo) {
+               // Trasforma l'output Yolov5 in output standard
                outputEstimators.Add(Context.Transforms.ScoreYolov5());
+               // Rimuove le colonne di uscita del modello Yolo
+               (from c in Config.Outputs select c.ColumnName).ToList().ForEach(c => dropColumns.Add(c));
+            }
             // Colonne da trasformare nel caso il nome del tensore del modello non corrisponda alla colonna ML.NET
             var columnNameTransform = (
                from g in new[] { Config.Inputs, Config.Outputs }
@@ -158,9 +163,15 @@ namespace MachineLearning.ModelZoo
             // Rinomina le colonne
             foreach (var c in columnNameTransform)
                outputEstimators.Add(Context.Transforms.CopyColumns(inputColumnName: c.ColumnName, outputColumnName: c.Name));
-            if (columnNameTransform.Length > 0)
-               outputEstimators.Add(Context.Transforms.DropColumns((from c in columnNameTransform where c.Name != c.ColumnName select c.ColumnName).ToArray()));
-            // Dimensioni da inserire nel tensore di ingresso onnx nel caso machino
+            // Aggiunge le colonne da rimuovere alla fine al set
+            columnNameTransform.ToList().ForEach(c => dropColumns.Add(c.ColumnName));
+            dropColumns.Add("Image");
+            dropColumns.Add("ResizedImage");
+            Config.Inputs.ToList().ForEach(c => dropColumns.Add(c.ColumnName));
+            // Rimuove le colonne
+            if (dropColumns.Count > 0)
+               outputEstimators.Add(Context.Transforms.DropColumns(dropColumns.ToArray()));
+            // Dimensioni da inserire nel tensore di ingresso onnx nel caso manchino
             var shapes = new Queue<int>(new[] { Config.ImageSize.Width, Config.ImageSize.Height });
             // Restituisce le tre pipe di learning
             return _pipes ??= new()
