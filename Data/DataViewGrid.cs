@@ -219,8 +219,11 @@ namespace MachineLearning.Data
       /// <param name="columnsNeeded">Colonne richieste</param>
       /// <param name="rand">Randomizzatore</param>
       /// <returns>Il cursore di linea</returns>
-      public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand) =>
-         Enumerable.Range(0, n).Select(i => new Cursor(this, columnsNeeded)).ToArray();
+      public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random rand)
+      {
+         var maxBatches = Math.Min(n, Math.Min(Environment.ProcessorCount, GetRowCount().Value));
+         return Enumerable.Range(0, (int)maxBatches).Select(i => new Cursor(this, columnsNeeded, i, maxBatches)).ToArray();
+      }
       /// <summary>
       /// Avvia un canale standard di messaggistica
       /// </summary>
@@ -259,6 +262,10 @@ namespace MachineLearning.Data
       {
          #region Fields
          /// <summary>
+         /// Dimensione del batch
+         /// </summary>
+         private long _batchSize;
+         /// <summary>
          /// Indicatore di colonna attiva
          /// </summary>
          private readonly bool[] _isColumnActive;
@@ -279,7 +286,7 @@ namespace MachineLearning.Data
          /// <summary>
          /// Indicatore batch
          /// </summary>
-         public override long Batch => 0;
+         public override long Batch { get; }
          /// <summary>
          /// Schema della vista di dati
          /// </summary>
@@ -291,7 +298,9 @@ namespace MachineLearning.Data
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="columnsNeeded">Colonne richieste</param>
-         internal Cursor(DataViewGrid owner, IEnumerable<DataViewSchema.Column> columnsNeeded)
+         /// <param name="batch">Identificatore di batch</param>
+         /// <param name="batchSize">Dimensione del batch</param>
+         internal Cursor(DataViewGrid owner, IEnumerable<DataViewSchema.Column> columnsNeeded, long batch = 0, long batchSize = 1)
          {
             _isColumnActive = new bool[owner.Schema.Count];
             if (columnsNeeded != null) {
@@ -299,6 +308,8 @@ namespace MachineLearning.Data
                   _isColumnActive[c.Index] = true;
             }
             _owner = owner;
+            Batch = batch;
+            _batchSize = batchSize;
          }
          /// <summary>
          /// Funzione di restituzione del getter di valori
@@ -329,8 +340,13 @@ namespace MachineLearning.Data
          /// <returns>true se posizione successiva esistente</returns>
          public override bool MoveNext()
          {
-            if (_position < _owner.GetRowCount() - 1) {
-               _position++;
+            var newPosition = _position;
+            while (newPosition < _owner.GetRowCount()) {
+               if ((++newPosition % _batchSize) == Batch)
+                  break;
+            }
+            if (newPosition < _owner.GetRowCount()) {
+               _position = newPosition;
                return true;
             }
             return false;
