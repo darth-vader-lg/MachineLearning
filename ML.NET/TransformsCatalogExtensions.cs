@@ -81,29 +81,4 @@ namespace Microsoft.ML
       public static Yolov5Estimator ScoreYolov5(this TransformsCatalog catalog, Yolov5Transformer.Options options) => new(catalog, options);
       #endregion
    }
-
-   /// <summary>
-   /// Mapper per l'assegnazione delle costanti
-   /// </summary>
-   [CustomMappingFactoryAttribute(nameof(Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1))]
-   internal class ConstMapper : CustomMappingFactory<ConstMapper.Input, ConstMapper.Output>
-   {
-      #region Properties
-      /// <summary>
-      /// Dati di input (vuoti)
-      /// </summary>
-      internal class Input { }
-      /// <summary>
-      /// Dati di output (solo una stringa come placeholder)
-      /// </summary>
-      internal class Output { public string CE6C5270_FCDA_44F1_8680_7C5BF491B2B1 { get; set; } }
-      #endregion
-      #region Methods
-      /// <summary>
-      /// Azione di mappatura
-      /// </summary>
-      /// <returns></returns>
-      public override Action<Input, Output> GetMapping() => new((input, output) => { });
-      #endregion
-   }
 }

@@ -79,7 +79,7 @@ namespace MachineLearning.Transforms
       internal ConstantValueTransformer(TransformsCatalog transformsCatalog, string outputColumnName, string value, DataViewSchema inputSchema = null) : base(transformsCatalog)
       {
          Pipe =
-            transformsCatalog.CustomMapping(new Action<Mapper.Input, Mapper.Output>((In, Out) => { }), nameof(Mapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1))
+            transformsCatalog.CustomMapping(new Mapper().GetMapping(), nameof(Mapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1))
             .Append(transformsCatalog.Expression(outputColumnName, $"i:{value}", nameof(Mapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1)))
             .Append(transformsCatalog.DropColumns(nameof(Mapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1)));
          InputSchema = inputSchema ?? DataViewSchemaBuilder.Build(Array.Empty<(string Name, Type Type)>());
