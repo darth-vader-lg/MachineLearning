@@ -414,29 +414,31 @@ namespace MachineLearning.Util
                      sb.Append($"{(sb.Length > 0 ? " " : "")}{item.Name}");
                      if (item.Dim != null) {
                         var sbDim = new StringBuilder();
-                        sbDim.Append("[");
+                        sbDim.Append('[');
                         foreach (var d in item.Dim)
                            sbDim.Append($"{(sbDim.Length > 1 ? "," : "")}{d}");
-                        sbDim.Append("]");
-                        sb.Append(sbDim.ToString());
+                        sbDim.Append(']');
+                        sb.Append(sbDim);
                      }
                   }
                }
                ModelType = modelTypeDictionary.Similar[sb.ToString()];
             }
             // Interpretazione della dimensione dell'immagine
-            try {
-               switch (ModelType) {
-                  case "Yolov5":
-                     ImageSize = new Size(Inputs[0].Dim[2], Inputs[0].Dim[3]);
-                     break;
+            if (ImageSize.Width < 1 || ImageSize.Height < 1) {
+               try {
+                  ImageSize = ModelType switch
+                  {
+                     "Yolov5" => new Size(Inputs[0].Dim[2], Inputs[0].Dim[3]),
+                     _ => new Size(Inputs[0].Dim[1], Inputs[0].Dim[2]),
+                  };
+                  if (ImageSize.Width < 1 || ImageSize.Height < 1)
+                     throw new Exception("Cannot infer image size from the input tensor");
                }
-               if (ImageSize.Width < 1 || ImageSize.Height < 1)
-                  throw new Exception("Cannot infer image size from the input tensor");
-            }
-            catch (Exception exc) {
-               Trace.WriteLine($"Error: unknown image size. {exc.Message}");
-               throw;
+               catch (Exception exc) {
+                  Trace.WriteLine($"Error: unknown image size. {exc.Message}");
+                  throw;
+               }
             }
          }
          catch (Exception exc) {
