@@ -7,6 +7,8 @@ using Microsoft.ML.Transforms.Image;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -26,6 +28,10 @@ namespace MachineLearning.ModelZoo
       private readonly Model _model;
       #endregion
       #region Properties
+      /// <summary>
+      /// Default resize delle immagini in ingresso se non e' specificato nel modello
+      /// </summary>
+      public Size DefaultImageResize { get; set; } = new Size(640, 640);
       /// <summary>
       /// Schema di input dei dati
       /// </summary>
@@ -94,6 +100,10 @@ namespace MachineLearning.ModelZoo
       {
          #region Fields
          /// <summary>
+         /// Dizionario di riferimenti tipo di dati previsione -> numero colonna di uscita
+         /// </summary>
+         private Dictionary<string, int> dataKindToColumn = new();
+         /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
          private readonly ObjectDetection _owner;
@@ -137,6 +147,29 @@ namespace MachineLearning.ModelZoo
          /// <param name="contextProvider">Provider di contesto di machine learning</param>
          internal Model(ObjectDetection owner, IContextProvider<MLContext> contextProvider = default) : base(contextProvider) => _owner = owner;
          /// <summary>
+         /// Restituisce l'indice di colonna corrispondente al genere di dati richiesti
+         /// </summary>
+         /// <param name="dataKind">Genera di dati</param>
+         /// <returns>L'indice di colonna</returns>
+         public int GetColumnIndex(string dataKind)
+         {
+            lock (dataKindToColumn) {
+               if (dataKindToColumn.Count == 0) {
+                  // Schema di outputput del modello
+                  var outputSchema = GetOutputSchema(InputSchema);
+                  // Rileva con un dizionario intelligente gli indici delle colonne di uscita
+                  var sd = new SmartDictionary<string>(from c in outputSchema select new KeyValuePair<string, string>(c.Name, c.Name));
+                  // Aggiorna il dizionario di corrispondenze
+                  new KeyValuePair<string, int>[] {
+                     new(nameof(Prediction.DetectionBoxes), outputSchema[sd.Similar["detection boxes"]].Index),
+                     new(nameof(Prediction.DetectionClasses), outputSchema[sd.Similar["detection classes"]].Index),
+                     new(nameof(Prediction.DetectionScores), outputSchema[sd.Similar["detection scores"]].Index),
+                  }.ToList().ForEach(item => dataKindToColumn.Add(item.Key, item.Value));
+               }
+               return dataKindToColumn.TryGetValue(dataKind, out var index) ? index : -1;
+            }
+         }
+         /// <summary>
          /// Restituisce le pipe di training del modello
          /// </summary>
          /// <returns>Le pipe</returns>
@@ -144,6 +177,11 @@ namespace MachineLearning.ModelZoo
          {
             // Verifica se modello yolo
             var isYolo = Config.ModelType.ToLower().Contains("yolo");
+            // Dimensioni da utilizzare nel tensore di ingresso nel caso manchino nella definizione del modello
+            var resize = new Size(
+               Config.ImageSize.Width > 0 ? Config.ImageSize.Width : _owner.DefaultImageResize.Width > 0 ? _owner.DefaultImageResize.Width : 640,
+               Config.ImageSize.Height > 0 ? Config.ImageSize.Height : _owner.DefaultImageResize.Height > 0 ? _owner.DefaultImageResize.Height : 640);
+            var shapes = new Queue<int>(!isYolo ? new[] { resize.Width, resize.Height } : new[] { resize.Height, resize.Width });
             // Crea la pipeline di output
             var outputEstimators = new EstimatorList();
             var dropColumns = new HashSet<string>();
@@ -171,8 +209,6 @@ namespace MachineLearning.ModelZoo
             // Rimuove le colonne
             if (dropColumns.Count > 0)
                outputEstimators.Add(Context.Transforms.DropColumns(dropColumns.ToArray()));
-            // Dimensioni da inserire nel tensore di ingresso onnx nel caso manchino
-            var shapes = new Queue<int>(new[] { Config.ImageSize.Width, Config.ImageSize.Height });
             // Restituisce le tre pipe di learning
             return _pipes ??= new()
             {
@@ -185,8 +221,8 @@ namespace MachineLearning.ModelZoo
                   .Append(Context.Transforms.ResizeImages(
                      inputColumnName: "Image",
                      outputColumnName: "ResizedImage",
-                     imageWidth: Config.ImageSize.Width,
-                     imageHeight: Config.ImageSize.Height,
+                     imageWidth: resize.Width,
+                     imageHeight: resize.Height,
                      resizing: ImageResizingEstimator.ResizingKind.Fill))
                   .Append(Context.Transforms.ExtractPixels(
                      inputColumnName: "ResizedImage",
@@ -247,9 +283,30 @@ namespace MachineLearning.ModelZoo
             schema = InputSchema;
             var result = new DataTransformerMLNet(this, model);
             // Salva modello. Non per il Tensorflow saved_model: baco della ML.NET nel salvataggio.
-            if (Config.Format != ODModelConfig.ModelFormat.TF2SavedModel)
+            if (Config.Format != ODModelConfig.ModelFormat.TF2SavedModel) {
                SaveModel(modelStorage, result, schema);
+               return null;
+            }
             return result;
+         }
+         /// <summary>
+         /// Funzione di notifica della variazione del modello
+         /// </summary>
+         /// <param name="e">Argomenti dell'evento</param>
+         protected override void OnModelChanged(ModelTrainingEventArgs e)
+         {
+            base.OnModelChanged(e);
+            try {
+               // Azzera le pipes all'invalidazione del modello per essere ricostruite
+               if (e.Evaluator.Model == null) {
+                  _pipes = null;
+                  lock (dataKindToColumn)
+                     dataKindToColumn.Clear();
+               }
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
          }
          #endregion
       }
@@ -263,12 +320,6 @@ namespace MachineLearning.ModelZoo
       [Serializable]
       public partial class Prediction
       {
-         #region Fields
-         /// <summary>
-         /// Modello per ricavare il nome di una colonna dal nome della proprieta' a cui accedere
-         /// </summary>
-         private static Dictionary<string, Func<DataViewGrid, float[]>> readOutput;
-         #endregion
          #region Properties
          /// <summary>
          /// Output per i riquadri di contenimento
@@ -298,31 +349,15 @@ namespace MachineLearning.ModelZoo
          /// <param name="data">Dati della previsione</param>
          internal Prediction(Model owner, IDataAccess data)
          {
-            // Crea il dizionario intelligente di mappatura degli ingressi uscite
-            if (readOutput == null) {
-               var sd = new SmartDictionary<string>(from c in data.Schema select new KeyValuePair<string, string>(c.Name, c.Name));
-               var columnIndex = new Dictionary<string, int>
-               {
-                  { nameof(DetectionBoxes), data.Schema[sd.Similar["detection boxes"]].Index },
-                  { nameof(DetectionClasses), data.Schema[sd.Similar["detection classes"]].Index },
-                  { nameof(DetectionScores), data.Schema[sd.Similar["detection scores"]].Index },
-               };
-               readOutput = new()
-               {
-                  { nameof(DetectionBoxes), grid => grid[0][columnIndex[nameof(DetectionBoxes)]] },
-                  { nameof(DetectionClasses), grid => grid[0][columnIndex[nameof(DetectionClasses)]] },
-                  { nameof(DetectionScores), grid => grid[0][columnIndex[nameof(DetectionScores)]] },
-               };
-            }
             // Crea la griglia del risultato
             var grid = data.ToDataViewGrid();
             // Memorizza le labels
             Labels = owner.Labels;
             // Memorizza i risultati della previsione
             ImagePath = grid[0]["ImagePath"];
-            DetectionBoxes = readOutput[nameof(DetectionBoxes)](grid);
-            DetectionClasses = readOutput[nameof(DetectionClasses)](grid);
-            DetectionScores = readOutput[nameof(DetectionScores)](grid);
+            DetectionBoxes = grid[0][owner.GetColumnIndex(nameof(DetectionBoxes))];
+            DetectionClasses = grid[0][owner.GetColumnIndex(nameof(DetectionClasses))];
+            DetectionScores = grid[0][owner.GetColumnIndex(nameof(DetectionScores))];
          }
          /// <summary>
          /// Restituisce i bounding box filtrati
