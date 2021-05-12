@@ -102,7 +102,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Dizionario di riferimenti tipo di dati previsione -> numero colonna di uscita
          /// </summary>
-         private Dictionary<string, int> dataKindToColumn = new();
+         private readonly Dictionary<string, int> dataKindToColumn = new();
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
