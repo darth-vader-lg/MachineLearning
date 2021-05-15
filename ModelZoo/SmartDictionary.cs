@@ -4,6 +4,7 @@ using Microsoft.ML;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
@@ -14,17 +15,13 @@ namespace MachineLearning.ModelZoo
    /// Dizionario intelligente
    /// </summary>
    [Serializable]
-   public partial class SmartDictionary<TValue> : IDictionary<string, TValue>
+   public partial class SmartDictionary<TValue> : ModelZooBase<SmartDictionary<TValue>.Mdl>, IDictionary<string, TValue>
    {
       #region Fields
       /// <summary>
       /// Dizionario interno
       /// </summary>
       private readonly Dictionary<string, TValue> internalDictionary = new();
-      /// <summary>
-      /// Modello di previsione
-      /// </summary>
-      private readonly Model model = new();
       #endregion
       #region Properties
       /// <summary>
@@ -54,7 +51,7 @@ namespace MachineLearning.ModelZoo
          set
          {
             if (!internalDictionary.ContainsKey(key))
-               model.Add(key);
+               Model.Add(key);
             ((IDictionary<string, TValue>)internalDictionary)[key] = value;
          }
       }
@@ -66,16 +63,12 @@ namespace MachineLearning.ModelZoo
       /// <summary>
       /// Costruttore
       /// </summary>
-      public SmartDictionary() => internalDictionary = new();
+      public SmartDictionary() : this(Array.Empty<KeyValuePair<string, TValue>>()) { }
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="dictionary">Dizionario di inizializzazione</param>
-      public SmartDictionary(IDictionary<string, TValue> dictionary)
-      {
-         internalDictionary = new(dictionary);
-         model.AddRange(internalDictionary.Keys);
-      }
+      public SmartDictionary(IDictionary<string, TValue> dictionary) : this((IEnumerable<KeyValuePair<string, TValue>>)dictionary) { }
       /// <summary>
       /// Costruttore
       /// </summary>
@@ -83,7 +76,8 @@ namespace MachineLearning.ModelZoo
       public SmartDictionary(IEnumerable<KeyValuePair<string, TValue>> collection)
       {
          internalDictionary = new(collection);
-         model.AddRange(internalDictionary.Keys);
+         Model = new();
+         Model.AddRange(internalDictionary.Keys);
       }
       /// <summary>
       /// Aggiunge una coppia chiave valore
@@ -93,7 +87,7 @@ namespace MachineLearning.ModelZoo
       public void Add(string key, TValue value)
       {
          ((IDictionary<string, TValue>)internalDictionary).Add(key, value);
-         model.Add(key);
+         Model.Add(key);
       }
       /// <summary>
       /// Aggiunge una coppia chiave valore
@@ -102,7 +96,7 @@ namespace MachineLearning.ModelZoo
       public void Add(KeyValuePair<string, TValue> item)
       {
          ((ICollection<KeyValuePair<string, TValue>>)internalDictionary).Add(item);
-         model.Add(item.Key);
+         Model.Add(item.Key);
       }
       /// <summary>
       /// Cancella il dizionario
@@ -110,8 +104,8 @@ namespace MachineLearning.ModelZoo
       public void Clear()
       {
          ((ICollection<KeyValuePair<string, TValue>>)internalDictionary).Clear();
-         model.ClearModel();
-         model.DataStorage.SaveData(model.Context, DataViewGrid.Create(model, model.InputSchema));
+         Model.ClearModel();
+         ((IDataStorageProvider)Model).DataStorage.SaveData(Model.Context, DataViewGrid.Create(Model, ((IInputSchema)Model).InputSchema));
       }
       /// <summary>
       /// Verifica se il dizionario contiene una coppia chiave / valore
@@ -142,7 +136,7 @@ namespace MachineLearning.ModelZoo
       /// <param name="key">La chiave</param>
       /// <param name="cancellation">Eventuale token di cancellazione</param>
       /// <returns>La chiave piu' simile</returns>
-      public string GetSimilarKey(string key, CancellationToken cancellation = default) => model.GetPredictionData(new[] { "", key }, cancellation).ToDataViewGrid()[0]["PredictedLabel"];
+      public string GetSimilarKey(string key, CancellationToken cancellation = default) => Model.GetPredictionData(new[] { "", key }, cancellation).ToDataViewGrid()[0]["PredictedLabel"];
       /// <summary>
       /// Restituisce l'enumeratore
       /// </summary>
@@ -156,10 +150,10 @@ namespace MachineLearning.ModelZoo
       public bool Remove(string key)
       {
          if (((IDictionary<string, TValue>)internalDictionary).Remove(key)) {
-            model.ClearModel();
-            model.DataStorage.SaveData(model.Context, DataViewGrid.Create(model, model.InputSchema));
+            Model.ClearModel();
+            ((IDataStorageProvider)Model).DataStorage.SaveData(Model.Context, DataViewGrid.Create(Model, ((IInputSchema)Model).InputSchema));
             foreach (var k in Keys)
-               model.Add(k);
+               Model.Add(k);
          }
          return false;
       }
@@ -171,10 +165,10 @@ namespace MachineLearning.ModelZoo
       public bool Remove(KeyValuePair<string, TValue> item)
       {
          if (((ICollection<KeyValuePair<string, TValue>>)internalDictionary).Remove(item)) {
-            model.ClearModel();
-            model.DataStorage.SaveData(model.Context, DataViewGrid.Create(model, model.InputSchema));
+            Model.ClearModel();
+            ((IDataStorageProvider)Model).DataStorage.SaveData(Model.Context, DataViewGrid.Create(Model, ((IInputSchema)Model).InputSchema));
             foreach (var k in Keys)
-               model.Add(k);
+               Model.Add(k);
             return true;
          }
          return false;
@@ -188,13 +182,13 @@ namespace MachineLearning.ModelZoo
       public bool TryGetValue(string key, [MaybeNullWhen(false)] out TValue value) => ((IDictionary<string, TValue>)internalDictionary).TryGetValue(key, out value);
    }
 
-   public partial class SmartDictionary<TValue> // Model
+   public partial class SmartDictionary<TValue> // Mdl
    {
       /// <summary>
       /// Modello di interpretazione delle chiavi
       /// </summary>
       [Serializable]
-      private class Model :
+      public class Mdl :
          MulticlassModelBase,
          IDataStorageProvider,
          IInputSchema,
@@ -214,44 +208,44 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Storage di dati
          /// </summary>
-         public IDataStorage DataStorage { get; } = new DataStorageBinaryMemory();
+         IDataStorage IDataStorageProvider.DataStorage { get; } = new DataStorageBinaryMemory();
          /// <summary>
          /// Schema di input del modello
          /// </summary>
-         public DataViewSchema InputSchema { get; } = DataViewSchemaBuilder.Build((Name: "Label", typeof(string)), (Name: "Text", typeof(string)));
+         DataViewSchema IInputSchema.InputSchema { get; } = DataViewSchemaBuilder.Build((Name: "Label", typeof(string)), (Name: "Text", typeof(string)));
          /// <summary>
          /// Abilitazione all'autocommit dei dati
          /// </summary>
-         public bool ModelAutoCommit => true;
+         bool IModelAutoCommit.ModelAutoCommit => true;
          /// <summary>
          /// Abilitazione all'auto save del modello
          /// </summary>
-         public bool ModelAutoSave => true;
+         bool IModelAutoSave.ModelAutoSave => true;
          /// <summary>
          /// Storage del modello
          /// </summary>
-         public IModelStorage ModelStorage { get; } = new ModelStorageMemory();
+         IModelStorage IModelStorageProvider.ModelStorage { get; } = new ModelStorageMemory();
          /// <summary>
          /// Trainer del modello
          /// </summary>
-         public IModelTrainer ModelTrainer { get; } = new ModelTrainerStandard();
+         IModelTrainer IModelTrainerProvider.ModelTrainer { get; } = new ModelTrainerStandard();
          /// <summary>
          /// Dati di training
          /// </summary>
-         public IDataStorage TrainingStorage { get; } = new DataStorageBinaryMemory();
+         IDataStorage ITrainingStorageProvider.TrainingStorage { get; } = new DataStorageBinaryMemory();
          #endregion
          #region Methods
          /// <summary>
          /// Costruttore
          /// </summary>
-         public Model() : base(new MachineLearningContext()) { }
+         public Mdl() : base(new MachineLearningContext()) { }
          /// <summary>
          /// Aggiunge una chiave al modello
          /// </summary>
          /// <param name="key">Chiave</param>
-         public void Add(string key)
+         internal void Add(string key)
          {
-            var data = DataViewGrid.Create(this, InputSchema);
+            var data = DataViewGrid.Create(this, ((IInputSchema)this).InputSchema);
             data.Add(key, key);
             StopTraining();
             AddTrainingData(data, false);
@@ -260,19 +254,34 @@ namespace MachineLearning.ModelZoo
          /// Aggiunge una chiave al modello
          /// </summary>
          /// <param name="keys">Chiavi</param>
-         public void AddRange(IEnumerable<string> keys)
+         internal void AddRange(IEnumerable<string> keys)
          {
-            var data = DataViewGrid.Create(this, InputSchema);
+            var data = DataViewGrid.Create(this, ((IInputSchema)this).InputSchema);
             foreach (var key in keys)
                data.Add(key, key);
             StopTraining();
             AddTrainingData(data, false);
          }
          /// <summary>
+         /// Funzione di dispose
+         /// </summary>
+         /// <param name="disposing">Indicatore di dispose da codice</param>
+         protected sealed override void Dispose(bool disposing)
+         {
+            base.Dispose(disposing);
+            try {
+               pipes?.Dispose();
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
+            pipes = null;
+         }
+         /// <summary>
          /// Restituisce le pipes
          /// </summary>
          /// <returns>Le pipe di apprendimento</returns>
-         public override ModelPipes GetPipes()
+         public sealed override ModelPipes GetPipes()
          {
             return pipes ??= new()
             {

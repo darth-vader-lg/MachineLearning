@@ -5,6 +5,7 @@ using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.Text;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 
@@ -15,18 +16,13 @@ namespace MachineLearning.ModelZoo
    /// </summary>
    [Serializable]
    public sealed partial class TextMeaningRecognizer :
+      ModelZooBase<TextMeaningRecognizer.Mdl>,
       IDataStorageProvider,
       IInputSchema,
       IModelStorageProvider,
       IModelTrainerProvider,
       IModelTrainingControl
    {
-      #region Fields
-      /// <summary>
-      /// Modello
-      /// </summary>
-      private readonly Model _model;
-      #endregion
       #region Properties
       /// <summary>
       /// Storage dei dati
@@ -56,7 +52,7 @@ namespace MachineLearning.ModelZoo
       /// <param name="context">Contesto di machine learning</param>
       public TextMeaningRecognizer(IContextProvider<MLContext> context = default)
       {
-         _model = new Model(this, context);
+         Model = new Mdl(this, context);
          SetSchema(0, "Meaning", "Text");
       }
       /// <summary>
@@ -67,14 +63,14 @@ namespace MachineLearning.ModelZoo
       /// <param name="data">Dati</param>
       public void AddTrainingData(bool checkForDuplicates, CancellationToken cancellation, params string[] data)
       {
-         var dataGrid = DataViewGrid.Create(_model, InputSchema);
+         var dataGrid = DataViewGrid.Create(Model, InputSchema);
          dataGrid.Add(data);
-         _model.AddTrainingData(dataGrid, checkForDuplicates, cancellation);
+         Model.AddTrainingData(dataGrid, checkForDuplicates, cancellation);
       }
       /// <summary>
       /// Pulisce il modello
       /// </summary>
-      public void ClearModel() => _model.ClearModel();
+      public void ClearModel() => Model.ClearModel();
       /// <summary>
       /// Restituisce la previsione
       /// </summary>
@@ -85,7 +81,7 @@ namespace MachineLearning.ModelZoo
       {
          var schema = InputSchema;
          var valueIx = 0;
-         return new Prediction(_model.GetPredictionData(schema.Select(c => c.Name == _model.LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
+         return new Prediction(Model.GetPredictionData(schema.Select(c => c.Name == Model.LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
       }
       /// <summary>
       /// Imposta lo schema dei dati
@@ -98,29 +94,19 @@ namespace MachineLearning.ModelZoo
             throw new ArgumentException("The prediction column index is out of range", nameof(predictionColumnIndex));
          if (columnsNames.Any(item => string.IsNullOrEmpty(item)))
             throw new ArgumentException("All the columns must have a name", nameof(columnsNames));
-         _model.LabelColumnName = columnsNames[predictionColumnIndex];
+         Model.LabelColumnName = columnsNames[predictionColumnIndex];
          InputSchema = DataViewSchemaBuilder.Build(columnsNames.Select(c => (c, typeof(string))).ToArray());
       }
-      /// <summary>
-      /// Avvia il training del modello
-      /// </summary>
-      /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
-      /// <summary>
-      /// Stoppa il training del modello
-      /// </summary>
-      /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
       #endregion
    }
 
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class TextMeaningRecognizer // Model
+   public sealed partial class TextMeaningRecognizer // Mdl
    {
       [Serializable]
-      private sealed class Model :
+      public sealed class Mdl :
          MulticlassModelBase,
          IDataStorageProvider,
          IInputSchema,
@@ -147,44 +133,44 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Storage di dati
          /// </summary>
-         public IDataStorage DataStorage => ((IDataStorageProvider)_owner).DataStorage;
+         IDataStorage IDataStorageProvider.DataStorage => _owner.DataStorage;
          /// <summary>
          /// Schema di input del modello
          /// </summary>
-         public DataViewSchema InputSchema => ((IInputSchema)_owner).InputSchema;
+         DataViewSchema IInputSchema.InputSchema => _owner.InputSchema;
          /// <summary>
          /// Abilitazione salvataggio automatico modello
          /// </summary>
-         public bool ModelAutoCommit => true;
+         bool IModelAutoCommit.ModelAutoCommit => true;
          /// <summary>
          /// Abilitazione commit automatico dei dati di training
          /// </summary>
-         public bool ModelAutoSave => true;
+         bool IModelAutoSave.ModelAutoSave => true;
          /// <summary>
          /// Nome del modello
          /// </summary>
-         public string ModelName => _owner.Name;
+         string IModelName.ModelName => _owner.Name;
          /// <summary>
          /// Storage del modello
          /// </summary>
-         public IModelStorage ModelStorage => ((IModelStorageProvider)_owner).ModelStorage;
+         IModelStorage IModelStorageProvider.ModelStorage => _owner.ModelStorage;
          /// <summary>
          /// Trainer del modello
          /// </summary>
-         public IModelTrainer ModelTrainer => ((IModelTrainerProvider)_owner).ModelTrainer;
+         IModelTrainer IModelTrainerProvider.ModelTrainer => _owner.ModelTrainer;
          /// <summary>
          /// Opzioni di caricamento dati in formato testo
          /// </summary>
-         public TextLoader.Options TextLoaderOptions => new()
+         TextLoader.Options ITextLoaderOptions.TextLoaderOptions => new()
          {
             AllowQuoting = true,
             Separators = new[] { ',' },
-            Columns = InputSchema.ToTextLoaderColumns(),
+            Columns = _owner.InputSchema.ToTextLoaderColumns(),
          };
          /// <summary>
          /// Dati di training
          /// </summary>
-         public IDataStorage TrainingStorage { get; } = new DataStorageBinaryMemory();
+         IDataStorage ITrainingStorageProvider.TrainingStorage { get; } = new DataStorageBinaryMemory();
          #endregion
          #region Methods
          /// <summary>
@@ -192,7 +178,22 @@ namespace MachineLearning.ModelZoo
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="context">Contesto di machine learning</param>
-         internal Model(TextMeaningRecognizer owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
+         internal Mdl(TextMeaningRecognizer owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
+         /// <summary>
+         /// Funzione di dispose
+         /// </summary>
+         /// <param name="disposing">Indicatore di dispose da codice</param>
+         protected override void Dispose(bool disposing)
+         {
+            base.Dispose(disposing);
+            try {
+               _pipes?.Dispose();
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
+            _pipes = null;
+         }
          /// <summary>
          /// Restituisce le pipe di training del modello
          /// </summary>
@@ -204,7 +205,7 @@ namespace MachineLearning.ModelZoo
             {
                Input =
                   Context.Transforms.Conversion.MapValueToKey(LabelColumnName)
-                  .Append(Context.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in InputSchema
+                  .Append(Context.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in _owner.InputSchema
                                                                                                                           where c.Name != LabelColumnName
                                                                                                                           select c.Name).ToArray()))
                   .Append(Context.Transforms.CopyColumns("Features", "FeaturizeText"))

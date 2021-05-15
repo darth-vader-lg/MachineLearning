@@ -67,6 +67,8 @@ namespace MachineLearning.Model
       {
          Contracts.CheckValue(context, nameof(context));
          this.context = context;
+         if (context is MachineLearningContext ml)
+            ml.AddDisposable(this);
       }
       /// <summary>
       /// Aggiunge un elenco di dati di training
@@ -212,6 +214,29 @@ namespace MachineLearning.Model
          }
       }
       /// <summary>
+      /// Funzione di dispose
+      /// </summary>
+      /// <param name="disposing">Indicatore di dispose da programma</param>
+      protected override void Dispose(bool disposing)
+      {
+         base.Dispose(disposing);
+         try {
+            if (context is MachineLearningContext ml)
+               ml.RemoveDisposable(this);
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+         try {
+            (evaluator?.Model as IDisposable)?.Dispose();
+         }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+         if (evaluator != null)
+            evaluator.Model = null;
+      }
+      /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello
       /// </summary>
       /// <param name="modelEvaluation1">Prima valutazione</param>
@@ -310,6 +335,7 @@ namespace MachineLearning.Model
                   stopEvaluator = currentEvaluator;
             }
             if (createEvaluator) {
+               (currentEvaluator?.Model as IDisposable)?.Dispose();
                startEvaluator = currentEvaluator = evaluator = new Evaluator
                {
                   DataStorage = _dataStorage,
@@ -494,22 +520,26 @@ namespace MachineLearning.Model
          lock (evaluator) {
             // Annulla il modello
             if (model == null) {
-               var writeLog = evaluator.Model != null;
+               var modelCleared = evaluator.Model != null;
+               if (modelCleared)
+                  (evaluator.Model as IDisposable)?.Dispose();
                evaluator.Model = null;
                evaluator.InputSchema = schema;
                evaluator.Timestamp = default;
                evaluator.Available.Reset();
-               if (writeLog)
+               if (modelCleared)
                   Channel.WriteLog("Model cleared");
             }
             // Imposta il modello
             else {
-               var writeLog = this.evaluator.Model != model;
+               var modelSetted = this.evaluator.Model != model;
+               if (modelSetted)
+                  (evaluator.Model as IDisposable)?.Dispose();
                evaluator.Model = model;
                evaluator.InputSchema = schema;
                evaluator.Timestamp = timestamp;
                evaluator.Available.Set();
-               if (writeLog)
+               if (modelSetted)
                   Channel.WriteLog("Model setted");
             }
          }
@@ -610,6 +640,8 @@ namespace MachineLearning.Model
             OnTrainingStarted(new ModelTrainingEventArgs(e));
             // Validita' modello attuale
             var validModel =
+               e.Model != null &&
+               e.Timestamp != default &&
                e.Timestamp >= ((e.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
                e.Timestamp >= ((e.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default);
             // Definizioni
@@ -634,10 +666,10 @@ namespace MachineLearning.Model
                      (((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > e.Timestamp || e.Model == null);
                   if (loadExistingModel) {
                      try {
-                        timestamp = DateTime.UtcNow;
                         Channel.WriteLog("Loading the model");
                         inputSchema = null;
                         model = e.ModelStorage == null ? null : await Task.Run(() => LoadModel(e.ModelStorage, out inputSchema), cancel);
+                        timestamp = model == null ? default : (e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? DateTime.UtcNow;
                         if (e.InputSchema != null && inputSchema != null) {
                            try {
                               CheckSchemaConsistence(e.InputSchema, inputSchema, "Inconsistent schema: input schema and stored model schema are different. The model will be discarded.");
@@ -647,8 +679,10 @@ namespace MachineLearning.Model
                            }
                         }
                      }
+                     catch (OperationCanceledException) { }
                      catch (Exception exc) {
                         Channel.WriteLog($"Error loading the model: {exc.Message}");
+                        Trace.WriteLine(exc);
                         model = null;
                         inputSchema = null;
                         timestamp = default;
@@ -705,7 +739,8 @@ namespace MachineLearning.Model
                         throw;
                      }
                      catch (Exception exc) {
-                        Debug.WriteLine(exc);
+                        Channel.WriteLog($"Error committing the data: {exc.Message}");
+                        Trace.WriteLine(exc);
                      }
                   }
                   data = LoadData();

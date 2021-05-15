@@ -4,6 +4,7 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -16,18 +17,12 @@ namespace MachineLearning.ModelZoo
    /// </summary>
    [Serializable]
    public sealed partial class ImageRecognizer :
+      ModelZooBase<ImageRecognizer.Mdl>,
       IDataStorageProvider,
       IInputSchema,
       IModelStorageProvider,
-      IModelTrainerProvider,
-      IModelTrainingControl
+      IModelTrainerProvider
    {
-      #region Fields
-      /// <summary>
-      /// Modello
-      /// </summary>
-      private readonly Model _model;
-      #endregion
       #region Properties
       /// <summary>
       /// Storage dei dati
@@ -61,13 +56,13 @@ namespace MachineLearning.ModelZoo
       /// <param name="context">Contesto di machine learning</param>
       public ImageRecognizer(IContextProvider<MLContext> context = default)
       {
-         _model = new Model(this, context);
+         Model = new Mdl(this, context);
          SetSchema(0, 1, 2, "Label", "ImagePath", "ImageTimestamp");
       }
       /// <summary>
       /// Cancella il modello
       /// </summary>
-      public void ClearModel() => _model.ClearModel();
+      public void ClearModel() => Model.ClearModel();
       /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
@@ -77,7 +72,7 @@ namespace MachineLearning.ModelZoo
       public Prediction GetPrediction(string imagePath, CancellationToken cancel = default)
       {
          var schema = InputSchema;
-         return new Prediction(_model.GetPredictionData(schema.Select(c => c.Name == _model.ImagePathColumnName ? imagePath : null).ToArray(), cancel));
+         return new Prediction(Model.GetPredictionData(schema.Select(c => c.Name == Model.ImagePathColumnName ? imagePath : null).ToArray(), cancel));
       }
       /// <summary>
       /// Imposta lo schema dei dati
@@ -96,31 +91,21 @@ namespace MachineLearning.ModelZoo
             throw new ArgumentException("The image timestamp column index is out of range", nameof(imageTimestampColumnIndex));
          if (columnsNames.Any(item => string.IsNullOrEmpty(item)))
             throw new ArgumentException("All the columns must have a name", nameof(columnsNames));
-         _model.LabelColumnName = columnsNames[predictionColumnIndex];
-         _model.ImagePathColumnName = columnsNames[imagePathColumnIndex];
-         _model.ImageTimestampColumnName = imageTimestampColumnIndex > -1 ? columnsNames[imageTimestampColumnIndex] : null;
+         Model.LabelColumnName = columnsNames[predictionColumnIndex];
+         Model.ImagePathColumnName = columnsNames[imagePathColumnIndex];
+         Model.ImageTimestampColumnName = imageTimestampColumnIndex > -1 ? columnsNames[imageTimestampColumnIndex] : null;
          InputSchema = DataViewSchemaBuilder.Build(columnsNames.Select((c, i) => (c, i == imageTimestampColumnIndex ? typeof(DateTime) : typeof(string))).ToArray());
       }
-      /// <summary>
-      /// Avvia il training del modello
-      /// </summary>
-      /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
-      /// <summary>
-      /// Stoppa il training del modello
-      /// </summary>
-      /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
       #endregion
    }
 
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class ImageRecognizer // Model
+   public sealed partial class ImageRecognizer // Mdl
    {
       [Serializable]
-      private sealed class Model :
+      public sealed class Mdl :
          MulticlassModelBase,
          IDataStorageProvider,
          IInputSchema,
@@ -199,12 +184,27 @@ namespace MachineLearning.ModelZoo
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="context">Contesto di machine learning</param>
-         internal Model(ImageRecognizer owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
+         internal Mdl(ImageRecognizer owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
+         /// <summary>
+         /// Funzione di dispose
+         /// </summary>
+         /// <param name="disposing">Indicatore di dispose da codice</param>
+         protected override void Dispose(bool disposing)
+         {
+            base.Dispose(disposing);
+            try {
+               _pipes?.Dispose();
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
+            _pipes = null;
+         }
          /// <summary>
          /// Restituisce le pipe di training del modello
          /// </summary>
          /// <returns>Le pipe</returns>
-         public override ModelPipes GetPipes()
+         public sealed override ModelPipes GetPipes()
          {
             // Pipe di training
             return _pipes ??= new ModelPipes
@@ -258,7 +258,7 @@ namespace MachineLearning.ModelZoo
          /// Funzione di start del training
          /// </summary>
          /// <param name="e"></param>
-         protected override void OnTrainingCycleStarted(ModelTrainingEventArgs e)
+         protected sealed override void OnTrainingCycleStarted(ModelTrainingEventArgs e)
          {
             base.OnTrainingCycleStarted(e);
             if (e.Evaluator.Cancellation.IsCancellationRequested)

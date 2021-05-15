@@ -17,16 +17,10 @@ namespace MachineLearning.ModelZoo
 {
    [Serializable]
    public sealed partial class ObjectDetection :
+      ModelZooBase<ObjectDetection.Mdl>,
       IInputSchema,
-      IModelStorageProvider,
-      IModelTrainingControl
+      IModelStorageProvider
    {
-      #region Fields
-      /// <summary>
-      /// Modello
-      /// </summary>
-      private readonly Model _model;
-      #endregion
       #region Properties
       /// <summary>
       /// Default resize delle immagini in ingresso se non e' specificato nel modello
@@ -39,7 +33,7 @@ namespace MachineLearning.ModelZoo
       /// <summary>
       /// Schema di input dei dati
       /// </summary>
-      public ReadOnlyCollection<string> Labels => _model?.Labels;
+      public ReadOnlyCollection<string> Labels => Model?.Labels;
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -56,13 +50,13 @@ namespace MachineLearning.ModelZoo
       /// <param name="context">Contesto di machine learning</param>
       public ObjectDetection(IContextProvider<MLContext> context = default)
       {
-         _model = new Model(this, context);
+         Model = new Mdl(this, context);
          InputSchema = DataViewSchemaBuilder.Build((Name: "ImagePath", Type: typeof(string)));
       }
       /// <summary>
       /// Cancella il modello
       /// </summary>
-      public void ClearModel() => _model.ClearModel();
+      public void ClearModel() => Model.ClearModel();
       /// <summary>
       /// Restituisce il tipo di immagine
       /// </summary>
@@ -70,27 +64,17 @@ namespace MachineLearning.ModelZoo
       /// <param name="cancel">Eventuale token di cancellazione</param>
       /// <returns>I box dei rilevamenti</returns>
       public Prediction GetPrediction(string imagePath, CancellationToken cancel = default) =>
-         new(_model, _model.GetPredictionData(new[] { imagePath }, cancel));
-      /// <summary>
-      /// Avvia il training del modello
-      /// </summary>
-      /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public void StartTraining(CancellationToken cancellation = default) => _model.StartTraining(cancellation);
-      /// <summary>
-      /// Stoppa il training del modello
-      /// </summary>
-      /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
-      public void StopTraining(CancellationToken cancellation = default) => _model.StopTraining(cancellation);
+         new(Model, Model.GetPredictionData(new[] { imagePath }, cancel));
       #endregion
    }
 
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class ObjectDetection // Prediction
+   public sealed partial class ObjectDetection // Mdl
    {
       [Serializable]
-      public sealed class Model :
+      public sealed class Mdl :
          ModelBaseMLNet,
          IDataStorageProvider,
          IDataTransformer,
@@ -121,15 +105,15 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Storage di dati
          /// </summary>
-         public IDataStorage DataStorage { get; } = new DataStorageBinaryMemory();
+         IDataStorage IDataStorageProvider.DataStorage { get; } = new DataStorageBinaryMemory();
          /// <summary>
          /// Schema di input
          /// </summary>
-         public DataViewSchema InputSchema => ((IInputSchema)_owner).InputSchema;
+         DataViewSchema IInputSchema.InputSchema => ((IInputSchema)_owner).InputSchema;
          /// <summary>
          /// Labels
          /// </summary>
-         public ReadOnlyCollection<string> Labels => Config.Labels;
+         internal ReadOnlyCollection<string> Labels => Config.Labels;
          /// <summary>
          /// Storage del modello
          /// </summary>
@@ -145,18 +129,33 @@ namespace MachineLearning.ModelZoo
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="contextProvider">Provider di contesto di machine learning</param>
-         internal Model(ObjectDetection owner, IContextProvider<MLContext> contextProvider = default) : base(contextProvider) => _owner = owner;
+         internal Mdl(ObjectDetection owner, IContextProvider<MLContext> contextProvider = default) : base(contextProvider) => _owner = owner;
+         /// <summary>
+         /// Funzione di dispose
+         /// </summary>
+         /// <param name="disposing">Indicatore di dispose da codice</param>
+         protected sealed override void Dispose(bool disposing)
+         {
+            base.Dispose(disposing);
+            try {
+               _pipes?.Dispose();
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
+            _pipes = null;
+         }
          /// <summary>
          /// Restituisce l'indice di colonna corrispondente al genere di dati richiesti
          /// </summary>
          /// <param name="dataKind">Genera di dati</param>
          /// <returns>L'indice di colonna</returns>
-         public int GetColumnIndex(string dataKind)
+         internal int GetColumnIndex(string dataKind)
          {
             lock (dataKindToColumn) {
                if (dataKindToColumn.Count == 0) {
                   // Schema di outputput del modello
-                  var outputSchema = GetOutputSchema(InputSchema);
+                  var outputSchema = GetOutputSchema(_owner.InputSchema);
                   // Rileva con un dizionario intelligente gli indici delle colonne di uscita
                   var sd = new SmartDictionary<string>(from c in outputSchema select new KeyValuePair<string, string>(c.Name, c.Name));
                   // Aggiorna il dizionario di corrispondenze
@@ -173,7 +172,7 @@ namespace MachineLearning.ModelZoo
          /// Restituisce le pipe di training del modello
          /// </summary>
          /// <returns>Le pipe</returns>
-         public override ModelPipes GetPipes()
+         public sealed override ModelPipes GetPipes()
          {
             // Verifica se modello yolo
             var isYolo = Config.ModelType.ToLower().Contains("yolo");
@@ -246,7 +245,8 @@ namespace MachineLearning.ModelZoo
                                  Config.Inputs[0].ColumnName,
                                  Config.Inputs[0].Dim.Select(d => d > 0 ? d : shapes.Dequeue()).ToArray()
                               }
-                           }),
+                           },
+                           recursionLimit: 100),
                      // saved_model o frozen graph TensorFlow
                      var tf when tf == ODModelConfig.ModelFormat.TF2SavedModel || tf == ODModelConfig.ModelFormat.TFFrozenGraph =>
                         Context.Model.LoadTensorFlowModel(Config.ModelFilePath).ScoreTensorFlowModel(
@@ -264,7 +264,7 @@ namespace MachineLearning.ModelZoo
          /// <param name="modelStorage">Storage del modello</param>
          /// <param name="schema">Lo schema del modello</param>
          /// <returns>Il modello</returns>
-         public override IDataTransformer ImportModel(IModelStorage modelStorage, out DataViewSchema schema)
+         public sealed override IDataTransformer ImportModel(IModelStorage modelStorage, out DataViewSchema schema)
          {
             schema = null;
             // Carica la configurazione del modello
@@ -278,27 +278,26 @@ namespace MachineLearning.ModelZoo
             // Ottiene le pipes
             var pipelines = GetPipes();
             // Crea il modello
-            var dataView = DataViewGrid.Create(this, InputSchema);
+            var dataView = DataViewGrid.Create(this, _owner.InputSchema);
             var model = pipelines.Merged.Fit(dataView);
-            schema = InputSchema;
+            schema = _owner.InputSchema;
             var result = new DataTransformerMLNet(this, model);
-            // Salva modello. Non per il Tensorflow saved_model: baco della ML.NET nel salvataggio.
-            if (Config.Format != ODModelConfig.ModelFormat.TF2SavedModel) {
-               SaveModel(modelStorage, result, schema);
-               return null;
-            }
-            return result;
+            // Salva modello.
+            SaveModel(modelStorage, result, schema);
+            result.Dispose();
+            return null;
          }
          /// <summary>
          /// Funzione di notifica della variazione del modello
          /// </summary>
          /// <param name="e">Argomenti dell'evento</param>
-         protected override void OnModelChanged(ModelTrainingEventArgs e)
+         protected sealed override void OnModelChanged(ModelTrainingEventArgs e)
          {
             base.OnModelChanged(e);
             try {
                // Azzera le pipes all'invalidazione del modello per essere ricostruite
                if (e.Evaluator.Model == null) {
+                  _pipes?.Dispose();
                   _pipes = null;
                   lock (dataKindToColumn)
                      dataKindToColumn.Clear();
@@ -347,7 +346,7 @@ namespace MachineLearning.ModelZoo
          /// Costruttore
          /// </summary>
          /// <param name="data">Dati della previsione</param>
-         internal Prediction(Model owner, IDataAccess data)
+         internal Prediction(Mdl owner, IDataAccess data)
          {
             // Crea la griglia del risultato
             var grid = data.ToDataViewGrid();

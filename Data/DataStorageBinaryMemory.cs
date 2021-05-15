@@ -26,7 +26,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Data e ora dell'oggetto
       /// </summary>
-      public DateTime DataTimestamp { get; private set; }
+      public DateTime DataTimestamp { get; set; }
       #endregion
       #region Methods
       /// <summary>

@@ -1,6 +1,8 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
+using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace MachineLearning.Data
@@ -8,13 +10,19 @@ namespace MachineLearning.Data
    /// <summary>
    /// Transformer di dati ML.NET
    /// </summary>
-   public class DataTransformerMLNet : IDataTransformer, ITransformer
+   public class DataTransformerMLNet : IDataTransformer, IDisposable, ITransformer
    {
+      #region Fields
+      /// <summary>
+      /// Indicatore di oggetto disposto
+      /// </summary>
+      private bool disposedValue;
+      #endregion
       #region Properties
       /// <summary>
       /// Il transformer
       /// </summary>
-      public ITransformer Transformer { get; }
+      public ITransformer Transformer { get; private set; }
       /// <summary>
       /// Definisce se e' un mapper riga a riga
       /// </summary>
@@ -26,6 +34,31 @@ namespace MachineLearning.Data
          MachineLearningContext.CheckContext(context, nameof(context));
          context.CheckValue(transformer, nameof(transformer));
          Transformer = transformer;
+      }
+      /// <summary>
+      /// Implementazione della IDisposable
+      /// </summary>
+      public void Dispose()
+      {
+         Dispose(disposing: true);
+         GC.SuppressFinalize(this);
+      }
+      /// <summary>
+      /// Funzione di dispose
+      /// </summary>
+      /// <param name="disposing">Indicatore di dispose da codice</param>
+      protected virtual void Dispose(bool disposing)
+      {
+         if (!disposedValue) {
+            try {
+               (Transformer as IDisposable)?.Dispose();
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
+            Transformer = null;
+            disposedValue = true;
+         }
       }
       /// <summary>
       /// Restituisce lo schema di output

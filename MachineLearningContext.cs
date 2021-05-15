@@ -1,13 +1,13 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning.TensorFlow;
+using Microsoft.ML;
 using Microsoft.ML.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Tensorflow;
-using MachineLearning.TensorFlow;
 
 namespace MachineLearning
 {
@@ -15,13 +15,13 @@ namespace MachineLearning
    /// Contesto di machine learning
    /// </summary>
    [Serializable]
-   public class MachineLearningContext : IContextProvider<MLContext>, IContextProvider<TFContext>, IDeserializationCallback
+   public class MachineLearningContext : IContextProvider<MLContext>, IContextProvider<TFContext>, IDeserializationCallback, IDisposable
    {
       #region Fields
       /// <summary>
-      /// Tutti i task di lavoro
+      /// Tutti gli elementi IDisposable dei contesti
       /// </summary>
-      private static readonly HashSet<List<(Task task, CancellationTokenSource cts)>> _allWorkingTasks = new();
+      private static readonly HashSet<MachineLearningContext> _allContexts = new();
       /// <summary>
       /// Scheduler di creazione dell'oggetto
       /// </summary>
@@ -32,6 +32,15 @@ namespace MachineLearning
       /// </summary>
       [NonSerialized]
       private Thread _creationThread;
+      /// <summary>
+      /// Elementi IDisposable del contesto
+      /// </summary>
+      [NonSerialized]
+      private readonly HashSet<IDisposable> _disposables = new();
+      /// <summary>
+      /// Oggetto disposto
+      /// </summary>
+      private bool _disposedValue;
       /// <summary>
       /// Coda dei messaggi di log
       /// </summary>
@@ -45,7 +54,7 @@ namespace MachineLearning
       /// Task di lavoro del contesto
       /// </summary>
       [NonSerialized]
-      private readonly List<(Task task, CancellationTokenSource cts)> _workingTasks = new();
+      private readonly HashSet<(Task task, CancellationTokenSource cts)> _workingTasks = new();
       #endregion
       #region Properties
       /// <summary>
@@ -96,8 +105,22 @@ namespace MachineLearning
       /// <param name="seed">Seme per le operazioni random</param>
       public MachineLearningContext(int? seed = null)
       {
+         lock (_allContexts)
+            _allContexts.Add(this);
          _seed = seed;
          OnInit();
+      }
+      /// <summary>
+      /// Aggiunge all'elenco dei disposables
+      /// </summary>
+      /// <param name="disposable">Oggetto disposable</param>
+      /// <returns>Il task</returns>
+      internal IDisposable AddDisposable(IDisposable disposable)
+      {
+         lock (_disposables) {
+            _disposables.Add(disposable);
+            return disposable;
+         }
       }
       /// <summary>
       /// Aggiunge all'elenco un task di lavoro
@@ -109,8 +132,6 @@ namespace MachineLearning
       {
          lock (_workingTasks) {
             _workingTasks.Add((task, cancellation));
-            lock (_allWorkingTasks)
-               _allWorkingTasks.Add(_workingTasks);
             return task;
          }
       }
@@ -133,6 +154,45 @@ namespace MachineLearning
       {
          Contracts.CheckValue(provider, name);
          Contracts.CheckValue(provider.Context, $"{name}.{nameof(IContextProvider<T>.Context)}");
+      }
+      /// <summary>
+      /// Implementazione della IDisposable
+      /// </summary>
+      public void Dispose()
+      {
+         Dispose(disposing: true);
+         GC.SuppressFinalize(this);
+      }
+      /// <summary>
+      /// Funzione di dispose
+      /// </summary>
+      /// <param name="disposing">Indicatore di dispose da programma</param>
+      protected virtual void Dispose(bool disposing)
+      {
+         if (!_disposedValue) {
+            Stop(disposing ? -1 : 10000);
+            _disposables.All(d =>
+            {
+               try {
+                  d.Dispose();
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+               }
+               return true;
+            });
+            _disposedValue = true;
+         }
+      }
+      /// <summary>
+      /// Dispose di tutti i contesti
+      /// </summary>
+      public static void DisposeAll()
+      {
+         lock (_allContexts) {
+            var tasks = (from c in _allContexts select Task.Run(() => c.Dispose())).ToArray();
+            Task.WaitAll(tasks);
+         }
       }
       /// <summary>
       /// Avvia un canale di messaggistica
@@ -234,19 +294,22 @@ namespace MachineLearning
             Action();
       }
       /// <summary>
+      /// Rimuove dall'elenco dei disposables
+      /// </summary>
+      /// <param name="disposable">L'oggetto disposable</param>
+      internal void RemoveDisposable(IDisposable disposable)
+      {
+         lock (_disposables)
+            _disposables.Remove(disposable);
+      }
+      /// <summary>
       /// Rimuove dall'elenco un task di lavoro
       /// </summary>
       /// <param name="task">Il task</param>
       internal void RemoveWorkingTask(Task task)
       {
-         lock (_workingTasks) {
-            var ix = _workingTasks.FindIndex(t => t.task == task);
-            _workingTasks.RemoveAt(ix);
-            if (_workingTasks.Count == 0) {
-               lock (_allWorkingTasks)
-                  _allWorkingTasks.Remove(_workingTasks);
-            }
-         }
+         lock (_workingTasks)
+            _workingTasks.RemoveWhere(t => t.task == task);
       }
       /// <summary>
       /// Effettua lo stop di tutti i task del contesto
@@ -257,12 +320,19 @@ namespace MachineLearning
          lock (_workingTasks) {
             Task.Run(() =>
             {
-               _workingTasks.ForEach(t => t.cts.Cancel());
-               _workingTasks.ForEach(t => t.task.Wait());
+               _workingTasks.All(t => { t.cts.Cancel(); return true; });
+               _workingTasks.All(t =>
+               {
+                  try {
+                     t.task.Wait();
+                  }
+                  catch (Exception exc) {
+                     Trace.WriteLine(exc);
+                  }
+                  return true;
+               });
             }).Wait(timeoutMs);
             _workingTasks.Clear();
-            lock (_allWorkingTasks)
-               _allWorkingTasks.Remove(_workingTasks);
          }
       }
       /// <summary>
@@ -271,24 +341,9 @@ namespace MachineLearning
       /// <param name="timeoutMs">timeout</param>
       public static void StopAll(int timeoutMs = -1)
       {
-         lock (_allWorkingTasks) {
-            Task.Run(() =>
-            {
-               foreach (var wt in _allWorkingTasks) {
-                  lock (wt) {
-                     foreach (var (task, cts) in wt)
-                        cts.Cancel();
-                  }
-               }
-               foreach (var wt in _allWorkingTasks) {
-                  lock (wt) {
-                     foreach (var (task, cts) in wt) {
-                        if (cts.IsCancellationRequested)
-                           task.Wait();
-                     }
-                  }
-               }
-            }).Wait(timeoutMs);
+         lock (_allContexts) {
+            var tasks = (from c in _allContexts select Task.Run(() => c.Stop(timeoutMs))).ToArray();
+            Task.WaitAll(tasks, timeoutMs);
          }
       }
       /// <summary>

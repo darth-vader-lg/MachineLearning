@@ -1,12 +1,20 @@
 ﻿using Microsoft.ML;
+using System;
+using System.Diagnostics;
 
 namespace MachineLearning.Model
 {
    /// <summary>
    /// Contenitore di pipes di training
    /// </summary>
-   public class ModelPipes
+   public class ModelPipes : IDisposable
    {
+      #region Fields
+      /// <summary>
+      /// Indicatore di oggetto disposed
+      /// </summary>
+      private bool disposedValue;
+      #endregion
       #region Properties
       /// <summary>
       /// Pipe di input e featurizzazione
@@ -37,6 +45,37 @@ namespace MachineLearning.Model
       /// Pipe di training
       /// </summary>
       public IEstimator<ITransformer> Trainer { get; set; }
+      #endregion
+      #region Methods
+      /// <summary>
+      /// Implementazione della IDisposable
+      /// </summary>
+      public void Dispose()
+      {
+         Dispose(disposing: true);
+         GC.SuppressFinalize(this);
+      }
+      /// <summary>
+      /// Funzione di dispose
+      /// </summary>
+      /// <param name="disposing">Indicatore di dispose da codice</param>
+      protected virtual void Dispose(bool disposing)
+      {
+         if (!disposedValue) {
+            foreach (var estimator in new[] { Input, Trainer, Output }) {
+               try {
+                  (estimator as IDisposable)?.Dispose();
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+               }
+            }
+            Input = null;
+            Trainer = null;
+            Output = null;
+            disposedValue = true;
+         }
+      }
       #endregion
    }
 }
