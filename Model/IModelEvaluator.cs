@@ -65,7 +65,7 @@ namespace MachineLearning.Model
       /// </summary>
       int TrainsCount { get; }
       #endregion
-      #region Fields
+      #region Methods
       /// <summary>
       /// Funzione di cancellazione del task di valutazione
       /// </summary>

@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 namespace MachineLearning.ModelZoo
 {
    /// <summary>
-   /// Classe per l'interpretazione del significato si testi
+   /// Class for image recognition
    /// </summary>
    [Serializable]
    public sealed partial class ImageRecognizer :

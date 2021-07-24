@@ -1,13 +1,13 @@
 ﻿namespace MachineLearning.Model
 {
    /// <summary>
-   /// Interfaccia per i modelli con possibilita' di salvataggio automatico
+   /// Interface for models with autosave capability
    /// </summary>
    public interface IModelAutoSave
    {
       #region Properties
       /// <summary>
-      /// Abilitazione al salvataggio automatico del modello
+      /// Enable automatic save of updated model
       /// </summary>
       bool ModelAutoSave { get; }
       #endregion

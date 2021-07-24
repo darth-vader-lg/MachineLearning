@@ -15,7 +15,12 @@ namespace MachineLearning
    /// Contesto di machine learning
    /// </summary>
    [Serializable]
-   public class MachineLearningContext : IContextProvider<MLContext>, IContextProvider<TFContext>, IDeserializationCallback, IDisposable
+   public class MachineLearningContext :
+      IContextProvider<MLContext>,
+      IContextProvider<TFContext>,
+      IDeserializationCallback,
+      IDisposable,
+      ISyncronizationContext
    {
       #region Fields
       /// <summary>
@@ -83,9 +88,9 @@ namespace MachineLearning
       [field: NonSerialized]
       public MLContext MLNET { get; private set; }
       /// <summary>
-      /// Indica necessita' di postare un azione nel thread di creazione dal momento che ci si trova in un altro
+      /// Indicate that it's needed a syncronized call due to the fact that we are not in the creation thread
       /// </summary>
-      public bool PostRequired => Thread.CurrentThread != _creationThread && _creationTaskScheduler != null;
+      public bool SyncRequired => Thread.CurrentThread != _creationThread && _creationTaskScheduler != null;
       /// <summary>
       /// Contesto TensorFlow
       /// </summary>
@@ -171,7 +176,7 @@ namespace MachineLearning
       {
          if (!_disposedValue) {
             Stop(disposing ? -1 : 10000);
-            _disposables.All(d =>
+            _ = _disposables.All(d =>
             {
                try {
                   d.Dispose();
@@ -235,7 +240,7 @@ namespace MachineLearning
          lock (_logMessages ??= new Queue<MachineLearningLogEventArgs>()) {
             _logMessages.Enqueue(new MachineLearningLogEventArgs(e.Message, kind, e.Source));
             if (_logMessages.Count == 1) {
-               Post(() =>
+               SyncPost(() =>
                {
                   for (; ; ) {
                      lock (_logMessages) {
@@ -283,17 +288,6 @@ namespace MachineLearning
          }
       }
       /// <summary>
-      /// Posta un azione nel thread di creazione del contesto
-      /// </summary>
-      /// <param name="Action">Azione</param>
-      public void Post(Action Action)
-      {
-         if (PostRequired)
-            new Task(Action).Start(_creationTaskScheduler);
-         else
-            Action();
-      }
-      /// <summary>
       /// Rimuove dall'elenco dei disposables
       /// </summary>
       /// <param name="disposable">L'oggetto disposable</param>
@@ -320,8 +314,8 @@ namespace MachineLearning
          lock (_workingTasks) {
             Task.Run(() =>
             {
-               _workingTasks.All(t => { t.cts.Cancel(); return true; });
-               _workingTasks.All(t =>
+               _ = _workingTasks.All(t => { t.cts.Cancel(); return true; });
+               _ = _workingTasks.All(t =>
                {
                   try {
                      t.task.Wait();
@@ -347,6 +341,32 @@ namespace MachineLearning
          }
       }
       /// <summary>
+      /// Post an action to the creation context of the machine learning context
+      /// </summary>
+      /// <param name="action">Action to execute</param>
+      public void SyncPost(Action action)
+      {
+         if (SyncRequired)
+            new Task(action).Start(_creationTaskScheduler);
+         else
+            action();
+      }
+      /// <summary>
+      /// Execute an action in the creation context of the machine learning context
+      /// </summary>
+      /// <param name="action">Action to execute</param>
+      /// <param name="cancellation">Optional cancellatin token</param>
+      public void SyncExec(Action action, CancellationToken cancellation = default)
+      {
+         if (SyncRequired) {
+            var task = new Task(action, cancellation);
+            task.Start(_creationTaskScheduler);
+            task.Wait(cancellation);
+         }
+         else
+            action();
+      }
+      /// <summary>
       /// Log della TensorFlow
       /// </summary>
       /// <param name="sender">Contesto ML.NET</param>
@@ -367,7 +387,7 @@ namespace MachineLearning
          lock (_logMessages ??= new Queue<MachineLearningLogEventArgs>()) {
             _logMessages.Enqueue(new MachineLearningLogEventArgs(e.Message, kind, e.Source));
             if (_logMessages.Count == 1) {
-               Post(() =>
+               SyncPost(() =>
                {
                   for (; ; ) {
                      lock (_logMessages) {

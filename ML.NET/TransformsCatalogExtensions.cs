@@ -1,7 +1,5 @@
 ﻿using MachineLearning.Transforms;
 using Microsoft.ML.Runtime;
-using Microsoft.ML.Transforms;
-using System;
 using System.Reflection;
 
 namespace Microsoft.ML

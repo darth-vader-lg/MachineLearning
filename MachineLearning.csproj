@@ -30,6 +30,9 @@
     <PackageReference Include="LG.Microsoft.ML.TimeSeries" Version="1.6.0" />
     <PackageReference Include="LG.SciSharp.TensorFlow.Redist-Windows-GPU" Version="2.4.1" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.8.1" />
+    <PackageReference Include="ODModelBuilderTF" Version="1.1.0-rc1">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="System.Management" Version="6.0.0-preview.2.21154.6" />
   </ItemGroup>
 

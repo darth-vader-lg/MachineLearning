@@ -52,6 +52,12 @@ namespace MachineLearning.Model
       /// </summary>
       public event ModelTrainingEventHandler TrainingStarted;
       #endregion
+      #region Properties
+      /// <summary>
+      /// The syncronization context
+      /// </summary>
+      public ISyncronizationContext SyncronizationContext => context as ISyncronizationContext;
+      #endregion
       #region Methods
       /// <summary>
       /// Costruttore
@@ -262,7 +268,9 @@ namespace MachineLearning.Model
                throw new OperationCanceledException();
             case 2:
                // Await to propagate the possible exception
-               throw evaluator.Task.Exception;
+               if (evaluator?.Task?.Exception != null)
+                  throw evaluator.Task.Exception;
+               throw new OperationCanceledException();
          }
          // Verify that a result is really available
          if (!evaluator.Available.WaitOne(0))
@@ -299,7 +307,7 @@ namespace MachineLearning.Model
                   else if (currentEvaluator.Trainer is IModelTrainerCycling cycling && currentEvaluator.TrainsCount < cycling.MaxTrainingCycles)
                      startCurrentEvaluator = true;
                }
-               if (currentEvaluator.Timestamp != default) {
+               if (currentEvaluator.Timestamp != default && (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested)) {
                   if (((currentEvaluator.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
                      createEvaluator = true;
                   else if (((currentEvaluator.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) > currentEvaluator.Timestamp)
@@ -353,8 +361,14 @@ namespace MachineLearning.Model
             StopTrainingInternal(stopEvaluator);
             cancellation.ThrowIfCancellationRequested();
          }
-         if (startEvaluator != null && startEvaluator.TaskTraining.Task.IsCompleted)
-            StartTrainingInternal(startEvaluator, stopEvaluator != null ? stopEvaluator.TaskTraining.ParentCancellationToken : cancellation);
+         if (startEvaluator != null && startEvaluator.TaskTraining.Task.IsCompleted) {
+            var ct = cancellation;
+            if (ct == default) {
+               if (stopEvaluator != null && !stopEvaluator.TaskTraining.ParentCancellationToken.IsCancellationRequested)
+                  ct = stopEvaluator.TaskTraining.ParentCancellationToken;
+            }
+            StartTrainingInternal(startEvaluator, ct);
+         }
          cancellation.ThrowIfCancellationRequested();
          return currentEvaluator;
       }
@@ -467,7 +481,10 @@ namespace MachineLearning.Model
       protected virtual void OnTrainingEnded(ModelTrainingEventArgs e)
       {
          try {
-            Channel.WriteLog("Training ended");
+            if (e.Evaluator.Cancellation.IsCancellationRequested)
+               Channel.WriteLog("Training cancelled");
+            else
+               Channel.WriteLog("Training ended");
             Channel.WriteLog("--------------");
             TrainingEnded?.Invoke(this, e);
          }
@@ -847,8 +864,7 @@ namespace MachineLearning.Model
             // Attende il termine dei task
             try { await taskSaveModel; } catch { }
             // Segnala la fine del training
-            if (!cancel.IsCancellationRequested)
-               try { OnTrainingEnded(new ModelTrainingEventArgs(e)); } catch { }
+            try { OnTrainingEnded(new ModelTrainingEventArgs(e)); } catch { }
          }
       }
       /// <summary>
