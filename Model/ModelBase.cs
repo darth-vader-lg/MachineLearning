@@ -30,12 +30,6 @@ namespace MachineLearning.Model
       [NonSerialized]
       private Evaluator evaluator;
       #endregion
-      #region Properties
-      /// <summary>
-      /// Gestore trainer modello
-      /// </summary>
-      private IModelTrainer ModelTrainer => (this as IModelTrainerProvider)?.ModelTrainer ?? this as IModelTrainer;
-      #endregion
       #region Events
       /// <summary>
       /// Evento di variazione modello
@@ -250,28 +244,27 @@ namespace MachineLearning.Model
       /// <returns>Il provider</returns>
       protected override sealed IChannelProvider GetChannelProvider() => context;
       /// <summary>
-      /// Restituisce la valutazione
+      /// Get the evaluation
       /// </summary>
-      /// <param name="trainer">Il trainer</param>
-      /// <param name="cancellation">Eventule token di cancellazione attesa</param>
+      /// <param name="cancellation">Optional cancellation token</param>
       /// <returns>La valutazione</returns>
-      protected IModelEvaluator GetEvaluation(IModelTrainer trainer, CancellationToken cancellation = default)
+      protected IModelEvaluator GetEvaluation(CancellationToken cancellation = default)
       {
-         // Ottiene l'evaluator
-         var evaluator = GetEvaluator(trainer, cancellation);
-         // Attende la valutazione o la cancellazione del training
+         // Get the evaluator
+         var evaluator = GetEvaluator(cancellation);
+         // Wait the evaluation or the cancellation
          var waitResult = Task.Run(() => WaitHandle.WaitAny(new[] { evaluator.Available, cancellation.WaitHandle, evaluator.Cancellation.WaitHandle })).Result;
-         // Se il task non era quello di valutazione valida propaga l'eventuale eccezione del task di training
+         // Propagate the exception if the task was not the evaluation task
          switch (waitResult) {
             case 0:
                break;
             case 1:
                throw new OperationCanceledException();
             case 2:
-               // Await per propagare eventuale eccezione
+               // Await to propagate the possible exception
                throw evaluator.Task.Exception;
          }
-         // Verifica che sia veramente disponibile un risultato
+         // Verify that a result is really available
          if (!evaluator.Available.WaitOne(0))
             throw new OperationCanceledException();
          return evaluator;
@@ -282,7 +275,7 @@ namespace MachineLearning.Model
       /// <param name="trainer">Il trainer</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <returns>Il task</returns>
-      protected IModelEvaluator GetEvaluator(IModelTrainer trainer, CancellationToken cancellation = default)
+      protected IModelEvaluator GetEvaluator(CancellationToken cancellation = default)
       {
          var currentEvaluator = default(Evaluator);
          var stopEvaluator = default(Evaluator);
@@ -298,11 +291,12 @@ namespace MachineLearning.Model
             var _inputSchema = (this as IInputSchema)?.InputSchema;
             var _modelAutoCommit = (this as IModelAutoCommit)?.ModelAutoCommit ?? false;
             var _modelAutoSave = (this as IModelAutoSave)?.ModelAutoSave ?? false;
+            var _trainer = (this as IModelTrainerProvider)?.ModelTrainer ?? this as IModelTrainer;
             if (currentEvaluator != null) {
                if (currentEvaluator.TaskTraining.Task.IsCompleted || currentEvaluator.TaskTraining.CancellationToken.IsCancellationRequested) {
                   if (!currentEvaluator.Available.WaitOne(0))
                      startCurrentEvaluator = true;
-                  else if (trainer is IModelTrainerCycling cycling && currentEvaluator.TrainsCount < cycling.MaxTrainingCycles)
+                  else if (currentEvaluator.Trainer is IModelTrainerCycling cycling && currentEvaluator.TrainsCount < cycling.MaxTrainingCycles)
                      startCurrentEvaluator = true;
                }
                if (currentEvaluator.Timestamp != default) {
@@ -325,6 +319,8 @@ namespace MachineLearning.Model
                   createEvaluator = true;
                else if (currentEvaluator.ModelAutoSave != _modelAutoSave)
                   createEvaluator = true;
+               else if (currentEvaluator.Trainer != _trainer)
+                  createEvaluator = true;
             }
             else
                createEvaluator = true;
@@ -345,7 +341,7 @@ namespace MachineLearning.Model
                   ModelAutoSave = _modelAutoSave,
                   ModelStorage = _modelStorage,
                   Timestamp = default,
-                  Trainer = trainer,
+                  Trainer = _trainer,
                   TrainingStorage = _trainingStorage,
                   TrainsCount = 0,
                };
@@ -385,7 +381,7 @@ namespace MachineLearning.Model
       public IDataAccess GetPredictionData(IEnumerable<object> data, CancellationToken cancellation = default)
       {
          // Attande il modello od un eventuale errore di training
-         var evaluation = GetEvaluation(ModelTrainer, cancellation);
+         var evaluation = GetEvaluation(cancellation);
          lock (evaluation) {
             cancellation.ThrowIfCancellationRequested();
             // Crea la vista di dati per la previsione
@@ -548,7 +544,7 @@ namespace MachineLearning.Model
       /// Avvia il training del modello
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione del training</param>
-      public void StartTraining(CancellationToken cancellation = default) => GetEvaluator(ModelTrainer, cancellation);
+      public void StartTraining(CancellationToken cancellation = default) => GetEvaluator(cancellation);
       /// <summary>
       /// FUnzione interna di start del training
       /// </summary>
@@ -862,7 +858,7 @@ namespace MachineLearning.Model
       /// <param name="cancellation">Eventuale token di cancellazione</param>
       /// <returns>I dati trasformati</returns>
       public IDataAccess Transform(IDataAccess data, CancellationToken cancellation = default) =>
-         new DataAccess(this, GetEvaluation((this as IModelTrainer) ?? new ModelTrainerStandard(), cancellation).Model?.Transform(data, cancellation));
+         new DataAccess(this, GetEvaluation(cancellation).Model?.Transform(data, cancellation));
       #endregion
    }
 

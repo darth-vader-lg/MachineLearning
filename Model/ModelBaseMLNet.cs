@@ -27,7 +27,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Indica se una chiamata alla GetRowToRowMapper avra successo con lo schema appropriato
       /// </summary>
-      public bool IsRowToRowMapper => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.IsRowToRowMapper ?? false;
+      public bool IsRowToRowMapper => (GetEvaluation().Model as ITransformer)?.IsRowToRowMapper ?? false;
       #endregion
       #region Methods
       /// <summary>
@@ -40,7 +40,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="inputSchema">Scema di input</param>
       /// <returns>Lo schema di output</returns>
-      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.GetOutputSchema(inputSchema);
+      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => (GetEvaluation().Model as ITransformer)?.GetOutputSchema(inputSchema);
       /// <summary>
       /// Restituisce le pipe di training del modello
       /// </summary>
@@ -51,7 +51,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="inputSchema">Schema di input</param>
       /// <returns>Il mappatore</returns>
-      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.GetRowToRowMapper(inputSchema);
+      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => (GetEvaluation().Model as ITransformer)?.GetRowToRowMapper(inputSchema);
       /// <summary>
       /// Restituisce il modello sottoposto al training
       /// </summary>
@@ -127,7 +127,7 @@ namespace MachineLearning.Model
       /// <param name="ctx">Contesto di salvataggio</param>
       void ICanSaveModel.Save(ModelSaveContext ctx)
       {
-         var evaluation = GetEvaluation(new ModelTrainerStandard());
+         var evaluation = GetEvaluation();
          if (evaluation.Model != null && evaluation.ModelStorage != null && evaluation.Model is ITransformer transformer)
             evaluation.ModelStorage.SaveModel(Context, transformer, evaluation.InputSchema);
       }
@@ -174,7 +174,7 @@ namespace MachineLearning.Model
       /// </summary>
       /// <param name="input">Vista di dati di input</param>
       /// <returns>I dati trasformati</returns>
-      public IDataView Transform(IDataView input) => (GetEvaluation(new ModelTrainerStandard()).Model as ITransformer)?.Transform(input);
+      public IDataView Transform(IDataView input) => (GetEvaluation().Model as ITransformer)?.Transform(input);
       #endregion
    }
 
