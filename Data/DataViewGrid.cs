@@ -154,7 +154,7 @@ namespace MachineLearning.Data
             _context.CheckNonEmpty(values[i].Name, $"{nameof(values)}[{i}]", "The name cannot be null");
             var col = Schema.FirstOrDefault(c => c.Name == values[i].Name);
             _context.CheckNonEmpty(col.Name, $"{nameof(values)}[{i}]", $"The schema doesn't contain the column {values[i].Name}");
-            orderedValues[i] = values[i].Value;
+            orderedValues[col.Index] = values[i].Value;
          }
          Add(orderedValues);
       }
