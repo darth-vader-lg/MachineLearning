@@ -56,6 +56,11 @@ namespace MachineLearning
       /// </summary>
       private readonly int? _seed;
       /// <summary>
+      /// TensorFlow context
+      /// </summary>
+      [NonSerialized]
+      private TFContext _tensorFlow;
+      /// <summary>
       /// Task di lavoro del contesto
       /// </summary>
       [NonSerialized]
@@ -75,15 +80,15 @@ namespace MachineLearning
       /// </summary>
       string IExceptionContext.ContextDescription => ((IExceptionContext)MLNET).ContextDescription;
       /// <summary>
-      /// Contesto ML.NET
+      /// ML.NET context
       /// </summary>
       MLContext IContextProvider<MLContext>.Context => MLNET;
       /// <summary>
-      /// Contesto ML.NET
+      /// TensorFlow context
       /// </summary>
       TFContext IContextProvider<TFContext>.Context => TensorFlow;
       /// <summary>
-      /// Contesto ML.NET
+      /// ML.NET context
       /// </summary>
       [field: NonSerialized]
       public MLContext MLNET { get; private set; }
@@ -92,10 +97,19 @@ namespace MachineLearning
       /// </summary>
       public bool SyncRequired => Thread.CurrentThread != _creationThread && _creationTaskScheduler != null;
       /// <summary>
-      /// Contesto TensorFlow
+      /// TensorFlow context
       /// </summary>
-      [field: NonSerialized]
-      public TFContext TensorFlow { get; private set; }
+      public TFContext TensorFlow
+      {
+         get
+         {
+            if (_tensorFlow != null)
+               return _tensorFlow;
+            _tensorFlow = new TFContext();
+            _tensorFlow.Log += TensorFlow_Log;
+            return _tensorFlow;
+         }
+      }
       #endregion
       #region Events
       /// <summary>
@@ -270,9 +284,6 @@ namespace MachineLearning
          // Inizializza il contesto ML.NET
          MLNET = new MLContext(_seed);
          MLNET.Log += NET_Log;
-         // Inizializza il contesto TensorFlow
-         TensorFlow = new TFContext();
-         TensorFlow.Log += TensorFlow_Log;
       }
       /// <summary>
       /// Funzione di log di un messaggio
