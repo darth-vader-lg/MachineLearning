@@ -33,10 +33,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="LG.Microsoft.ML.AutoML" Version="0.18.0" />
-    <PackageReference Include="LG.Microsoft.ML.OnnxTransformer" Version="1.6.0" />
-    <PackageReference Include="LG.Microsoft.ML.TimeSeries" Version="1.6.0" />
-    <PackageReference Include="ODModelBuilderTF" Version="1.1.1">
+    <PackageReference Include="LG.Microsoft.ML.AutoML" Version="0.18.0.1" />
+    <PackageReference Include="LG.Microsoft.ML.OnnxTransformer" Version="1.6.0.1" />
+    <PackageReference Include="LG.Microsoft.ML.TimeSeries" Version="1.6.0.1" />
+    <PackageReference Include="ODModelBuilderTF" Version="1.1.2">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
   </ItemGroup>
