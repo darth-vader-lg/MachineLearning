@@ -4,10 +4,10 @@
     <TargetFramework>net5.0</TargetFramework>
     <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
     <SignAssembly>true</SignAssembly>
-    <FileVersion>1.0.2.0</FileVersion>
+    <FileVersion>1.0.3.0</FileVersion>
     <NeutralLanguage></NeutralLanguage>
     <AssemblyOriginatorKeyFile>Open.snk</AssemblyOriginatorKeyFile>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <DelaySign>false</DelaySign>
     <Description>Framework for machine learning</Description>
     <RepositoryUrl>https://github.com/darth-vader-lg/MachineLearning.git</RepositoryUrl>
