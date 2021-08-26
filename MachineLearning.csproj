@@ -12,6 +12,7 @@
     <Description>Framework for machine learning</Description>
     <RepositoryUrl>https://github.com/darth-vader-lg/MachineLearning.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageTags>machine-learning;training;csharp;dotnet;object-detection;computer-vision;ML.NET;tensorflow;tensorflow2</PackageTags>
     <Authors>Luigi Generale</Authors>
     <Company>Luigi Generale</Company>
     <Product>MachineLearning library</Product>
@@ -33,10 +34,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="LG.Microsoft.ML.AutoML" Version="0.18.0.3" />
-    <PackageReference Include="LG.Microsoft.ML.OnnxTransformer" Version="1.6.0.3" />
-    <PackageReference Include="LG.Microsoft.ML.TimeSeries" Version="1.6.0.3" />
-    <PackageReference Include="LG.ODModelBuilderTF" Version="2.1.1">
+    <PackageReference Include="LG.Microsoft.ML.AutoML" Version="0.18.0.4" />
+    <PackageReference Include="LG.Microsoft.ML.OnnxTransformer" Version="1.6.0.4" />
+    <PackageReference Include="LG.Microsoft.ML.TimeSeries" Version="1.6.0.4" />
+    <PackageReference Include="LG.ODModelBuilderTF" Version="2.2.0">
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
   </ItemGroup>
