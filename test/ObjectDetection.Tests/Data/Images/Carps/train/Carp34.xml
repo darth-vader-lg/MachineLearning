@@ -1,0 +1,26 @@
+<annotation>
+	<folder>train</folder>
+	<filename>Carp34.jpg</filename>
+	<path>S:\ML.NET\TensorFlow\Workspace\ObjectDetection\images\train\Carp34.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>301</width>
+		<height>167</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>carp</name>
+		<pose>Unspecified</pose>
+		<truncated>1</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>1</xmin>
+			<ymin>79</ymin>
+			<xmax>252</xmax>
+			<ymax>167</ymax>
+		</bndbox>
+	</object>
+</annotation>
