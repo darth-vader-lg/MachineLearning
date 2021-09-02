@@ -1,10 +1,12 @@
 ﻿using Microsoft.ML;
+using System;
 
 namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers di rilevamento anomalie
    /// </summary>
+   [Serializable]
    public class AnomalyDetectionTrainers : ContextProvider<MLContext>
    {
       #region Methods

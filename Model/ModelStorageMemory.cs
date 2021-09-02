@@ -46,7 +46,7 @@ namespace MachineLearning.Model
       /// <param name="context">Contesto</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(MLContext context, out DataViewSchema inputSchema)
+      public ITransformer LoadModel(MLContext context, out DataSchema inputSchema)
       {
          if (Bytes == null) {
             inputSchema = null;
@@ -54,7 +54,9 @@ namespace MachineLearning.Model
          }
          Contracts.CheckValue(context, nameof(context));
          using var memoryStream = new MemoryStream(Bytes);
-         return context.Model.Load(memoryStream, out inputSchema);
+         var result = context.Model.Load(memoryStream, out var mlSchema);
+         inputSchema = mlSchema;
+         return result;
       }
       /// <summary>
       /// Funzione di salvataggio modello
@@ -62,7 +64,7 @@ namespace MachineLearning.Model
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
       /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(MLContext context, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(MLContext context, ITransformer model, DataSchema inputSchema)
       {
          Contracts.CheckValue(context, nameof(context));
          lock (this) {

@@ -38,7 +38,6 @@ namespace MachineLearning.Model
       /// <summary>
       /// Catalogo di trainers
       /// </summary>
-      [field: NonSerialized]
       public TTrainers Trainers { get; private set; }
       #endregion
       #region Methods
@@ -145,7 +144,7 @@ namespace MachineLearning.Model
          var best = (from r in results select (r.Model, r.Metrics)).Best();
          metrics = best.Metrics;
          cancellation.ThrowIfCancellationRequested();
-         return new DataTransformerMLNet(this, best.Model);
+         return new DataTransformer<MLContext>(this, best.Model);
       }
       #endregion
    }

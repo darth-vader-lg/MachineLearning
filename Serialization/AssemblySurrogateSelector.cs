@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -40,7 +41,11 @@ namespace MachineLearning.Serialization
                .Select(t => (Surrogate: t, Interface: t.GetInterface($"{nameof(ISerializationSurrogate)}`1")))
                .Where(t => t.Interface != null)
                .Select(t => (t.Surrogate, Type: t.Interface.GetGenericArguments()[0]));
+            var alTypes = new HashSet<Type>();
             foreach (var s in surrogates) {
+               if (alTypes.Contains(s.Type))
+                  continue;
+               alTypes.Add(s.Type);
                var surrogate = (ISerializationSurrogate)Assembly.GetExecutingAssembly().CreateInstance(s.Surrogate.ToString());
                _assemblySurrogates.AddSurrogate(s.Type, StreamingContext, surrogate);
             }

@@ -1,4 +1,5 @@
 ﻿using MachineLearning;
+using MachineLearning.Data;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -49,6 +50,13 @@ namespace Microsoft.ML.Data
          expr += @"]*)""";
          return Regex.Matches(row, expr).Cast<Match>().Select(m => m.Groups["match"].Value).ToArray();
       }
+      /// <summary>
+      /// Trasform text loader options in DataSchema.
+      /// </summary>
+      /// <param name="textLoaderOptions">Text loader options</param>
+      /// <returns>The data schema</returns>
+      public static DataSchema ToDataSchema(this TextLoader.Options textLoaderOptions) =>
+         MachineLearningContext.Default.MLNET.Data.CreateTextLoader(textLoaderOptions).GetOutputSchema();
       /// <summary>
       /// Trasforma le opzioni di caricamento testi in schema di vista dati.
       /// </summary>

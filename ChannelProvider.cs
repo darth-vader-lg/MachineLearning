@@ -14,6 +14,7 @@ namespace MachineLearning
       /// <summary>
       /// Canale di messaggistica
       /// </summary>
+      [NonSerialized]
       private IChannel _channel;
       #endregion
       #region Properties

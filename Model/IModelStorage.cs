@@ -1,4 +1,5 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning.Data;
+using Microsoft.ML;
 
 namespace MachineLearning.Model
 {
@@ -18,14 +19,14 @@ namespace MachineLearning.Model
       /// <param name="context">Contesto di machine learning</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      ITransformer LoadModel(MLContext context, out DataViewSchema inputSchema);
+      ITransformer LoadModel(MLContext context, out DataSchema inputSchema);
       /// <summary>
       /// Funzione di salvataggio modello
       /// </summary>
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
       /// <param name="inputSchema">Schema di input del modello</param>
-      void SaveModel(MLContext context, ITransformer model, DataViewSchema inputSchema);
+      void SaveModel(MLContext context, ITransformer model, DataSchema inputSchema);
       #endregion
    }
 }

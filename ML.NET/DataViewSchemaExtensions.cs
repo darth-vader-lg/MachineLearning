@@ -1,4 +1,5 @@
-﻿using Microsoft.ML.Data;
+﻿using MachineLearning.Data;
+using Microsoft.ML.Data;
 using System;
 using System.Collections.Generic;
 
@@ -43,6 +44,12 @@ namespace Microsoft.ML
          }
          return columns;
       }
+      /// <summary>
+      /// Crea un elenco di colonne di caricamento dati testuali a partire da uno schema di vista
+      /// </summary>
+      /// <param name="schema">Schema della vista dati</param>
+      /// <returns>Le colonne di caricamento testi</returns>
+      public static TextLoader.Column[] ToTextLoaderColumns(this DataSchema schema) => ToTextLoaderColumns((DataViewSchema)schema);
       #endregion
    }
 }

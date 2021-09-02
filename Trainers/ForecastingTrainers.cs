@@ -1,10 +1,12 @@
 ﻿using Microsoft.ML;
+using System;
 
 namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers di previsione
    /// </summary>
+   [Serializable]
    public class ForecastingTrainers : ContextProvider<MLContext>
    {
       #region Methods

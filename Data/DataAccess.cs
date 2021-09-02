@@ -19,6 +19,10 @@ namespace MachineLearning.Data
       /// Vista di dati
       /// </summary>
       private readonly IDataView data;
+      /// <summary>
+      /// Data schema
+      /// </summary>
+      private readonly DataSchema schema;
       #endregion
       #region Properties
       /// <summary>
@@ -26,9 +30,13 @@ namespace MachineLearning.Data
       /// </summary>
       public bool CanShuffle => data.CanShuffle;
       /// <summary>
-      /// Lo schema dei dati
+      /// Data schema
       /// </summary>
-      public DataViewSchema Schema => data.Schema;
+      DataViewSchema IDataView.Schema => schema;
+      /// <summary>
+      /// Data schema
+      /// </summary>
+      public DataSchema Schema => schema;
       #endregion
       #region Methods
       /// <summary>
@@ -42,6 +50,7 @@ namespace MachineLearning.Data
          context.CheckValue(data, nameof(data));
          this.context = context;
          this.data = data;
+         schema = data.Schema;
       }
       /// <summary>
       /// Funzione di ottenimento del provider di canali

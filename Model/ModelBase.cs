@@ -34,22 +34,27 @@ namespace MachineLearning.Model
       /// <summary>
       /// Evento di variazione modello
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler ModelChanged;
       /// <summary>
       /// Evento di segnalazione ciclo di training avviato
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingCycleStarted;
       /// <summary>
       /// Evento di variazione dati di training
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingDataChanged;
       /// <summary>
       /// Evento di segnalazione training terminato
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingEnded;
       /// <summary>
       /// Evento di segnalazione training avviato
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingStarted;
       #endregion
       #region Properties
@@ -167,7 +172,7 @@ namespace MachineLearning.Model
       /// <param name="schema1">Primo schema</param>
       /// <param name="schema2">Secondo schema</param>
       /// <param name="errMsg">Eventuale messaggio di errore personalizzato</param>
-      private void CheckSchemaConsistence(DataViewSchema schema1, DataViewSchema schema2, string errMsg = null)
+      private void CheckSchemaConsistence(DataSchema schema1, DataSchema schema2, string errMsg = null)
       {
          // REVIEW: Allow schema isomorphism.
          errMsg ??= "Inconsistent schema: all source dataviews must have identical column names, sizes, and item types.";
@@ -433,7 +438,7 @@ namespace MachineLearning.Model
       /// <param name="modelStorage">Storage del modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public abstract IDataTransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema);
+      public abstract IDataTransformer LoadModel(IModelStorage modelStorage, out DataSchema schema);
       /// <summary>
       /// Funzione di notifica della variazione del modello
       /// </summary>
@@ -520,7 +525,7 @@ namespace MachineLearning.Model
       /// <param name="model">Modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public abstract void SaveModel(IModelStorage modelStorage, IDataTransformer model, DataViewSchema schema);
+      public abstract void SaveModel(IModelStorage modelStorage, IDataTransformer model, DataSchema schema);
       /// <summary>
       /// Imposta i dati di valutazione
       /// </summary>
@@ -528,7 +533,7 @@ namespace MachineLearning.Model
       /// <param name="schema">Lo schema</param>
       /// <param name="timestamp">L'istante</param>
       /// <remarks>Se la valutazione e' nulla annulla la validita' dei dati</remarks>
-      private void SetEvaluation(Evaluator evaluator, IDataTransformer model, DataViewSchema schema, DateTime timestamp)
+      private void SetEvaluation(Evaluator evaluator, IDataTransformer model, DataSchema schema, DateTime timestamp)
       {
          lock (evaluator) {
             // Annulla il modello
@@ -909,7 +914,7 @@ namespace MachineLearning.Model
          /// <summary>
          /// Schema di input
          /// </summary>
-         public DataViewSchema InputSchema { get; set; }
+         public DataSchema InputSchema { get; set; }
          /// <summary>
          /// Modello
          /// </summary>

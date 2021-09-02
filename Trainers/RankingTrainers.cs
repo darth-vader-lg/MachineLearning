@@ -1,10 +1,12 @@
 ﻿using Microsoft.ML;
+using System;
 
 namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers di ranking
    /// </summary>
+   [Serializable]
    public class RankingTrainers : ContextProvider<MLContext>
    {
       #region Methods

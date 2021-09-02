@@ -36,7 +36,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Schema della riga
       /// </summary>
-      private readonly DataViewSchema _schema;
+      private readonly DataSchema _schema;
       #endregion
       #region Properties
       /// <summary>
@@ -118,7 +118,7 @@ namespace MachineLearning.Data
       /// <param name="id">Identificatore univoco</param>
       /// <param name="values">Valori</param>
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
-      private DataViewValuesRow(IChannelProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
+      private DataViewValuesRow(IChannelProvider context, DataSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
          Contracts.AssertValue(context, nameof(context));
          _context = context;
@@ -154,7 +154,7 @@ namespace MachineLearning.Data
       /// <param name="id">Identificatore univoco</param>
       /// <param name="values">Valori</param>
       /// <param name="isColumnActive">Indicatori di colonna attiva</param>
-      internal static DataViewValuesRow Create(IChannelProvider context, DataViewSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
+      internal static DataViewValuesRow Create(IChannelProvider context, DataSchema schema, long position, DataViewRowId id, object[] values, bool[] isColumnActive)
       {
          Contracts.CheckValue(context, nameof(context));
          context.CheckValue(schema, nameof(schema));

@@ -39,14 +39,16 @@ namespace MachineLearning.Model
       /// <param name="context">Contesto</param>
       /// <param name="inputSchema">Schema di input del modello</param>
       /// <returns>Il modello</returns>
-      public ITransformer LoadModel(MLContext context, out DataViewSchema inputSchema)
+      public ITransformer LoadModel(MLContext context, out DataSchema inputSchema)
       {
          Contracts.CheckValue(context, nameof(context));
          var stream = ReadStream?.Invoke();
          if (stream == null)
             throw new InvalidOperationException("Cannot read from the stream");
          DataTimestamp = DateTime.UtcNow;
-         return context.Model.Load(stream, out inputSchema);
+         var result = context.Model.Load(stream, out var mlSchema);
+         inputSchema = mlSchema;
+         return result;
       }
       /// <summary>
       /// Funzione di salvataggio modello
@@ -54,7 +56,7 @@ namespace MachineLearning.Model
       /// <param name="context">Contesto</param>
       /// <param name="model">Modello da salvare</param>
       /// <param name="inputSchema">Schema di input del modello</param>
-      public void SaveModel(MLContext context, ITransformer model, DataViewSchema inputSchema)
+      public void SaveModel(MLContext context, ITransformer model, DataSchema inputSchema)
       {
          Contracts.CheckValue(context, nameof(context));
          var timestamp = DateTime.UtcNow;

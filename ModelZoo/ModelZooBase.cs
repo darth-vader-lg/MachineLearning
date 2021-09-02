@@ -57,22 +57,27 @@ namespace MachineLearning.ModelZoo
       /// <summary>
       /// Model changed event
       /// </summary>
+      [field: NonSerialized] 
       public event ModelTrainingEventHandler ModelChanged;
       /// <summary>
       /// Train started event
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingCycleStarted;
       /// <summary>
       /// Train data changed event
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingDataChanged;
       /// <summary>
       /// Train ended event
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingEnded;
       /// <summary>
       /// Train started event
       /// </summary>
+      [field: NonSerialized]
       public event ModelTrainingEventHandler TrainingStarted;
       #endregion
       #region Methods

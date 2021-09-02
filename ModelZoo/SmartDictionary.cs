@@ -202,6 +202,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Pipes
          /// </summary>
+         [NonSerialized]
          private ModelPipes pipes;
          #endregion
          #region Properties
@@ -212,7 +213,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Schema di input del modello
          /// </summary>
-         DataViewSchema IInputSchema.InputSchema { get; } = DataViewSchemaBuilder.Build((Name: "Label", typeof(string)), (Name: "Text", typeof(string)));
+         DataSchema IInputSchema.InputSchema { get; } = DataViewSchemaBuilder.Build((Name: "Label", typeof(string)), (Name: "Text", typeof(string)));
          /// <summary>
          /// Abilitazione all'autocommit dei dati
          /// </summary>

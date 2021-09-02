@@ -27,7 +27,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Schema di input
       /// </summary>
-      DataViewSchema InputSchema { get; }
+      DataSchema InputSchema { get; }
       /// <summary>
       /// Modello
       /// </summary>

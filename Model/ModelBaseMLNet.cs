@@ -78,7 +78,7 @@ namespace MachineLearning.Model
          evaluationMetrics = null;
          var result = GetPipes().Merged.Fit(data.CanShuffle ? Context.Data.ShuffleRows(data, seed) : data);
          cancellation.ThrowIfCancellationRequested();
-         return result == null ? null : new DataTransformerMLNet(this, result);
+         return result == null ? null : new DataTransformer<MLContext>(this, result);
       }
       /// <summary>
       /// Restituisce il modello effettuando il training standard
@@ -92,7 +92,7 @@ namespace MachineLearning.Model
          evaluationMetrics = null;
          var result = GetPipes().Merged.Fit(data);
          cancellation.ThrowIfCancellationRequested();
-         return result == null ? null : new DataTransformerMLNet(this, result);
+         return result == null ? null : new DataTransformer<MLContext>(this, result);
       }
       /// <summary>
       /// Carica i dati da uno storage
@@ -111,7 +111,7 @@ namespace MachineLearning.Model
       /// <param name="modelStorage">Storage del modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public sealed override IDataTransformer LoadModel(IModelStorage modelStorage, out DataViewSchema schema)
+      public sealed override IDataTransformer LoadModel(IModelStorage modelStorage, out DataSchema schema)
       {
          Channel.CheckValue(modelStorage, nameof(modelStorage));
          if (!string.IsNullOrEmpty(modelStorage.ImportPath)) {
@@ -119,7 +119,7 @@ namespace MachineLearning.Model
             if (import != null)
                return import;
          }
-         return new DataTransformerMLNet(this, modelStorage.LoadModel(Context, out schema));
+         return new DataTransformer<MLContext>(this, modelStorage.LoadModel(Context, out schema));
       }
       /// <summary>
       /// Effettua il salvataggio del modello
@@ -137,7 +137,7 @@ namespace MachineLearning.Model
       /// <param name="modelStorage">Storage del modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public virtual IDataTransformer ImportModel(IModelStorage modelStorage, out DataViewSchema schema)
+      public virtual IDataTransformer ImportModel(IModelStorage modelStorage, out DataSchema schema)
       {
          schema = null;
          return null;
@@ -161,7 +161,7 @@ namespace MachineLearning.Model
       /// <param name="model">Modello</param>
       /// <param name="schema">Lo schema del modello</param>
       /// <returns>Il modello</returns>
-      public sealed override void SaveModel(IModelStorage modelStorage, IDataTransformer model, DataViewSchema schema)
+      public sealed override void SaveModel(IModelStorage modelStorage, IDataTransformer model, DataSchema schema)
       {
          Channel.CheckValue(modelStorage, nameof(modelStorage));
          Channel.CheckValue(model, nameof(model));
@@ -193,7 +193,7 @@ namespace MachineLearning.Model
          /// <summary>
          /// Coda di modelli di autotraining
          /// </summary>
-         private Queue<(DataTransformerMLNet Model, TMetrics Metrics)> autoTrainingModels = new();
+         private Queue<(DataTransformer<MLContext> Model, TMetrics Metrics)> autoTrainingModels = new();
          /// <summary>
          /// Task di autotraining
          /// </summary>
@@ -291,17 +291,17 @@ namespace MachineLearning.Model
                // Ottiene le pipe
                var pipes = owner.GetPipes();
                // Coda dei modelli di training calcolati
-               var queue = autoTrainingModels = new Queue<(DataTransformerMLNet Model, TMetrics Metrics)>();
+               var queue = autoTrainingModels = new Queue<(DataTransformer<MLContext> Model, TMetrics Metrics)>();
                // Evento di modello disponibile
                var availableEvent = autoTrainingModelAvailable = new ManualResetEvent(false);
                // Funzione di accodamento modelli
-               void Enqueue(string trainerName, double runtimeInSeconds, DataTransformerMLNet model, TMetrics metrics)
+               void Enqueue(string trainerName, double runtimeInSeconds, DataTransformer<MLContext> model, TMetrics metrics)
                {
                   try {
                      if (model != null && pipes.Output != null) {
                         var dataFirstRow = model.Transform(data.ToDataViewFiltered(row => row.Position == 0), cancellation);
                         var outputTransformer = pipes.Output.Fit(dataFirstRow);
-                        model = new DataTransformerMLNet(owner, new TransformerChain<ITransformer>(model.Transformer, outputTransformer));
+                        model = new DataTransformer<MLContext>(owner, new TransformerChain<ITransformer>(model.Transformer, outputTransformer));
                         metrics = (TMetrics)owner.GetModelEvaluation(model, data);
                      }
                      lock (queue) {
@@ -330,14 +330,14 @@ namespace MachineLearning.Model
                      if (e.Exception != null)
                         sender.WriteLog(e);
                      else
-                        Enqueue(e.TrainerName, e.RuntimeInSeconds, new DataTransformerMLNet(owner, e.Model), e.ValidationMetrics);
+                        Enqueue(e.TrainerName, e.RuntimeInSeconds, new DataTransformer<MLContext>(owner, e.Model), e.ValidationMetrics);
                   },
                   (sender, e) =>
                   {
                      cancellation.ThrowIfCancellationRequested();
                      var best = BestModelEvaluator(from r in e.Results where r.Exception == null select (r.Model, r.ValidationMetrics));
                      if (best != default)
-                        Enqueue(e.TrainerName, e.RuntimeInSeconds, new DataTransformerMLNet(owner, best.Model), best.Metrics);
+                        Enqueue(e.TrainerName, e.RuntimeInSeconds, new DataTransformer<MLContext>(owner, best.Model), best.Metrics);
                   });
                // Avvia il task di esperimenti di autotraining
                autoTrainingTask.StartNew(cancellation => Task.Factory.StartNew(() =>

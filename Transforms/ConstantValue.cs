@@ -56,13 +56,13 @@ namespace MachineLearning.Transforms
    /// <summary>
    /// Transformer per l'aggiunta di colonne con valori costanti
    /// </summary>
-   public sealed partial class ConstantValueTransformer : TransformerBase
+   public sealed partial class ConstantValueTransformer : TransformerBase<MLContext>
    {
       #region Properties
       /// <summary>
       /// Schema di input
       /// </summary>
-      public sealed override DataViewSchema InputSchema { get; }
+      public sealed override DataSchema InputSchema { get; }
       /// <summary>
       /// Pipe di trasformazione
       /// </summary>
@@ -76,7 +76,7 @@ namespace MachineLearning.Transforms
       /// <param name="outputColumnName">Nome colonna di output</param>
       /// <param name="value">Valore costante</param>
       /// <param name="inputSchema">Schema di input</param>
-      internal ConstantValueTransformer(TransformsCatalog transformsCatalog, string outputColumnName, string value, DataViewSchema inputSchema = null) : base(transformsCatalog)
+      internal ConstantValueTransformer(TransformsCatalog transformsCatalog, string outputColumnName, string value, DataSchema inputSchema = null) : base(transformsCatalog)
       {
          Pipe =
             transformsCatalog.CustomMapping(new Mapper().GetMapping(), nameof(Mapper.Output.CE6C5270_FCDA_44F1_8680_7C5BF491B2B1))

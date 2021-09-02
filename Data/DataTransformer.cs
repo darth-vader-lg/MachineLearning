@@ -8,9 +8,9 @@ using System.Threading;
 namespace MachineLearning.Data
 {
    /// <summary>
-   /// Transformer di dati ML.NET
+   /// Transformer di dati
    /// </summary>
-   public class DataTransformerMLNet : IDataTransformer, IDisposable, ITransformer
+   public class DataTransformer<T> : IDataTransformer, IDisposable, ITransformer where T : class
    {
       #region Fields
       /// <summary>
@@ -22,16 +22,25 @@ namespace MachineLearning.Data
       /// <summary>
       /// Il transformer
       /// </summary>
-      public ITransformer Transformer { get; private set; }
+      public virtual ITransformer Transformer { get; protected set; }
       /// <summary>
       /// Definisce se e' un mapper riga a riga
       /// </summary>
       public bool IsRowToRowMapper => Transformer.IsRowToRowMapper;
       #endregion
       #region Methods
-      public DataTransformerMLNet(IContextProvider<MLContext> context, ITransformer transformer)
+      /// <summary>
+      /// Constructor
+      /// </summary>
+      /// <param name="context">Context</param>
+      protected DataTransformer(IExceptionContext context) => Contracts.CheckValue(context, nameof(context));
+      /// <summary>
+      /// Constructor
+      /// </summary>
+      /// <param name="context">Context</param>
+      /// <param name="transformer">Associated transformer</param>
+      public DataTransformer(IExceptionContext context, ITransformer transformer) : this(context)
       {
-         MachineLearningContext.CheckContext(context, nameof(context));
          context.CheckValue(transformer, nameof(transformer));
          Transformer = transformer;
       }
@@ -65,13 +74,25 @@ namespace MachineLearning.Data
       /// </summary>
       /// <param name="inputSchema">Schema di input</param>
       /// <returns>Lo schema di output</returns>
-      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => Transformer.GetOutputSchema(inputSchema);
+      public DataSchema GetOutputSchema(DataSchema inputSchema) => Transformer.GetOutputSchema(inputSchema);
       /// <summary>
       /// Restituisce il mapper riga a riga
       /// </summary>
       /// <param name="inputSchema">Schema di input</param>
       /// <returns>Il mapper</returns>
-      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => Transformer.GetRowToRowMapper(inputSchema);
+      public IRowToRowMapper GetRowToRowMapper(DataSchema inputSchema) => Transformer.GetRowToRowMapper(inputSchema);
+      /// <summary>
+      /// Get the output schema given the input schema
+      /// </summary>
+      /// <param name="inputSchema">The input schema</param>
+      /// <returns>The output schema</returns>
+      DataViewSchema ITransformer.GetOutputSchema(DataViewSchema inputSchema) => Transformer.GetOutputSchema(inputSchema);
+      /// <summary>
+      /// Get the row to row mapper fo the transofrmer
+      /// </summary>
+      /// <param name="inputSchema">Input schema</param>
+      /// <returns>The row to row mapper</returns>
+      IRowToRowMapper ITransformer.GetRowToRowMapper(DataViewSchema inputSchema) => Transformer.GetRowToRowMapper(inputSchema);
       /// <summary>
       /// Salva il transformer
       /// </summary>

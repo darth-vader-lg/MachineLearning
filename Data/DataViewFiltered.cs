@@ -20,6 +20,10 @@ namespace MachineLearning.Data
       /// Filtro di righe
       /// </summary>
       private readonly DataViewRowFilter filter;
+      /// <summary>
+      /// Data schema
+      /// </summary>
+      private readonly DataSchema schema;
       #endregion
       #region Properties
       /// <summary>
@@ -27,13 +31,17 @@ namespace MachineLearning.Data
       /// </summary>
       public bool CanShuffle => data.CanShuffle;
       /// <summary>
+      /// Data schema
+      /// </summary>
+      DataViewSchema IDataView.Schema => schema;
+      /// <summary>
       /// Descrizione del contesto
       /// </summary>
       string IExceptionContext.ContextDescription => data.ContextDescription;
       /// <summary>
-      /// Lo schema della dataview
+      /// Data schema
       /// </summary>
-      public DataViewSchema Schema => data.Schema;
+      public DataSchema Schema => schema;
       #endregion
       #region Methods
       /// <summary>
@@ -47,6 +55,7 @@ namespace MachineLearning.Data
          data.AssertValueOrNull(filter);
          this.data = data;
          this.filter = filter ?? (column => true);
+         schema = data.Schema;
       }
       /// <summary>
       /// Crea una vista di dati filtrata

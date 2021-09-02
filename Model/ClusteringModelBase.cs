@@ -26,7 +26,6 @@ namespace MachineLearning.Model
       /// <summary>
       /// Catalogo di trainers
       /// </summary>
-      [field: NonSerialized]
       public TTrainers Trainers { get; private set; }
       #endregion
       #region Methods

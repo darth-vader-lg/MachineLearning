@@ -1,10 +1,12 @@
 ﻿using Microsoft.ML;
+using System;
 
 namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers di clustering
    /// </summary>
+   [Serializable]
    public class CusteringTrainers : ContextProvider<MLContext>
    {
       #region Methods

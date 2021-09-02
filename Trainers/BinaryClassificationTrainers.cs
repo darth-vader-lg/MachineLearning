@@ -1,10 +1,12 @@
 ﻿using Microsoft.ML;
+using System;
 
 namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers di classificazione binaria
    /// </summary>
+   [Serializable]
    public class BinaryClassificationTrainers : ContextProvider<MLContext>
    {
       #region Methods

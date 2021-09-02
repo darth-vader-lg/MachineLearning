@@ -1,10 +1,12 @@
 ﻿using Microsoft.ML;
+using System;
 
 namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers multiclasse
    /// </summary>
+   [Serializable]
    public class MulticlassClassificationTrainers : ContextProvider<MLContext>
    {
       #region Methods

@@ -39,6 +39,10 @@ namespace MachineLearning.Data
       /// </summary>
       public ReadOnlyCollection<Col> Cols { get; private set; }
       /// <summary>
+      /// Data schema
+      /// </summary>
+      DataViewSchema IDataView.Schema => Schema;
+      /// <summary>
       /// Descrizione del contesto
       /// </summary>
       string IExceptionContext.ContextDescription => _context.ContextDescription;
@@ -49,7 +53,7 @@ namespace MachineLearning.Data
       /// <summary>
       /// Schema dei dati
       /// </summary>
-      public DataViewSchema Schema { get; private set; }
+      public DataSchema Schema { get; private set; }
       /// <summary>
       /// Indicizzatore di colonne
       /// </summary>
@@ -75,7 +79,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="schema">Lo schema della vista di dati</param>
       /// <param name="data">Vista di dati</param>
-      private DataViewGrid(IChannelProvider context, DataViewSchema schema, IDataAccess data)
+      private DataViewGrid(IChannelProvider context, DataSchema schema, IDataAccess data)
       {
          // Check
          Contracts.AssertValue(context, nameof(context));
@@ -174,7 +178,7 @@ namespace MachineLearning.Data
       /// <param name="context">Contesto</param>
       /// <param name="schema">Schema</param>
       /// <returns>La griglia di dati</returns>
-      public static DataViewGrid Create(IChannelProvider context, DataViewSchema schema)
+      public static DataViewGrid Create(IChannelProvider context, DataSchema schema)
       {
          Contracts.CheckValue(context, nameof(context));
          context.CheckValue(schema, nameof(schema));

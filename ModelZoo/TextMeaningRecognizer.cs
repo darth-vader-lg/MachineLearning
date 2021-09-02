@@ -31,7 +31,7 @@ namespace MachineLearning.ModelZoo
       /// <summary>
       /// Schema di input dei dati
       /// </summary>
-      public DataViewSchema InputSchema { get; private set; }
+      public DataSchema InputSchema { get; private set; }
       /// <summary>
       /// Storage del modello
       /// </summary>
@@ -137,7 +137,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Schema di input del modello
          /// </summary>
-         DataViewSchema IInputSchema.InputSchema => _owner.InputSchema;
+         DataSchema IInputSchema.InputSchema => _owner.InputSchema;
          /// <summary>
          /// Abilitazione salvataggio automatico modello
          /// </summary>

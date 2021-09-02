@@ -41,7 +41,7 @@ namespace MachineLearning
       /// Elementi IDisposable del contesto
       /// </summary>
       [NonSerialized]
-      private readonly HashSet<IDisposable> _disposables = new();
+      private HashSet<IDisposable> _disposables;
       /// <summary>
       /// Oggetto disposto
       /// </summary>
@@ -64,7 +64,7 @@ namespace MachineLearning
       /// Task di lavoro del contesto
       /// </summary>
       [NonSerialized]
-      private readonly HashSet<(Task task, CancellationTokenSource cts)> _workingTasks = new();
+      private HashSet<(Task task, CancellationTokenSource cts)> _workingTasks;
       #endregion
       #region Properties
       /// <summary>
@@ -115,6 +115,7 @@ namespace MachineLearning
       /// <summary>
       /// Evento di log
       /// </summary>
+      [field: NonSerialized]
       public event MachineLearningLogEventHandler Log;
       #endregion
       #region Methods
@@ -281,6 +282,8 @@ namespace MachineLearning
          _creationThread = Thread.CurrentThread;
          if (SynchronizationContext.Current != null)
             _creationTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+         _workingTasks = new();
+         _disposables = new();
          // Inizializza il contesto ML.NET
          MLNET = new MLContext(_seed);
          MLNET.Log += NET_Log;

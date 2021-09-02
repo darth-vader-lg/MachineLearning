@@ -1,4 +1,4 @@
-﻿using Microsoft.ML;
+﻿using MachineLearning.Data;
 
 namespace MachineLearning.Model
 {
@@ -11,7 +11,7 @@ namespace MachineLearning.Model
       /// <summary>
       /// Schema di input del modello
       /// </summary>
-      DataViewSchema InputSchema { get; }
+      DataSchema InputSchema { get; }
       #endregion
    }
 }

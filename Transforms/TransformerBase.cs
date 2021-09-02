@@ -1,14 +1,12 @@
 ﻿using MachineLearning.Data;
 using Microsoft.ML;
-using Microsoft.ML.Data;
-using System.Collections.Generic;
 
 namespace MachineLearning.Transforms
 {
    /// <summary>
    /// Classe base per i transformers
    /// </summary>
-   public abstract class TransformerBase : ITransformer
+   public abstract class TransformerBase<T> : DataTransformer<T> where T : class
    {
       #region Fields
       /// <summary>
@@ -20,11 +18,7 @@ namespace MachineLearning.Transforms
       /// <summary>
       /// Lo schema di input
       /// </summary>
-      public abstract DataViewSchema InputSchema { get; }
-      /// <summary>
-      /// Indicatore di trasformatore riga a riga
-      /// </summary>
-      public bool IsRowToRowMapper => Transformer.IsRowToRowMapper;
+      public abstract DataSchema InputSchema { get; }
       /// <summary>
       /// La pipe di trasformazioni
       /// </summary>
@@ -32,7 +26,7 @@ namespace MachineLearning.Transforms
       /// <summary>
       /// Il transformer
       /// </summary>
-      private ITransformer Transformer
+      public sealed override ITransformer Transformer
       {
          get
          {
@@ -41,6 +35,7 @@ namespace MachineLearning.Transforms
             var dataView = DataViewGrid.Create(Transforms.GetChannelProvider(), InputSchema);
             return transformer = Pipe.Fit(dataView);
          }
+         protected set { }
       }
       /// <summary>
       /// Catalogo trasformazioni
@@ -52,30 +47,7 @@ namespace MachineLearning.Transforms
       /// Costruttore
       /// </summary>
       /// <param name="transformsCatalog">Catalogo di trasformazini</param>
-      internal TransformerBase(TransformsCatalog transformsCatalog) => Transforms = transformsCatalog;
-      /// <summary>
-      /// Restituisce lo schema di output
-      /// </summary>
-      /// <param name="inputSchema">Schema di input</param>
-      /// <returns>Lo schema di output</returns>
-      public DataViewSchema GetOutputSchema(DataViewSchema inputSchema) => Transformer.GetOutputSchema(inputSchema);
-      /// <summary>
-      /// Restituisce il mappatore riga a riga
-      /// </summary>
-      /// <param name="inputSchema">Schema di input</param>
-      /// <returns>Il mappatore</returns>
-      public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema) => Transformer.GetRowToRowMapper(inputSchema);
-      /// <summary>
-      /// Effettua il salvataggio
-      /// </summary>
-      /// <param name="ctx">Contesto</param>
-      public void Save(ModelSaveContext ctx) => Transformer.Save(ctx);
-      /// <summary>
-      /// Effettua la trasformazione dei dati
-      /// </summary>
-      /// <param name="input">Dati di input</param>
-      /// <returns>I dati trasformati</returns>
-      public IDataView Transform(IDataView input) => Transformer.Transform(input);
+      internal TransformerBase(TransformsCatalog transformsCatalog) : base(transformsCatalog.GetChannelProvider()) => Transforms = transformsCatalog;
       #endregion
    }
 }

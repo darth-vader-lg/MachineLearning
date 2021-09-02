@@ -35,10 +35,12 @@ namespace MachineLearning.Data
 
       private readonly IDataAccess[] _sources;
       private readonly int[] _counts;
+      private readonly DataSchema _schema;
 
       public bool CanShuffle { get; }
 
-      public DataViewSchema Schema { get; }
+      public DataSchema Schema => _schema;
+      DataViewSchema IDataView.Schema => _schema;
 
       private readonly IChannelProvider _context;
       /// <summary>
@@ -59,7 +61,7 @@ namespace MachineLearning.Data
       /// <param name="schema">The schema for the result. If this is null, the first source's schema will be used.</param>
       /// <param name="sources">The sources to be appended.</param>
       /// <returns>The resulting IDataView.</returns>
-      public static IDataAccess Create(IChannelProvider context, DataViewSchema schema, params IDataAccess[] sources)
+      public static IDataAccess Create(IChannelProvider context, DataSchema schema, params IDataAccess[] sources)
       {
          Contracts.CheckValue(context, nameof(context));
          context.CheckValue(sources, nameof(sources));
@@ -71,7 +73,7 @@ namespace MachineLearning.Data
          return new DataViewMerged(context, schema, sources);
       }
 
-      private DataViewMerged(IChannelProvider context, DataViewSchema schema, IDataAccess[] sources)
+      private DataViewMerged(IChannelProvider context, DataSchema schema, IDataAccess[] sources)
       {
          Contracts.AssertValue(context, nameof(context));
          _context = context;
@@ -80,7 +82,7 @@ namespace MachineLearning.Data
          _context.Assert(sources.Length >= 2);
 
          _sources = sources;
-         Schema = schema ?? _sources[0].Schema;
+         _schema = schema ?? _sources[0].Schema;
 
          CheckSchemaConsistency();
 
@@ -108,7 +110,7 @@ namespace MachineLearning.Data
          // REVIEW: Allow schema isomorphism.
          const string errMsg = "Inconsistent schema: all source dataviews must have identical column names, sizes, and item types.";
 
-         int startingSchemaIndex = Schema == _sources[0].Schema ? 1 : 0;
+         int startingSchemaIndex = (DataViewSchema)Schema == _sources[0].Schema ? 1 : 0;
          int colCount = Schema.Count;
 
          // Check if the column counts are identical.

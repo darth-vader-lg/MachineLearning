@@ -1,10 +1,12 @@
 ﻿using Microsoft.ML;
+using System;
 
 namespace MachineLearning.Trainers
 {
    /// <summary>
    /// Catalogo di trainers di regressione
    /// </summary>
+   [Serializable]
    public class RegressionTrainers : ContextProvider<MLContext>
    {
       #region Methods

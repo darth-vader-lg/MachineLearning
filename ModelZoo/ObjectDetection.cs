@@ -51,7 +51,7 @@ namespace MachineLearning.ModelZoo
       /// <summary>
       /// Input data schema
       /// </summary>
-      public DataViewSchema InputSchema { get; private set; }
+      public DataSchema InputSchema { get; private set; }
       /// <summary>
       /// The maximum accepted evaluation's total loss (if set).
       /// </summary>
@@ -301,6 +301,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// New model available event
          /// </summary>
+         [NonSerialized]
          private AutoResetEvent _newModelAvailable;
          /// <summary>
          /// Owner object
@@ -326,6 +327,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Model configuration
          /// </summary>
+         [field: NonSerialized]
          internal ODModelConfig Config { get; private set; }
          /// <summary>
          /// Data storage
@@ -334,7 +336,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Input schema
          /// </summary>
-         DataViewSchema IInputSchema.InputSchema => ((IInputSchema)_owner).InputSchema;
+         DataSchema IInputSchema.InputSchema => ((IInputSchema)_owner).InputSchema;
          /// <summary>
          /// Name of the image's path column
          /// </summary>
@@ -789,7 +791,7 @@ namespace MachineLearning.ModelZoo
             // Create the model
             var dataView = DataViewGrid.Create(this, _owner.InputSchema);
             var transformer = pipelines.Merged.Fit(dataView);
-            var result = new DataTransformerMLNet(this, transformer);
+            var result = new DataTransformer<MLContext>(this, transformer);
             Config = config;
             _pipes?.Dispose();
             _pipes = pipelines;
@@ -802,7 +804,7 @@ namespace MachineLearning.ModelZoo
          /// <param name="modelStorage">Storage of the model</param>
          /// <param name="schema">The model's schema</param>
          /// <returns>null</returns>
-         public sealed override IDataTransformer ImportModel(IModelStorage modelStorage, out DataViewSchema schema)
+         public sealed override IDataTransformer ImportModel(IModelStorage modelStorage, out DataSchema schema)
          {
             // Initialize the schema to null
             schema = null;
@@ -825,7 +827,7 @@ namespace MachineLearning.ModelZoo
             var dataView = DataViewGrid.Create(this, _owner.InputSchema);
             var model = pipelines.Merged.Fit(dataView);
             schema = _owner.InputSchema;
-            var result = new DataTransformerMLNet(this, model);
+            var result = new DataTransformer<MLContext>(this, model);
             // Save the model.
             SaveModel(modelStorage, result, schema);
             result.Dispose();

@@ -54,13 +54,13 @@ namespace MachineLearning.Transforms
    /// <summary>
    /// Transformer
    /// </summary>
-   public sealed partial class Yolov5Transformer : TransformerBase
+   public sealed partial class Yolov5Transformer : TransformerBase<MLContext>
    {
       #region Properties
       /// <summary>
       /// Schema di input
       /// </summary>
-      public sealed override DataViewSchema InputSchema { get; }
+      public sealed override DataSchema InputSchema { get; }
       /// <summary>
       /// Pipe di trasformazione
       /// </summary>
@@ -73,7 +73,7 @@ namespace MachineLearning.Transforms
       /// <param name="transformsCatalog">Catalogo di trasformazioni</param>
       /// <param name="options">Opzioni</param>
       /// <param name="inputSchema">Schema di input</param>
-      internal Yolov5Transformer(TransformsCatalog transformsCatalog, Options options, DataViewSchema inputSchema = null) : base(transformsCatalog)
+      internal Yolov5Transformer(TransformsCatalog transformsCatalog, Options options, DataSchema inputSchema = null) : base(transformsCatalog)
       {
          // Lista di estimatori
          var estimators = new EstimatorList();
