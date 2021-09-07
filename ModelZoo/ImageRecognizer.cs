@@ -289,7 +289,8 @@ namespace MachineLearning.ModelZoo
             var tasks = Enumerable.Range(0, Environment.ProcessorCount).Select(i => Task.CompletedTask).ToArray();
             var taskIx = 0;
             // Scandisce lo storage alla ricerca di elementi non piu' validi o aggiornati
-            foreach (var cursor in LoadData(DataStorage).GetRowCursor(trainingData.Schema).AsEnumerable()) {
+            var currentData = LoadData(DataStorage);
+            foreach (var cursor in currentData?.GetRowCursor(trainingData.Schema).AsEnumerable() ?? Array.Empty<DataViewRowCursor>()) {
                cancellation.ThrowIfCancellationRequested();
                // Riga di dati di storage
                var storageRow = cursor.ToDataViewValuesRow(this);
@@ -334,9 +335,8 @@ namespace MachineLearning.ModelZoo
             // Verifica se deve aggiornare lo storage
             if (invalidStorageImages.Count > 0 || (invalidTrainingImages.Count == 0 && (trainingData.GetRowCount() ?? 0L) > 0)) {
                // Crea la vista dati mergiata e filtrata
-               var mergedDataView =
-                  LoadData(DataStorage).ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).
-                  Merge(trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position)));
+               var filteredTrainingData = trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position));
+               var mergedDataView = currentData != null ? currentData.ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).Merge(filteredTrainingData) : filteredTrainingData;
                cancellation.ThrowIfCancellationRequested();
                // File temporaneo per il merge
                using var mergedStorage = new DataStorageBinaryTempFile();
