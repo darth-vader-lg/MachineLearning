@@ -361,18 +361,18 @@ namespace MachineLearning.Model
             }
             else if (startCurrentEvaluator)
                startEvaluator = currentEvaluator;
-         }
-         if (stopEvaluator != null) {
-            StopTrainingInternal(stopEvaluator);
-            cancellation.ThrowIfCancellationRequested();
-         }
-         if (startEvaluator != null && startEvaluator.TaskTraining.Task.IsCompleted) {
-            var ct = cancellation;
-            if (ct == default) {
-               if (stopEvaluator != null && !stopEvaluator.TaskTraining.ParentCancellationToken.IsCancellationRequested)
-                  ct = stopEvaluator.TaskTraining.ParentCancellationToken;
+            if (stopEvaluator != null) {
+               StopTrainingInternal(stopEvaluator);
+               cancellation.ThrowIfCancellationRequested();
             }
-            StartTrainingInternal(startEvaluator, ct);
+            if (startEvaluator != null && startEvaluator.TaskTraining.Task.IsCompleted) {
+               var ct = cancellation;
+               if (ct == default) {
+                  if (stopEvaluator != null && !stopEvaluator.TaskTraining.ParentCancellationToken.IsCancellationRequested)
+                     ct = stopEvaluator.TaskTraining.ParentCancellationToken;
+               }
+               StartTrainingInternal(startEvaluator, ct);
+            }
          }
          cancellation.ThrowIfCancellationRequested();
          return currentEvaluator;
