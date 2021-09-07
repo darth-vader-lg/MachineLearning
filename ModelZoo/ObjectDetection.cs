@@ -190,7 +190,8 @@ namespace MachineLearning.ModelZoo
          var tasks = Enumerable.Range(0, Environment.ProcessorCount).Select(i => Task.CompletedTask).ToArray();
          var taskIx = 0;
          // Scan the storage to find no more valid or updated elements
-         foreach (var cursor in Model.LoadData(DataStorage).GetRowCursor(trainingData.Schema).AsEnumerable()) {
+         var currentData = Model.LoadData(DataStorage);
+         foreach (var cursor in currentData?.GetRowCursor(trainingData.Schema).AsEnumerable() ?? Array.Empty<DataViewRowCursor>()) {
             cancellation.ThrowIfCancellationRequested();
             // Storage data row
             var storageRow = cursor.ToDataViewValuesRow(Model);
@@ -235,9 +236,8 @@ namespace MachineLearning.ModelZoo
          // Check if the storage update is needed
          if (invalidStorageImages.Count > 0 || (invalidTrainingImages.Count == 0 && (trainingData.GetRowCount() ?? 0L) > 0)) {
             // Create the merged and filtered data view
-            var mergedDataView =
-               Model.LoadData(DataStorage).ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).
-               Merge(trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position)));
+            var filteredTrainingData = trainingData.ToDataViewFiltered(cursor => !invalidTrainingImages.Contains(cursor.Position));
+            var mergedDataView = currentData != null ? currentData.ToDataViewFiltered(cursor => !invalidStorageImages.Contains(cursor.Position)).Merge(filteredTrainingData) : filteredTrainingData;
             cancellation.ThrowIfCancellationRequested();
             // Temporary file for the merge
             using var mergedStorage = new DataStorageBinaryTempFile();
@@ -446,14 +446,19 @@ namespace MachineLearning.ModelZoo
             var resize = new Size(
                config.ImageSize.Width > 0 ? config.ImageSize.Width : _owner.DefaultImageResize.Width > 0 ? _owner.DefaultImageResize.Width : 640,
                config.ImageSize.Height > 0 ? config.ImageSize.Height : _owner.DefaultImageResize.Height > 0 ? _owner.DefaultImageResize.Height : 640);
-            var shapes = new Queue<int>(!isYolo ? new[] { resize.Width, resize.Height } : new[] { resize.Height, resize.Width });
+            var shapeDims = new List<int>();
+            if (config.Inputs[0].Dim[0] < 0)
+               shapeDims.Add(config.Inputs[0].Dim[0]);
+            shapeDims.AddRange(!isYolo ? new[] { resize.Width, resize.Height } : new[] { resize.Height, resize.Width });
+            var shapes = new Queue<int>(shapeDims);
             // Create the output pipeline
             var outputEstimators = new EstimatorList();
             var dropColumns = new HashSet<string>();
             // Yolo models output mapping
             if (isYolo) {
                // Transform Yolov5 output to a standard output
-               outputEstimators.Add(Context.Transforms.ScoreYolov5());
+               var inputColumnName = config.Outputs.Where(o => o.Dim.Length == 3).FirstOrDefault()?.ColumnName ?? "detection";
+               outputEstimators.Add(Context.Transforms.ScoreYolov5(inputColumnName: inputColumnName));
                // Remove Yolo model's output columns
                (from c in config.Outputs select c.ColumnName).ToList().ForEach(c => dropColumns.Add(c));
             }
@@ -600,8 +605,9 @@ namespace MachineLearning.ModelZoo
                               if (!Directory.Exists(dest))
                                  Directory.CreateDirectory(dest);
                               Channel.WriteLog($"Copying {Path.GetFileName(file)} to {dest}");
-                              File.Copy(file, dest, true);
-                              File.Copy(Path.ChangeExtension(file, ".xml"), dest, true);
+                              File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), true);
+                              file = Path.ChangeExtension(file, ".xml");
+                              File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), true);
                            }
                         }
                      }

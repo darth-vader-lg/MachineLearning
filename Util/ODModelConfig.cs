@@ -23,6 +23,49 @@ namespace MachineLearning.Util
    internal partial class ODModelConfig
    {
       #region Fields
+      /// <summary>
+      /// Smart dictionary to understand the model input outputs
+      /// </summary>
+      private static readonly Dictionary<string, (SmartDictionary<string> Input, SmartDictionary<string> Outputs)> modelInputOutput = new()
+      {
+         {
+            "Yolov5",
+            (
+               Input: new()
+               {
+                  { "images[1,3", "images" }
+               },
+               Outputs: new()
+               {
+                  { "[1,25200,?]", "detections" }
+               }
+            )
+         },
+         {
+            "ssd",
+            (
+               Input: new()
+               {
+                  { "input", "images" }
+               },
+               Outputs: new()
+               {
+                  { "[1,25200,?]", "input_tensor:0" },
+                  { "detection anchor indices[1,-1]", "detection_anchor_indices" },
+                  { "detection boxes[1,-1,-1]", "detection_boxes" },
+                  { "detection classes[1,-1]", "detection_classes" },
+                  { "detection multiclass scores[1,-1,-1]", "detection_multiclass_scores" },
+                  { "detection scores[1,-1]", "detection_scores" },
+                  { "num detections[1]", "num_detections" },
+                  { "raw detection boxes[1,76725,4]", "raw_detection_boxes" },
+                  { "raw detection scores[1,7625,90]", "raw_detection_scores" },
+               }
+            )
+         }
+      };
+      /// <summary>
+      /// Smart dictionary to understand the model type
+      /// </summary>
       private static readonly SmartDictionary<string> modelTypeDictionary = new()
       {
          {
