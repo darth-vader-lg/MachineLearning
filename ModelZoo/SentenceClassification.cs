@@ -2,7 +2,9 @@
 using MachineLearning.Model;
 using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Transforms.Text;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -10,14 +12,16 @@ using System.Threading;
 namespace MachineLearning.ModelZoo
 {
    /// <summary>
-   /// Classe per la previsione delle taglie
+   /// Classe per l'interpretazione del significato si testi
    /// </summary>
-   public sealed partial class SizeEstimator :
-      ModelZooBase<SizeEstimator.Mdl>,
+   [Serializable]
+   public sealed partial class SentenceClassification :
+      ModelZooBase<SentenceClassification.Mdl>,
       IDataStorageProvider,
       IInputSchema,
       IModelStorageProvider,
-      IModelTrainerProvider
+      IModelTrainerProvider,
+      IModelTrainingControl
    {
       #region Properties
       /// <summary>
@@ -25,7 +29,7 @@ namespace MachineLearning.ModelZoo
       /// </summary>
       public IDataStorage DataStorage { get; set; }
       /// <summary>
-      /// Schema di input
+      /// Schema di input dei dati
       /// </summary>
       public DataSchema InputSchema { get; private set; }
       /// <summary>
@@ -37,23 +41,19 @@ namespace MachineLearning.ModelZoo
       /// </summary>
       public IModelTrainer ModelTrainer { get; set; } = new ModelTrainerStandard();
       /// <summary>
-      /// Nome del modello
+      /// Nome dell'oggetto
       /// </summary>
       public string Name { get; set; }
-      /// <summary>
-      /// Dati di training
-      /// </summary>
-      public IDataStorage TrainingData { get; set; } = new DataStorageBinaryMemory();
       #endregion
       #region Methods
       /// <summary>
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      public SizeEstimator(IContextProvider<MLContext> context = default)
+      public SentenceClassification(IContextProvider<MLContext> context = default)
       {
          Model = new Mdl(this, context);
-         SetSchema(0, "Size", "Data");
+         SetSchema(0, "Meaning", "Text");
       }
       /// <summary>
       /// Aggiunge un elenco di dati di training
@@ -61,22 +61,27 @@ namespace MachineLearning.ModelZoo
       /// <param name="checkForDuplicates">Controllo dei duplicati</param>
       /// <param name="cancellation">Token di cancellazione</param>
       /// <param name="data">Dati</param>
-      public void AddTrainingData(bool checkForDuplicates, CancellationToken cancellation, params float[] data)
+      public void AddTrainingData(bool checkForDuplicates, CancellationToken cancellation, params string[] data)
       {
          var dataGrid = DataViewGrid.Create(Model, InputSchema);
          dataGrid.Add(data);
          Model.AddTrainingData(dataGrid, checkForDuplicates, cancellation);
       }
       /// <summary>
+      /// Pulisce il modello
+      /// </summary>
+      public void ClearModel() => Model.ClearModel();
+      /// <summary>
       /// Restituisce la previsione
       /// </summary>
-      /// <param name="values">Valori di input</param>
+      /// <param name="cancel">L'eventuale tokehn di cancellazione</param>
+      /// <param name="sentences">Elenco di sentenze di cui prevedere il significato</param>
       /// <returns>La previsione</returns>
-      public Prediction GetPrediction(CancellationToken cancel = default, params float[] values)
+      public Prediction GetPrediction(CancellationToken cancel = default, params string[] sentences)
       {
          var schema = InputSchema;
          var valueIx = 0;
-         return new Prediction(Model.GetPredictionData(schema.Select(c => (object)(c.Name == Model.LabelColumnName ? 0f : values[valueIx++])).ToArray(), cancel));
+         return new Prediction(Model.GetPredictionData(schema.Select(c => c.Name == Model.LabelColumnName ? "" : sentences[valueIx++]).ToArray(), cancel));
       }
       /// <summary>
       /// Imposta lo schema dei dati
@@ -90,7 +95,7 @@ namespace MachineLearning.ModelZoo
          if (columnsNames.Any(item => string.IsNullOrEmpty(item)))
             throw new ArgumentException("All the columns must have a name", nameof(columnsNames));
          Model.LabelColumnName = columnsNames[predictionColumnIndex];
-         InputSchema = DataViewSchemaBuilder.Build(columnsNames.Select(c => (c, typeof(float))).ToArray());
+         InputSchema = DataViewSchemaBuilder.Build(columnsNames.Select(c => (c, typeof(string))).ToArray());
       }
       #endregion
    }
@@ -98,11 +103,11 @@ namespace MachineLearning.ModelZoo
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class SizeEstimator // Model
+   public sealed partial class SentenceClassification // Mdl
    {
       [Serializable]
       public sealed class Mdl :
-         RegressionModelBase,
+         MulticlassModelBase,
          IDataStorageProvider,
          IInputSchema,
          IModelAutoCommit,
@@ -117,7 +122,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
-         private readonly SizeEstimator _owner;
+         private readonly SentenceClassification _owner;
          /// <summary>
          /// Pipe di training
          /// </summary>
@@ -128,11 +133,11 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Storage di dati
          /// </summary>
-         IDataStorage IDataStorageProvider.DataStorage => ((IDataStorageProvider)_owner).DataStorage;
+         IDataStorage IDataStorageProvider.DataStorage => _owner.DataStorage;
          /// <summary>
          /// Schema di input del modello
          /// </summary>
-         DataSchema IInputSchema.InputSchema => ((IInputSchema)_owner).InputSchema;
+         DataSchema IInputSchema.InputSchema => _owner.InputSchema;
          /// <summary>
          /// Abilitazione salvataggio automatico modello
          /// </summary>
@@ -142,27 +147,28 @@ namespace MachineLearning.ModelZoo
          /// </summary>
          bool IModelAutoSave.ModelAutoSave => true;
          /// <summary>
-         /// Storage del modello
-         /// </summary>
-         IModelStorage IModelStorageProvider.ModelStorage => ((IModelStorageProvider)_owner).ModelStorage;
-         /// <summary>
-         /// Trainer del modello
-         /// </summary>
-         IModelTrainer IModelTrainerProvider.ModelTrainer => ((IModelTrainerProvider)_owner).ModelTrainer;
-         /// <summary>
          /// Nome del modello
          /// </summary>
          string IModelName.ModelName => _owner.Name;
          /// <summary>
-         /// Opzioni di caricamenti dati in formato testo
+         /// Storage del modello
+         /// </summary>
+         IModelStorage IModelStorageProvider.ModelStorage => _owner.ModelStorage;
+         /// <summary>
+         /// Trainer del modello
+         /// </summary>
+         IModelTrainer IModelTrainerProvider.ModelTrainer => _owner.ModelTrainer;
+         /// <summary>
+         /// Opzioni di caricamento dati in formato testo
          /// </summary>
          TextLoader.Options ITextLoaderOptions.TextLoaderOptions => new()
          {
-            Columns = _owner.InputSchema.ToTextLoaderColumns(),
+            AllowQuoting = true,
             Separators = new[] { ',' },
+            Columns = _owner.InputSchema.ToTextLoaderColumns(),
          };
          /// <summary>
-         /// Storage di dati di training
+         /// Dati di training
          /// </summary>
          IDataStorage ITrainingStorageProvider.TrainingStorage { get; } = new DataStorageBinaryMemory();
          #endregion
@@ -172,12 +178,12 @@ namespace MachineLearning.ModelZoo
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="context">Contesto di machine learning</param>
-         internal Mdl(SizeEstimator owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
+         internal Mdl(SentenceClassification owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
          /// <summary>
          /// Funzione di dispose
          /// </summary>
          /// <param name="disposing">Indicatore di dispose da codice</param>
-         protected sealed override void Dispose(bool disposing)
+         protected override void Dispose(bool disposing)
          {
             base.Dispose(disposing);
             try {
@@ -189,23 +195,29 @@ namespace MachineLearning.ModelZoo
             _pipes = null;
          }
          /// <summary>
-         /// Restituisce la pipe di training del modello
+         /// Restituisce le pipe di training del modello
          /// </summary>
-         /// <returns></returns>
-         public sealed override ModelPipes GetPipes()
+         /// <returns>Le pipe</returns>
+         public override ModelPipes GetPipes()
          {
             // Pipe di training
             return _pipes ??= new ModelPipes
             {
                Input =
-                  Context.Transforms.Concatenate("Features", (from c in _owner.InputSchema
-                                                              where c.Name != LabelColumnName
-                                                              select c.Name).ToArray()),
+                  Context.Transforms.Conversion.MapValueToKey(LabelColumnName)
+                  .Append(Context.Transforms.Text.FeaturizeText("FeaturizeText", new TextFeaturizingEstimator.Options(), (from c in _owner.InputSchema
+                                                                                                                          where c.Name != LabelColumnName
+                                                                                                                          select c.Name).ToArray()))
+                  .Append(Context.Transforms.CopyColumns("Features", "FeaturizeText"))
+                  .Append(Context.Transforms.NormalizeMinMax("Features"))
+                  .AppendCacheCheckpoint(Context),
                Trainer =
-                  Trainers.LightGbm(new Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options
+                  Trainers.SdcaNonCalibrated(new Microsoft.ML.Trainers.SdcaNonCalibratedMulticlassTrainer.Options
                   {
-                     LabelColumnName = LabelColumnName,
+                     LabelColumnName = LabelColumnName
                   }),
+               Output =
+                  Context.Transforms.Conversion.MapKeyToValue("PredictedLabel")
             };
          }
          #endregion
@@ -215,16 +227,24 @@ namespace MachineLearning.ModelZoo
    /// <summary>
    /// Risultato della previsione
    /// </summary>
-   public sealed partial class SizeEstimator // Prediction
+   public sealed partial class SentenceClassification // Prediction
    {
       [Serializable]
-      public class Prediction
+      public sealed class Prediction
       {
          #region Properties
          /// <summary>
          /// Significato
          /// </summary>
-         public float Size { get; }
+         public string Meaning { get; }
+         /// <summary>
+         /// Punteggio per il tipo previsto
+         /// </summary>
+         public float Score { get; }
+         /// <summary>
+         /// Punteggi per label
+         /// </summary>
+         public KeyValuePair<string, float>[] Scores { get; }
          #endregion
          #region Methods
          /// <summary>
@@ -234,7 +254,11 @@ namespace MachineLearning.ModelZoo
          internal Prediction(IDataAccess data)
          {
             var grid = data.ToDataViewGrid();
-            Size = grid[0]["Score"];
+            Meaning = grid[0]["PredictedLabel"];
+            var scores = (float[])grid[0]["Score"];
+            var slotNames = grid.Schema["Score"].GetSlotNames();
+            Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
+            Score = Scores.FirstOrDefault(s => s.Key == Meaning).Value;
          }
          #endregion
       }

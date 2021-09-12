@@ -16,8 +16,8 @@ namespace MachineLearning.ModelZoo
    /// Class for image recognition
    /// </summary>
    [Serializable]
-   public sealed partial class ImageRecognizer :
-      ModelZooBase<ImageRecognizer.Mdl>,
+   public sealed partial class ImageClassification :
+      ModelZooBase<ImageClassification.Mdl>,
       IDataStorageProvider,
       IInputSchema,
       IModelStorageProvider,
@@ -54,7 +54,7 @@ namespace MachineLearning.ModelZoo
       /// Costruttore
       /// </summary>
       /// <param name="context">Contesto di machine learning</param>
-      public ImageRecognizer(IContextProvider<MLContext> context = default)
+      public ImageClassification(IContextProvider<MLContext> context = default)
       {
          Model = new Mdl(this, context);
          SetSchema(0, 1, 2, "Label", "ImagePath", "ImageTimestamp");
@@ -102,7 +102,7 @@ namespace MachineLearning.ModelZoo
    /// <summary>
    /// Modello
    /// </summary>
-   public sealed partial class ImageRecognizer // Mdl
+   public sealed partial class ImageClassification // Mdl
    {
       [Serializable]
       public sealed class Mdl :
@@ -120,7 +120,7 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
-         private readonly ImageRecognizer _owner;
+         private readonly ImageClassification _owner;
          /// <summary>
          /// Pipe di training
          /// </summary>
@@ -184,7 +184,7 @@ namespace MachineLearning.ModelZoo
          /// </summary>
          /// <param name="owner">Oggetto di appartenenza</param>
          /// <param name="context">Contesto di machine learning</param>
-         internal Mdl(ImageRecognizer owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
+         internal Mdl(ImageClassification owner, IContextProvider<MLContext> context) : base(context) => _owner = owner;
          /// <summary>
          /// Funzione di dispose
          /// </summary>
@@ -358,7 +358,7 @@ namespace MachineLearning.ModelZoo
    /// <summary>
    /// Risultato della previsione
    /// </summary>
-   public sealed partial class ImageRecognizer // Prediction
+   public sealed partial class ImageClassification // Prediction
    {
       [Serializable]
       public class Prediction
