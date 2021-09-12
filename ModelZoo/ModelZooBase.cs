@@ -225,6 +225,86 @@ namespace MachineLearning.ModelZoo
       /// </summary>
       /// <param name="cancellation">Eventuale token di cancellazione dell'attesa</param>
       public void StopTraining(CancellationToken cancellation = default) => Model?.StopTraining(cancellation);
+      /// <summary>
+      /// Wait for model changed
+      /// </summary>
+      /// <param name="cancellation">Optional cancellation token</param>
+      public void WaitModelChanged(CancellationToken cancellation = default)
+      {
+         ManualResetEvent eventWaitHandle;
+         void WaitEvent(object sender, ModelTrainingEventArgs e) => eventWaitHandle.Set();
+         using (eventWaitHandle = new ManualResetEvent(false)) {
+            try {
+               ModelChanged += WaitEvent;
+               while (!eventWaitHandle.WaitOne(500))
+                  cancellation.ThrowIfCancellationRequested();
+               cancellation.ThrowIfCancellationRequested();
+            }
+            finally {
+               ModelChanged -= WaitEvent;
+            }
+         }
+      }
+      /// <summary>
+      /// Wait for train ended
+      /// </summary>
+      /// <param name="cancellation">Optional cancellation token</param>
+      public void WaitTrainingEnded(CancellationToken cancellation = default)
+      {
+         ManualResetEvent eventWaitHandle;
+         void WaitEvent(object sender, ModelTrainingEventArgs e) => eventWaitHandle.Set();
+         using (eventWaitHandle = new ManualResetEvent(false)) {
+            try {
+               TrainingEnded += WaitEvent;
+               while (!eventWaitHandle.WaitOne(500))
+                  cancellation.ThrowIfCancellationRequested();
+               cancellation.ThrowIfCancellationRequested();
+            }
+            finally {
+               TrainingEnded -= WaitEvent;
+            }
+         }
+      }
+      /// <summary>
+      /// Wait for singled train cycle started
+      /// </summary>
+      /// <param name="cancellation">Optional cancellation token</param>
+      public void WaitTrainingCycleStarted(CancellationToken cancellation = default)
+      {
+         ManualResetEvent eventWaitHandle;
+         void WaitEvent(object sender, ModelTrainingEventArgs e) => eventWaitHandle.Set();
+         using (eventWaitHandle = new ManualResetEvent(false)) {
+            try {
+               TrainingCycleStarted += WaitEvent;
+               while (!eventWaitHandle.WaitOne(500))
+                  cancellation.ThrowIfCancellationRequested();
+               cancellation.ThrowIfCancellationRequested();
+            }
+            finally {
+               TrainingCycleStarted -= WaitEvent;
+            }
+         }
+      }
+      /// <summary>
+      /// Wait for global train loop started
+      /// </summary>
+      /// <param name="cancellation">Optional cancellation token</param>
+      public void WaitTrainingStarted(CancellationToken cancellation = default)
+      {
+         ManualResetEvent eventWaitHandle;
+         void WaitEvent(object sender, ModelTrainingEventArgs e) => eventWaitHandle.Set();
+         using (eventWaitHandle = new ManualResetEvent(false)) {
+            try {
+               TrainingStarted += WaitEvent;
+               while (!eventWaitHandle.WaitOne(500))
+                  cancellation.ThrowIfCancellationRequested();
+               cancellation.ThrowIfCancellationRequested();
+            }
+            finally {
+               TrainingStarted -= WaitEvent;
+            }
+         }
+      }
       #endregion
    }
 }
