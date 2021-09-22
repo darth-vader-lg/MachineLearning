@@ -272,7 +272,8 @@ namespace MachineLearning.Model
             case 1:
                throw new OperationCanceledException();
             case 2:
-               // Await to propagate the possible exception
+               // Wait to propagate the possible exception
+               evaluator?.Task?.Wait(cancellation);
                if (evaluator?.Task?.Exception != null)
                   throw evaluator.Task.Exception;
                throw new OperationCanceledException();
@@ -682,28 +683,23 @@ namespace MachineLearning.Model
                      ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.DataStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
                      ((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) >= ((e.TrainingStorage as IDataTimestamp)?.DataTimestamp ?? default) &&
                      (((e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? default) > e.Timestamp || e.Model == null);
+                  var loadException = default(Exception);
                   if (loadExistingModel) {
                      try {
                         Channel.WriteLog("Loading the model");
                         inputSchema = null;
                         model = e.ModelStorage == null ? null : await Task.Run(() => LoadModel(e.ModelStorage, out inputSchema), cancel);
                         timestamp = model == null ? default : (e.ModelStorage as IDataTimestamp)?.DataTimestamp ?? DateTime.UtcNow;
-                        if (e.InputSchema != null && inputSchema != null) {
-                           try {
-                              CheckSchemaConsistence(e.InputSchema, inputSchema, "Inconsistent schema: input schema and stored model schema are different. The model will be discarded.");
-                           }
-                           catch (Exception) {
-                              throw;
-                           }
-                        }
+                        if (e.InputSchema != null && inputSchema != null)
+                           CheckSchemaConsistence(e.InputSchema, inputSchema, "Inconsistent schema: input schema and stored model schema are different. The model will be discarded.");
                      }
-                     catch (OperationCanceledException) { }
+                     catch (OperationCanceledException exc) { loadException = exc; }
                      catch (Exception exc) {
                         Channel.WriteLog($"Error loading the model: {exc.Message}");
-                        Trace.WriteLine(exc);
                         model = null;
                         inputSchema = null;
                         timestamp = default;
+                        loadException = exc;
                      }
                   }
                   cancel.ThrowIfCancellationRequested();
@@ -723,8 +719,11 @@ namespace MachineLearning.Model
                      OnModelChanged(new ModelTrainingEventArgs(e));
                   cancel.ThrowIfCancellationRequested();
                   // Verifica l'esistenza di dati
-                  if (data == null)
+                  if (data == null) {
+                     if (loadException != null)
+                        throw loadException;
                      return;
+                  }
                   // Effettua eventuale commit automatico
                   cancel.ThrowIfCancellationRequested();
                   if (e.ModelAutoCommit && data != null && e.DataStorage != null && e.TrainingStorage != null && (this.LoadData(e.TrainingStorage)?.GetRowCursor(e.InputSchema).MoveNext() ?? false)) {
@@ -758,7 +757,7 @@ namespace MachineLearning.Model
                      }
                      catch (Exception exc) {
                         Channel.WriteLog($"Error committing the data: {exc.Message}");
-                        Trace.WriteLine(exc);
+                        throw;
                      }
                   }
                   data = LoadData();
@@ -853,7 +852,7 @@ namespace MachineLearning.Model
                   break;
             }
          }
-         catch (OperationCanceledException) { }
+         catch (OperationCanceledException) { evaluator.Cancel(); }
          catch (Exception exc) {
             Trace.WriteLine(exc);
             try {
@@ -861,6 +860,7 @@ namespace MachineLearning.Model
             }
             catch (Exception) {
             }
+            evaluator.Cancel();
             throw;
          }
          finally {
