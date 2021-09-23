@@ -191,14 +191,18 @@ namespace MachineLearning.ModelZoo
          /// <param name="disposing">Indicatore di dispose da codice</param>
          protected override void Dispose(bool disposing)
          {
-            base.Dispose(disposing);
-            try {
-               _pipes?.Dispose();
-            }
-            catch (Exception exc) {
-               Trace.WriteLine(exc);
+            if (IsDisposed)
+               return;
+            if (disposing) {
+               try {
+                  _pipes?.Dispose();
+               }
+               catch (Exception exc) {
+                  Trace.WriteLine(exc);
+               }
             }
             _pipes = null;
+            base.Dispose(disposing);
          }
          /// <summary>
          /// Restituisce le pipe di training del modello

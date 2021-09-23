@@ -189,8 +189,15 @@ namespace MachineLearning
       /// <param name="disposing">Indicatore di dispose da programma</param>
       protected virtual void Dispose(bool disposing)
       {
-         if (!_disposedValue) {
-            Stop(disposing ? -1 : 10000);
+         if (_disposedValue)
+            return;
+         if (disposing) {
+            try {
+               Stop(disposing ? -1 : 10000);
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
             _ = _disposables.All(d =>
             {
                try {
@@ -201,8 +208,8 @@ namespace MachineLearning
                }
                return true;
             });
-            _disposedValue = true;
          }
+         _disposedValue = true;
       }
       /// <summary>
       /// Dispose di tutti i contesti

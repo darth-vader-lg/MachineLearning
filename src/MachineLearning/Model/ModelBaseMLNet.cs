@@ -199,6 +199,10 @@ namespace MachineLearning.Model
          /// </summary>
          private readonly CancellableTask autoTrainingTask = new(cancellation => Task.CompletedTask);
          /// <summary>
+         /// Disposed status
+         /// </summary>
+         private bool disposed;
+         /// <summary>
          /// Oggetto di appartenenza
          /// </summary>
          private readonly ModelBaseMLNet owner;
@@ -233,6 +237,8 @@ namespace MachineLearning.Model
          /// <param name="disposing"></param>
          protected virtual void Dispose(bool disposing)
          {
+            if (disposed)
+               return;
             if (disposing) {
                if (!autoTrainingTask.Task.IsCompleted) {
                   autoTrainingTask.Task.ContinueWith(t =>
@@ -260,6 +266,7 @@ namespace MachineLearning.Model
                autoTrainingModelAvailable?.Dispose();
                autoTrainingModelAvailable = null;
             }
+            disposed = true;
          }
          /// <summary>
          /// Effettua il training con la ricerca automatica del miglior trainer

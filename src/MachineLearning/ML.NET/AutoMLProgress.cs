@@ -81,13 +81,13 @@ namespace Microsoft.ML.AutoML
       /// <param name="disposing">Indicatore di Dispose da programma</param>
       protected virtual void Dispose(bool disposing)
       {
-         if (!disposed) {
-            if (disposing) {
-               channel?.Dispose();
-               channel = null;
-            }
-            disposed = true;
+         if (disposed)
+            return;
+         if (disposing) {
+            channel?.Dispose();
+            channel = null;
          }
+         disposed = true;
       }
       /// <summary>
       /// Funzione di report del progresso

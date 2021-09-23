@@ -61,7 +61,9 @@ namespace MachineLearning.Model
       /// <param name="disposing">Indicatore di dispose da codice</param>
       protected virtual void Dispose(bool disposing)
       {
-         if (!disposedValue) {
+         if (disposedValue)
+            return;
+         if (disposing) {
             foreach (var estimator in new[] { Input, Trainer, Output }) {
                try {
                   (estimator as IDisposable)?.Dispose();
@@ -70,11 +72,11 @@ namespace MachineLearning.Model
                   Trace.WriteLine(exc);
                }
             }
-            Input = null;
-            Trainer = null;
-            Output = null;
-            disposedValue = true;
          }
+         Input = null;
+         Trainer = null;
+         Output = null;
+         disposedValue = true;
       }
       #endregion
    }

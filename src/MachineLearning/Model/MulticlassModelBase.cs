@@ -53,11 +53,13 @@ namespace MachineLearning.Model
       /// <param name="disposing"></param>
       protected override void Dispose(bool disposing)
       {
-         base.Dispose(disposing);
+         if (IsDisposed)
+            return;
          if (disposing) {
             autoTrainingTask?.Dispose();
             autoTrainingTask = null;
          }
+         base.Dispose(disposing);
       }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello

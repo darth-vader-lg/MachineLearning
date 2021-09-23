@@ -58,16 +58,18 @@ namespace MachineLearning.Data
       /// <param name="disposing">Indicatore di dispose da codice</param>
       protected virtual void Dispose(bool disposing)
       {
-         if (!disposedValue) {
+         if (disposedValue)
+            return;
+         if (disposing) {
             try {
                (Transformer as IDisposable)?.Dispose();
             }
             catch (Exception exc) {
                Trace.WriteLine(exc);
             }
-            Transformer = null;
-            disposedValue = true;
          }
+         Transformer = null;
+         disposedValue = true;
       }
       /// <summary>
       /// Restituisce lo schema di output

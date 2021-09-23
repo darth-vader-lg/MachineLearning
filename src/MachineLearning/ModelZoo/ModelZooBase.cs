@@ -13,16 +13,16 @@ namespace MachineLearning.ModelZoo
    {
       #region Fields
       /// <summary>
-      /// Disposed object
-      /// </summary>
-      [NonSerialized]
-      private bool disposedValue;
-      /// <summary>
       /// The associated model
       /// </summary>
       private TModel model;
       #endregion
       #region Properties
+      /// <summary>
+      /// Disposed status
+      /// </summary>
+      [field: NonSerialized]
+      public bool IsDisposed { get; private set; }
       /// <summary>
       /// Modello
       /// </summary>
@@ -95,15 +95,16 @@ namespace MachineLearning.ModelZoo
       /// <param name="disposing"></param>
       protected virtual void Dispose(bool disposing)
       {
-         if (!disposedValue) {
-            try {
+         if (IsDisposed)
+            return;
+         try {
+            if (disposing)
                Model?.Dispose();
-            }
-            catch (Exception exc) {
-               Trace.WriteLine(exc);
-            }
-            disposedValue = true;
          }
+         catch (Exception exc) {
+            Trace.WriteLine(exc);
+         }
+         IsDisposed = true;
       }
       /// <summary>
       /// Redirect model changed event

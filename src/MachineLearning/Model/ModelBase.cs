@@ -224,22 +224,32 @@ namespace MachineLearning.Model
       /// <param name="disposing">Indicatore di dispose da programma</param>
       protected override void Dispose(bool disposing)
       {
-         base.Dispose(disposing);
-         try {
-            if (context is MachineLearningContext ml)
-               ml.RemoveDisposable(this);
-         }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
-         }
-         try {
-            (evaluator?.Model as IDisposable)?.Dispose();
-         }
-         catch (Exception exc) {
-            Trace.WriteLine(exc);
+         if (IsDisposed)
+            return;
+         if (disposing) {
+            try {
+               StopTraining();
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
+            try {
+               if (context is MachineLearningContext ml)
+                  ml.RemoveDisposable(this);
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
+            try {
+               (evaluator?.Model as IDisposable)?.Dispose();
+            }
+            catch (Exception exc) {
+               Trace.WriteLine(exc);
+            }
          }
          if (evaluator != null)
             evaluator.Model = null;
+         base.Dispose(disposing);
       }
       /// <summary>
       /// Funzione di restituzione della migliore fra due valutazioni modello

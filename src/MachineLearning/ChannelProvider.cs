@@ -43,13 +43,13 @@ namespace MachineLearning
       /// <param name="disposing">Se true indica che il dispose dell'oggetto e' stato chiamato da programma</param>
       protected virtual void Dispose(bool disposing)
       {
-         if (!IsDisposed) {
-            IsDisposed = true;
-            if (disposing) {
-               _channel?.Dispose();
-               _channel = null;
-            }
+         if (IsDisposed)
+            return;
+         if (disposing) {
+            _channel?.Dispose();
+            _channel = null;
          }
+         IsDisposed = true;
       }
       /// <summary>
       /// Funzione di ottenimento del provider di canali
