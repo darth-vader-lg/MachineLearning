@@ -14,6 +14,12 @@ namespace Common.Tests
       /// </summary>
       private readonly ITestOutputHelper output;
       #endregion
+      #region Properties
+      /// <summary>
+      /// Root path of the folder containing test data
+      /// </summary>
+      static protected string DataFolder => Path.GetFullPath(Path.Combine(ProjectInfo.ProjectPath, "..", "Data"));
+      #endregion
       #region Methods
       /// <summary>
       /// Constructor
@@ -24,10 +30,10 @@ namespace Common.Tests
       /// Clone the test assets repository
       /// </summary>
       /// <param name="repoPath">The path of the test assets repository</param>
-      /// <param name="output">Optional output interface</param>
       /// <returns>The path of the assets repository</returns>
-      public string CloneAssets(string repoPath = @".\TestAssets")
+      public string CloneAssets(string repoPath = default)
       {
+         repoPath ??= Path.Combine(DataFolder, "TestAssets");
          for (var i = 0; i < 2; i++) {
             try {
                if (!Directory.Exists(repoPath)) {
@@ -56,6 +62,32 @@ namespace Common.Tests
             }
          }
          return null;
+      }
+      /// <summary>
+      /// Dispose an object and make null its reference
+      /// </summary>
+      /// <param name="obj">Disposable object</param>
+      public static void DisposeAndNullify<T>(ref T obj) where T : IDisposable
+      {
+         obj?.Dispose();
+         obj = default;
+      }
+      /// <summary>
+      /// Do a save action without exception consequence
+      /// </summary>
+      /// <param name="action">Action to do</param>
+      public static void SafeAction(Action action)
+      {
+         try {
+            action();
+         }
+         catch (Exception exc) {
+            try {
+               Debug.WriteLine(exc);
+            }
+            catch {
+            }
+         }
       }
       /// <summary>
       /// Write the output to the tracer

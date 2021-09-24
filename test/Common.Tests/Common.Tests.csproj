@@ -1,9 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project InitialTargets="WriteProjectDir" Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
 
     <IsPackable>false</IsPackable>
+
+    <SignAssembly>true</SignAssembly>
+
+    <AssemblyOriginatorKeyFile>..\Test.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,16 +25,30 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="Data\Images\apples.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Data\Images\banana.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Data\Images\hotdog.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+  <UsingTask TaskName="WriteProjectDir" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
+    <ParameterGroup />
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        var projectDir = Path.GetFullPath(@"$(ProjectDir)");
+        File.WriteAllLines(Path.Combine(@"$(ProjectDir)", "ProjectInfo.cs"), new[]
+        {
+          "// Warning: this is an auto-generated file!",
+          "// Any changes you do will be lost.",
+          "namespace Common.Tests",
+          "{",
+          "   internal static class ProjectInfo",
+          "   {",
+          "      internal const string ProjectPath = @\"" + projectDir + "\";",
+          "   };",
+          "}",
+        });
+        File.SetLastWriteTime(Path.Combine(@"$(ProjectDir)", "ProjectInfo.cs"), File.GetLastWriteTime(@"$(ProjectPath)"));
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="WriteProjectDir" BeforeTargets="Build">
+    <WriteProjectDir />
+  </Target>
 
 </Project>

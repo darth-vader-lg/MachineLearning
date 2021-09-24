@@ -1,5 +1,5 @@
-﻿using MachineLearning.Model;
-using ObjectDetection.Tests;
+﻿using ImageClassification.Tests;
+using MachineLearning.Model;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,30 +9,14 @@ using Xunit.Abstractions;
 
 namespace MachineLearning.ModelZoo.Tests
 {
-   [Collection("ObjectDetection")]
-   public class ObjectDetectionInference : TestEnv
+   [Collection("ImageClassification")]
+   public class ImageClassificationInference : TestEnv
    {
-      #region class OnnxSet
+      #region class TFHubSet
       /// <summary>
-      /// Onnx models
+      /// TensorFlow hub models
       /// </summary>
-      internal class OnnxSet : IEnumerable<object[]>
-      {
-         public IEnumerator<object[]> GetEnumerator()
-         {
-            foreach (var multithread in new[] { false, true }) {
-               foreach (var model in Models.Where(m => m.Name.ToLower().Contains("onnx")))
-                  yield return new object[] { multithread, model.Name };
-            }
-         }
-         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-      }
-      #endregion
-      #region class TF2ModelZooSet
-      /// <summary>
-      /// TensorFlow 2 model zoo models
-      /// </summary>
-      internal class TF2ModelZooSet : IEnumerable<object[]>
+      internal class TFHubSet : IEnumerable<object[]>
       {
          public IEnumerator<object[]> GetEnumerator()
          {
@@ -42,26 +26,20 @@ namespace MachineLearning.ModelZoo.Tests
             }
          }
          IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-      } 
+      }
       #endregion
       #region Methods
       /// <summary>
       /// Constructor
       /// </summary>
       /// <param name="output">Optional output interface</param>
-      public ObjectDetectionInference(ITestOutputHelper output) : base(output) { }
+      public ImageClassificationInference(ITestOutputHelper output) : base(output) { }
       /// <summary>
-      /// Import and inference with Onnx model
+      /// Test for image classification inference with pretrained tensorflow inception
       /// </summary>
-      [Theory, ClassData(typeof(OnnxSet)), Trait("Category", "Inference")]
-      public void Onnx(bool multithread, string model) =>
-         Inference(model, 0.5, new[] { "banana", "hotdog", "apples" }, new[] { "banana", "hot dog", "apple" }, multithread);
-      /// <summary>
-      /// Import and inference with TensorFlow2 model zoo (saved_model)
-      /// </summary>
-      [Theory, ClassData(typeof(TF2ModelZooSet)), Trait("Category", "Inference")]
-      public void TensorFlowModelZoo2(bool multithread, string model) =>
-         Inference(model, 0.5, new[] { "banana", "hotdog", "apples" }, new[] { "banana", "hot dog", "apple" }, multithread);
+      [Theory, ClassData(typeof(TFHubSet)), Trait("Category", "Inference")]
+      public void TensorFlowHub(bool multithread, string model) =>
+         Inference(model, 0.6, new[] { "banana", "hotdog" }, new[] { "banana", "hotdog" }, multithread);
       /// <summary>
       /// Generic inference model test
       /// </summary>
@@ -77,30 +55,29 @@ namespace MachineLearning.ModelZoo.Tests
          Assert.NotNull(expectedLabels);
          Assert.True(images.Length == expectedLabels.Length);
          // Import the model
-         using var m = new ObjectDetection { ModelStorage = new ModelStorageMemory { ImportPath = GetModel(model).Get() } };
+         using var m = new ImageClassification { ModelStorage = new ModelStorageMemory { ImportPath = GetModel(model).Get() } };
          // Do predictions
-         var dets = new List<ObjectDetection.Prediction.Box>();
+         var predictions = new List<ImageClassification.Prediction>();
          void Execute(string image, string label)
          {
             var testImage = GetImage(image);
             var prediction = m.GetPrediction(testImage.Get());
-            var boxes = prediction.GetBoxes();
-            var best = boxes.Where(box => box.Name == label).OrderBy(box => box.Score).LastOrDefault();
-            if (best != null) {
-               WriteLine($"{best.Name}: class {best.Id}, score {best.Score * 100:###.#}%");
-               lock (dets)
-                  dets.Add(best);
+            if (prediction.Kind == label) {
+               WriteLine($"{prediction.Kind}: class {prediction.Id}, score {prediction.Score * 100:###.#}%");
+               lock (predictions)
+                  predictions.Add(prediction);
             }
             else
-               WriteLine($"No detection boxes found for the image {testImage.Name}");
+               WriteLine($"Wrong prediction: expected {label}, got {prediction.Kind}");
          }
          if (multithread)
             Parallel.ForEach(images.Zip(expectedLabels).Select(item => (Image: item.First, Label: item.Second)), item => Execute(item.Image, item.Label));
          else
             images.Zip(expectedLabels).Select(item => (Image: item.First, Label: item.Second)).ToList().ForEach(item => Execute(item.Image, item.Label));
          // Test predictions
-         Assert.True(dets.Count == images.Length, $"Not all images where found in the inference");
-         var ap = dets.Average(det => det.Score);
+         Assert.True(predictions.Count == images.Length, $"Not all images where found in the inference");
+         Assert.True(predictions.Count == images.Length, $"Not all images where found in the inference");
+         var ap = predictions.Average(p => p.Score);
          WriteLine($"Average precision is {ap * 100:###.#}%");
          Assert.True(ap >= confidence, $"The minimum required precision was {confidence * 100:###.#}%");
       }

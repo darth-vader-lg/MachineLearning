@@ -339,14 +339,6 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 
-# Python environment
-ODModelBuilderTF/env/
-
 # Workspace directories
-ODModelBuilderTF/images/
-ODModelBuilderTF/annotations/
-ODModelBuilderTF/trained-model/
-ODModelBuilderTF/exported-model/
-ODModelBuilderTF/build/
-ODModelBuilderTF/ODModelBuilderTF/
-ODModelBuilderTF/ODModelBuilderTF.spec
+/test/Common.Tests/ProjectInfo.cs
+/test/data

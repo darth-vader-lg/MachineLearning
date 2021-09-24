@@ -11,6 +11,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Tensorflow;
@@ -18,74 +19,23 @@ using Tensorflow;
 namespace MachineLearning.Util
 {
    /// <summary>
-   /// Configurazione del modello
+   /// Class to infer automatically the type of a model
    /// </summary>
-   internal partial class ODModelConfig
+   internal partial class ModelConfig
    {
       #region Fields
       /// <summary>
-      /// Smart dictionary to understand the model input outputs
-      /// </summary>
-      private static readonly Dictionary<string, (SmartDictionary<string> Input, SmartDictionary<string> Outputs)> modelInputOutput = new()
-      {
-         {
-            "Yolov5",
-            (
-               Input: new()
-               {
-                  { "images[1,3", "images" }
-               },
-               Outputs: new()
-               {
-                  { "[1,25200,?]", "detections" }
-               }
-            )
-         },
-         {
-            "ssd",
-            (
-               Input: new()
-               {
-                  { "input", "images" }
-               },
-               Outputs: new()
-               {
-                  { "[1,25200,?]", "input_tensor:0" },
-                  { "detection anchor indices[1,-1]", "detection_anchor_indices" },
-                  { "detection boxes[1,-1,-1]", "detection_boxes" },
-                  { "detection classes[1,-1]", "detection_classes" },
-                  { "detection multiclass scores[1,-1,-1]", "detection_multiclass_scores" },
-                  { "detection scores[1,-1]", "detection_scores" },
-                  { "num detections[1]", "num_detections" },
-                  { "raw detection boxes[1,76725,4]", "raw_detection_boxes" },
-                  { "raw detection scores[1,7625,90]", "raw_detection_scores" },
-               }
-            )
-         }
-      };
-      /// <summary>
       /// Smart dictionary to understand the model type
       /// </summary>
-      private static readonly SmartDictionary<string> modelTypeDictionary = new()
-      {
-         {
-            "images[1,3,640,640] "+
-            "detections[1,25200,?] " +
-            "grid80x80[1,3,80,80,?] " +
-            "grid40x40[1,3,40,40,?] " +
-            "grid20x20[1,3,20,20,?]", "Yolov5" },
-         { 
-            "input_tensor:0[1,-1,-1,3] " +
-            "detection_anchor_indices[1,-1] " +
-            "detection_boxes[1,-1,-1] " +
-            "detection_classes[1,-1] " +
-            "detection_multiclass_scores[1,-1,-1] " +
-            "detection_scores[1,-1] " +
-            "num_detections[1] " +
-            "raw_detection_boxes[1,76725,4] " +
-            "raw_detection_scores[1,7625,90]", "ssd"
-         }
-      };
+      private static readonly SmartDictionary<(ModelInfo Model, string[] Labels)> modelConfigsDictionary = new();
+      /// <summary>
+      /// Dictionary of tensors per model
+      /// </summary>
+      private static readonly Dictionary<string, Dictionary<ColumnTypes, Tensor>> tensorsDictionaries = new();
+      /// <summary>
+      /// Dictionary of tensors
+      /// </summary>
+      private Dictionary<ColumnTypes, Tensor> tensorsDictionary = new();
       /// <summary>
       /// Dizionario di conversione fra i tipi di dati Tensorflow e i dati NET
       /// </summary>
@@ -125,6 +75,10 @@ namespace MachineLearning.Util
       #endregion
       #region Properties
       /// <summary>
+      /// Fingerprint of the model
+      /// </summary>
+      public string Fingerprint { get; private set; }
+      /// <summary>
       /// Formato del modello
       /// </summary>
       public ModelFormat Format { get; private set; }
@@ -145,6 +99,10 @@ namespace MachineLearning.Util
       /// </summary>
       public JsonElement Model { get; private set; }
       /// <summary>
+      /// Model category
+      /// </summary>
+      public string ModelCategory { get; private set; }
+      /// <summary>
       /// Path del file del modello
       /// </summary>
       public string ModelFilePath { get; private set; }
@@ -153,20 +111,63 @@ namespace MachineLearning.Util
       /// </summary>
       public string ModelType { get; private set; }
       /// <summary>
+      /// Offset that must apply to the pixels of the images
+      /// </summary>
+      public float OffsetImage { get; private set; } = 0f;
+      /// <summary>
       /// Uscite del modello
       /// </summary>
       public ReadOnlyCollection<Tensor> Outputs { get; private set; } = new List<Tensor>().AsReadOnly();
+      /// <summary>
+      /// Scale factor that must apply to the image pixel values
+      /// </summary>
+      public float ScaleImage { get; private set; } = 1f;
       #endregion
       #region Methods
       /// <summary>
-      /// Carica la configurazione del modello
+      /// Return the name of the requested column type
       /// </summary>
-      /// <param name="path">Path del modello</param>
-      /// <returns>La sua configurazione</returns>
-      public static ODModelConfig Load(string path)
+      /// <param name="type">Type of the column</param>
+      /// <returns>The column name</returns>
+      public string GetColumnName(ColumnTypes type) => tensorsDictionary[type].ColumnName;
+      /// <summary>
+      /// Return the tensor of the requested column type
+      /// </summary>
+      /// <param name="type">Type of the column</param>
+      /// <returns>The tensor</returns>
+      public Tensor GetTensor(ColumnTypes type) => tensorsDictionary[type];
+      /// <summary>
+      /// Load the model configuration from path
+      /// </summary>
+      /// <param name="path">Path of the model</param>
+      /// <param name="modelConfig">Optional different configuration file</param>
+      /// <returns>The configuration</returns>
+      public static ModelConfig Load(string path, string modelConfig = default)
       {
-         // Configurazione
-         var config = new ODModelConfig();
+         // Models dictionary
+         var modelConfigsDictionary = default(SmartDictionary<(ModelInfo Model, string[] Labels)>);
+         lock (ModelConfig.modelConfigsDictionary) {
+            if (modelConfig != null) {
+               if (!File.Exists(modelConfig))
+                  throw new FileNotFoundException("The model configuration file doesn't exist", modelConfig);
+               var cfg = JsonSerializer.Deserialize<ModelConfigs>(File.ReadAllText(modelConfig));
+               modelConfigsDictionary = new SmartDictionary<(ModelInfo Model, string[] Labels)>(from m in cfg.Models
+                                                                                                let kv = (Key: string.Join(' ', m.Fingerprint), Value: (Model: m, Labels: cfg.Labels[m.Labels]))
+                                                                                                select new KeyValuePair<string, (ModelInfo Model, string[] Labels)>(kv.Key, kv.Value));
+            }
+            else if (ModelConfig.modelConfigsDictionary.Count == 0) {
+               var cfg = JsonSerializer.Deserialize<ModelConfigs>(File.ReadAllText(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "ModelConfigs.json")));
+               foreach (var item in from m in cfg.Models
+                                    let kv = (Key: string.Join(' ', m.Fingerprint), Value: (Model: m, Labels: cfg.Labels[m.Labels]))
+                                    select new KeyValuePair<string, (ModelInfo Model, string[] Labels)>(kv.Key, kv.Value))
+                  ModelConfig.modelConfigsDictionary.Add(item);
+               modelConfigsDictionary = ModelConfig.modelConfigsDictionary;
+            }
+            else
+               modelConfigsDictionary = ModelConfig.modelConfigsDictionary;
+         }
+         // Configuration
+         var config = new ModelConfig();
          if (Directory.GetDirectories(Path.GetDirectoryName(path)).FirstOrDefault(item => Path.GetFileName(item).ToLower() == "variables") != default)
             config.Format = ModelFormat.TF2SavedModel;
          else if (Path.GetExtension(path).ToLower() == ".pb")
@@ -176,11 +177,36 @@ namespace MachineLearning.Util
          else
             throw new Exception("Unknown model type");
          var configFile = path + ".config";
-         // Legge i dati di configurazione
+         // Read config data
          config.ReadInfoFromConfig(configFile);
-         // Completa eventuali dati mancanti
-         config.ReadInfoFromModel(path);
-         // Memorizza il path del modello
+         // Complete possible missing data
+         config.ReadInfoFromModel(path, modelConfigsDictionary);
+         // Fill the dictionary of model's column types
+         lock (tensorsDictionaries) {
+            if (!tensorsDictionaries.TryGetValue(config.Fingerprint, out config.tensorsDictionary)) {
+               config.tensorsDictionary = new();
+               var modelTensors = new SmartDictionary<Dictionary<ColumnTypes, string>>(from m in modelConfigsDictionary
+                                                                                       select new KeyValuePair<string, Dictionary<ColumnTypes, string>>(m.Value.Model.Type, m.Value.Model.ColumnType));
+               // Fill the dictionaries to convert from column type to tensor info
+               var tensorLookup = modelTensors.Similar[config.ModelType + config.ModelCategory];
+               if (config.Inputs.Count > 1) {
+                  var inputTensorInfo = new SmartDictionary<Tensor>(from t in config.Inputs select new KeyValuePair<string, Tensor>(t.ToString(), t));
+                  if (tensorLookup.ContainsKey(ColumnTypes.Input))
+                     config.tensorsDictionary[ColumnTypes.Input] = inputTensorInfo.Similar[tensorLookup[ColumnTypes.Input]];
+               }
+               else
+                  config.tensorsDictionary[ColumnTypes.Input] = config.Inputs[0];
+               var outputTensorInfo = config.Outputs.Count > 1 ? new SmartDictionary<Tensor>(from t in config.Outputs select new KeyValuePair<string, Tensor>(t.ToString(), t)) : null;
+               foreach (var item in from n in Enum.GetNames<ColumnTypes>() where n != ColumnTypes.Input.ToString() select n) {
+                  var ct = Enum.Parse<ColumnTypes>(item);
+                  if (!tensorLookup.ContainsKey(ct))
+                     continue;
+                  config.tensorsDictionary[ct] = outputTensorInfo?.Similar[tensorLookup[ct]] ?? config.Outputs[0];
+               }
+               tensorsDictionaries[config.Fingerprint] = config.tensorsDictionary;
+            }
+         }
+         // Store model path
          config.ModelFilePath = config.Format == ModelFormat.TF2SavedModel ? Path.GetDirectoryName(path) : path;
          return config;
       }
@@ -224,14 +250,17 @@ namespace MachineLearning.Util
                }
                // Ricava le labels
                try {
-                  Labels = (from label in jsonConfig["labels"].EnumerateArray()
-                            let l = new
-                            {
-                               Name = label.GetProperty("name").GetString(),
-                               DisplayedName = label.GetProperty("display_name").GetString(),
-                               Id = label.GetProperty("id").GetInt32().ToString()
-                            }
-                            select !string.IsNullOrEmpty(l.DisplayedName) ? l.DisplayedName : !string.IsNullOrEmpty(l.Name) ? l.Name : l.Id).ToList().AsReadOnly();
+                  var labelsDict =
+                     jsonConfig["labels"].EnumerateArray()
+                     .Select(item => (Name: item.GetProperty("name").GetString(), DisplayedName: item.GetProperty("display_name").GetString(), Id: item.GetProperty("id").GetInt32()))
+                     .Select(item => (item.Id, Name: !string.IsNullOrEmpty(item.DisplayedName) ? item.DisplayedName : !string.IsNullOrEmpty(item.Name) ? item.Name : item.Id.ToString()))
+                     .ToDictionary(item => item.Id);
+                  var maxId = labelsDict.Max(item => item.Key);
+                  var labels =
+                     Enumerable.Range(0, maxId + 1)
+                     .Select(id => labelsDict.TryGetValue(id, out var item) ? item.Name : id.ToString())
+                     .ToList();
+                  Labels = labels.AsReadOnly();
                }
                catch (Exception exc) {
                   Trace.WriteLine($"Warning: cannot load the labels. {exc.Message}");
@@ -270,7 +299,7 @@ namespace MachineLearning.Util
                              }).ToList().AsReadOnly();
                }
                catch (Exception exc) {
-                  Trace.WriteLine($"Warning: cannot load the inputs. {exc.Message}");
+                  Trace.WriteLine($"Warning: cannot load the outputs. {exc.Message}");
                }
                // Ricava le dimensioni dell'immagine di input
                try {
@@ -295,11 +324,12 @@ namespace MachineLearning.Util
          }
       }
       /// <summary>
-      /// Legge le eventuali informazioni mancanti direttamente dal modello
+      /// Read the missing information directly from the model
       /// </summary>
-      /// <param name="path">Path del file di configurazione</param>
+      /// <param name="path">Model path</param>
+      /// <param name="modelConfigsDictionary">Known models dictionary</param>
       /// <returns>La lista delle labels</returns>
-      private void ReadInfoFromModel(string path)
+      private void ReadInfoFromModel(string path, SmartDictionary<(ModelInfo Model, string[] Labels)> modelConfigsDictionary)
       {
          try {
             // Inferenza del formato del file
@@ -343,7 +373,9 @@ namespace MachineLearning.Util
                      onnxModel = new InferenceSession(path);
                      Format = ModelFormat.Onnx;
                   }
-                  catch (Exception) { }
+                  catch (Exception exc) {
+                     Trace.WriteLine(exc);
+                  }
                }
             }
             // Inferenza sugli input output
@@ -396,10 +428,12 @@ namespace MachineLearning.Util
                         tensors.Sort((t1, t2) => string.Compare(t1.Name, t2.Name));
                         return tensors.AsReadOnly();
                      }
+                     var inputNames = new[] { "input_tensor", "input" };
                      if (Inputs.Count == 0 && tfGraphDef != null)
-                        Inputs = SortedTensors(tfGraphDef.Node.Where(item => item.Name.Contains("input_tensor")));
+                        Inputs = SortedTensors(tfGraphDef.Node.Where(item => inputNames.Any(text => item.Name.Contains(text)) && item.Op == "Placeholder"));
+                     var outputNames = new[] { "detection", "output" };
                      if (Outputs.Count == 0 && tfGraphDef != null)
-                        Outputs = SortedTensors(tfGraphDef.Node.Where(item => item.Name.Contains("detection") && item.Op == "Identity"));
+                        Outputs = SortedTensors(tfGraphDef.Node.Where(item => outputNames.Any(text => item.Name.Contains(text)) && item.Op == "Identity"));
                      break;
                   }
                   case ModelFormat.Onnx: {
@@ -425,6 +459,25 @@ namespace MachineLearning.Util
                   }
                }
             }
+            // Fingerprint of the model
+            var sb = new StringBuilder();
+            foreach (var io in new[] { Inputs, Outputs }) {
+               foreach (var item in io)
+                  sb.Append($"{(sb.Length > 0 ? " " : "")}{item}");
+            }
+            Fingerprint = sb.ToString();
+            // Model type inferring
+            var preferredSize = default(Size);
+            var standardLabels = default(string[]);
+            if (string.IsNullOrEmpty(ModelType)) {
+               var info = modelConfigsDictionary.Similar[Fingerprint];
+               ModelType = info.Model.Type;
+               ModelCategory = info.Model.Category;
+               ScaleImage = info.Model.ScaleImage;
+               OffsetImage = info.Model.OffsetImage;
+               preferredSize = info.Model.ImageSize?.Length == 2 ? new Size(info.Model.ImageSize[0], info.Model.ImageSize[1]) : default;
+               standardLabels = info.Labels;
+            }
             // Lettura delle labels dal label_map.pbtxt o da labels.txt se collezione di labels vuota
             if (Format != ModelFormat.Unknown && Labels.Count == 0) {
                try {
@@ -445,36 +498,23 @@ namespace MachineLearning.Util
                      labelsFile = Path.Combine(Path.GetDirectoryName(labelsFile), "labels.txt");
                      if (File.Exists(labelsFile))
                         Labels = new List<string>(File.ReadAllLines(labelsFile)).AsReadOnly();
+                     else if (standardLabels != null && standardLabels.Length > 0)
+                        Labels = standardLabels.ToList().AsReadOnly();
                   }
                }
                catch (Exception) { }
             }
-            // Interpretazione del tipo di modello
-            if (string.IsNullOrEmpty(ModelType)) {
-               var sb = new StringBuilder();
-               foreach (var io in new[] { Inputs, Outputs }) {
-                  foreach (var item in io) {
-                     sb.Append($"{(sb.Length > 0 ? " " : "")}{item.Name}");
-                     if (item.Dim != null) {
-                        var sbDim = new StringBuilder();
-                        sbDim.Append('[');
-                        foreach (var d in item.Dim)
-                           sbDim.Append($"{(sbDim.Length > 1 ? "," : "")}{d}");
-                        sbDim.Append(']');
-                        sb.Append(sbDim);
-                     }
-                  }
-               }
-               ModelType = modelTypeDictionary.Similar[sb.ToString()];
-            }
             // Interpretazione della dimensione dell'immagine
             if (ImageSize.Width < 1 || ImageSize.Height < 1) {
                try {
-                  ImageSize = ModelType switch
-                  {
-                     "Yolov5" => new Size(Inputs[0].Dim[2], Inputs[0].Dim[3]),
-                     _ => new Size(Inputs[0].Dim[1], Inputs[0].Dim[2]),
-                  };
+                  if (ModelType.ToLower().Contains("yolo"))
+                     ImageSize = new Size(Inputs[0].Dim[2], Inputs[0].Dim[3]);
+                  else
+                     ImageSize = Inputs[0].Dim?.Length >= 3 ? new Size(Inputs[0].Dim[1], Inputs[0].Dim[2]) : default;
+                  if (ImageSize.Width < 1 || ImageSize.Height < 1) {
+                     if (preferredSize.Width > 0 && preferredSize.Height > 0)
+                        ImageSize = preferredSize;
+                  }
                   if (ImageSize.Width < 1 || ImageSize.Height < 1)
                      throw new Exception("Cannot infer image size from the input tensor");
                }
@@ -492,9 +532,25 @@ namespace MachineLearning.Util
    }
 
    /// <summary>
-   /// Parser labels
+   /// Column types
    /// </summary>
-   internal partial class ODModelConfig // LabelMapItem, LabelMapItems, LabelMapParser
+   internal partial class ModelConfig // ColumnTypes
+   {
+      internal enum ColumnTypes
+      {
+         #region Definitions
+         Boxes,
+         Classes,
+         Input,
+         Scores,
+         #endregion
+      }
+   }
+
+   /// <summary>
+   /// Labels parser
+   /// </summary>
+   internal partial class ModelConfig // LabelMapItem, LabelMapItems, LabelMapParser
    {
       /// <summary>
       /// Item di un file di labels pbtxt
@@ -548,7 +604,7 @@ namespace MachineLearning.Util
          {
             string line;
             var newText = "{\"Items\":[";
-            using (var reader = new System.IO.StreamReader(filePath)) {
+            using (var reader = new StreamReader(filePath)) {
                while ((line = reader.ReadLine()) != null) {
                   var newline = string.Empty;
                   if (line.Contains("{")) {
@@ -579,9 +635,9 @@ namespace MachineLearning.Util
    }
 
    /// <summary>
-   /// Formato modello
+   /// Model format
    /// </summary>
-   internal partial class ODModelConfig // ModelFormat
+   internal partial class ModelConfig // ModelFormat
    {
       internal enum ModelFormat
       {
@@ -595,29 +651,104 @@ namespace MachineLearning.Util
    }
 
    /// <summary>
-   /// Tensore
+   /// Model info
    /// </summary>
-   internal partial class ODModelConfig // Tensor
+   internal partial class ModelConfig // ModelInfo, ModelConfigs
+   {
+      [Serializable]
+      internal class ModelInfo
+      {
+         #region Properties
+         /// <summary>
+         /// Type of the model
+         /// </summary>
+         public string Type { get; set; } = "Unknown";
+         /// <summary>
+         /// Category of the model
+         /// </summary>
+         public string Category { get; set; } = "Unknown";
+         /// <summary>
+         /// Fingerprint of the model based on it's tensors
+         /// </summary>
+         public string[] Fingerprint { get; set; } = Array.Empty<string>();
+         /// <summary>
+         /// Default image size
+         /// </summary>
+         public int[] ImageSize { get; set; } = default;
+         /// <summary>
+         /// Dictionary of Column type -> tensor
+         /// </summary>
+         public Dictionary<ColumnTypes, string> ColumnType { get; set; } = new();
+         /// <summary>
+         /// Associated labels
+         /// </summary>
+         public string Labels { get; set; } = null;
+         /// <summary>
+         /// Offset that must apply to the pixels of the images
+         /// </summary>
+         public float OffsetImage { get; set; } = 0f;
+         /// <summary>
+         /// Scale factor that must apply to the image pixel values
+         /// </summary>
+         public float ScaleImage { get; set; } = 1f;
+         #endregion
+      }
+      [Serializable]
+      internal class ModelConfigs
+      {
+         #region Properties
+         /// <summary>
+         /// Set of know models
+         /// </summary>
+         public ModelInfo[] Models { get; set; } = Array.Empty<ModelInfo>();
+         /// <summary>
+         /// Labels dictionary
+         /// </summary>
+         public Dictionary<string, string[]> Labels { get; set; } = new();
+         #endregion
+      }
+   }
+
+   /// <summary>
+   /// Tensor
+   /// </summary>
+   internal partial class ModelConfig // Tensor
    {
       internal class Tensor
       {
          #region Properties
          /// <summary>
-         /// Nome con cui deve essere passato alle pipe
+         /// Name on the DataViewSchema
          /// </summary>
          public string ColumnName { get; set; }
          /// <summary>
-         /// Tipo di dati
+         /// Data type
          /// </summary>
          public Type DataType { get; set; }
          /// <summary>
-         /// Dimensioni
+         /// Dimensions
          /// </summary>
          public int[] Dim { get; set; }
          /// <summary>
-         /// Nome del tensore
+         /// Name of the tensor
          /// </summary>
          public string Name { get; set; }
+         /// <summary>
+         /// String representation
+         /// </summary>
+         /// <returns></returns>
+         public override string ToString()
+         {
+            var sb = new StringBuilder();
+            sb.Append($"{DataType.Name} {Name}({ColumnName})");
+            if (Dim != null) {
+               sb.Append('[');
+               for (var i = 0; i < Dim.Length; i++)
+                  sb.Append($"{(i > 0 ? "," : "")}{(Dim[i] > -1 ? Dim[i] : "?")}");
+               sb.Append(']');
+            }
+            return sb.ToString();
+         }
          #endregion
       }
    }

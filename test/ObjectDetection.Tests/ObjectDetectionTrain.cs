@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -28,13 +27,12 @@ namespace MachineLearning.ModelZoo.Tests
       [Fact, Trait("Category", "Train")]
       public void Train()
       {
-         // Ensure empty to start from scratch
-         var trainFolder = Path.GetFullPath(Path.Combine("Data", "Train"));
+         // Ensure empty environment to start the train from scratch
+         var trainFolder = Path.GetFullPath(Path.Combine(DataFolder, "Train"));
          if (Directory.Exists(trainFolder))
             Directory.Delete(trainFolder, true);
-         // Create the model
-         var context = new MachineLearningContext(0);
-         var model = new ObjectDetection(context)
+         // Create the context with fixed seed
+         using var m = new ObjectDetection()
          {
             BatchSize = 12,
             DataStorage = new DataStorageBinaryMemory(),
@@ -47,34 +45,31 @@ namespace MachineLearning.ModelZoo.Tests
             TrainFolder = trainFolder
          };
          // Log the messages
-         context.Log += (sender, e) =>
+         MachineLearningContext.Default.Log += (sender, e) =>
          {
-            Debug.WriteLine(e.Message);
-            if (e.Source != model.Name || e.Kind == MachineLearningLogKind.Trace)
+            if (e.Kind == MachineLearningLogKind.Trace)
                return;
+            else if (e.Source != m.Name) {
+               Debug.WriteLine(e.Message);
+               return;
+            }
             WriteLine(e.Message);
          };
          // Define the sets of images
-         model.UpdateStorageByFolders(new[] { GetImagesFolder("Carps train").Path }, new[] { GetImagesFolder("Carps eval").Path });
-         // Stop the train as soon as we have an available model.
-         // It doesn't need one with high precision for this test
-         var cancel = new CancellationTokenSource();
-         model.ModelChanged += (sender, e) => cancel.Cancel();
+         m.UpdateStorageByFolders(new[] { GetImagesFolder("Carps train").Get() }, new[] { GetImagesFolder("Carps eval").Get() });
          // Start train and wait for max 30 minutes
-         model.StartTraining(cancel.Token);
-         Assert.True(Task.Run(() => model.WaitModelChanged()).Wait(new TimeSpan(0, 30, 0)), "Train timeout");
+         m.StartTraining();
+         Assert.True(Task.Run(() => m.WaitModelChanged()).Wait(new TimeSpan(0, 30, 0)), "Train timeout");
          // Check if the train generated the checkpoints and exported the model.onnx
          Assert.True(File.Exists(Path.Combine(trainFolder, "train", "checkpoint")));
          Assert.True(Directory.Exists(Path.Combine(trainFolder, "export", "saved_model")));
          Assert.True(File.Exists(Path.Combine(trainFolder, "export", "model.onnx")));
          // Test the inference
-         foreach (var image in Directory.GetFiles(GetImagesFolder("Carps eval").Path, "*.jpg")) {
-            var boxes = model.GetPrediction(image).GetBoxes(0.9);
+         foreach (var image in Directory.GetFiles(GetImagesFolder("Carps eval").Get(), "*.jpg")) {
+            var boxes = m.GetPrediction(image).GetBoxes(0.9);
             Assert.True(boxes.Count > 0);
             WriteLine($"{Path.GetFileName(image)}: boxes {boxes.Count}, score {boxes.Max(b => b.Score) * 100:###.#}%");
          }
-         // Stop the train
-         model.StopTraining();
       }
       #endregion
    }

@@ -1,5 +1,7 @@
 ﻿using MachineLearning.Transforms;
+using Microsoft.ML.Data;
 using Microsoft.ML.Runtime;
+using System.Collections.Generic;
 using System.Reflection;
 
 namespace Microsoft.ML
@@ -33,50 +35,129 @@ namespace Microsoft.ML
          return prop.GetMethod.Invoke(catalog, null) as IChannelProvider;
       }
       /// <summary>
-      /// Esegue lo scoring dell'output di un modello Yolov5
+      /// Score the Inception image classification model
       /// </summary>
-      /// <param name="catalog">Catalogo di trasformazioni</param>
-      /// <param name="inputColumnName">Nome della colonna di input (la colonna di output del modello)</param>
-      /// <param name="classesColumnName">Il nome della colonna di output contenente le classi di rilevamento</param>
-      /// <param name="scoresColumnName">Il nome della colonna di output contenente i punteggi di rilevamento</param>
-      /// <param name="boxesColumnName">Il nome della colonna di output contenente i gruppi di x1,y1,x2,y2 dei bounding box in coordinate da 0 a 1</param>
-      /// <param name="modelImageWidth">Larghezza immagine del modello</param>
-      /// <param name="modelImageHeight">Altezza immagine del modello</param>
-      /// <param name="minScoreConfidence">Minimo punteggio previsione</param>
-      /// <param name="minPerCategoryConfidence">Minimo punteggio previsione per categoria</param>
-      /// <param name="nmsOverlapRatio">Fattore di sovrapposizione NMS</param>
-      /// <returns></returns>
-      public static Yolov5Estimator ScoreYolov5(
+      /// <param name="catalog">Transforms catalog</param>
+      /// <param name="inputColumnName">Name of the input column (the output of the Inception model)</param>
+      /// <param name="predictedLabelColumnName">Name of the predicted label column</param>
+      /// <param name="scoreColumnName">Name of the predicted scores column</param>
+      /// <param name="labels">Set of the labels associate with the model</param>
+      /// <returns>The estimator</returns>
+      public static InceptionScorerEstimator ScoreInception(
          this TransformsCatalog catalog,
-         string inputColumnName = "detection",
-         string classesColumnName = "detection_classes",
-         string scoresColumnName = "detection_scores",
-         string boxesColumnName = "detection_boxes",
-         int modelImageWidth = 640,
-         int modelImageHeight = 640,
-         float minScoreConfidence = 0.2f,
-         float minPerCategoryConfidence = 0.25f,
-         float nmsOverlapRatio = 0.45f) => ScoreYolov5(
+         string inputColumnName = InceptionScorerEstimator.Options.DefaultInputColumnName,
+         string predictedLabelColumnName = DefaultColumnNames.PredictedLabel,
+         string scoreColumnName = DefaultColumnNames.Score,
+         IEnumerable<string> labels = null) =>
+         ScoreInception(
             catalog,
-            new Yolov5Transformer.Options
+            new InceptionScorerEstimator.Options
             {
-               BoxesColumnName = boxesColumnName,
-               ClassesColumnName = classesColumnName,
                InputColumnName = inputColumnName,
-               ModelImageHeight = modelImageHeight,
-               ModelImageWidth = modelImageWidth,
-               NmsOverlapRatio = nmsOverlapRatio,
-               MinPerCategoryConfidence = minPerCategoryConfidence,
-               MinScoreConfidence = minScoreConfidence,
-               ScoresColumnName = scoresColumnName
+               PredictedLabelColumnName = predictedLabelColumnName,
+               ScoreColumnName = scoreColumnName,
+               Labels = labels
             });
       /// <summary>
-      /// Esegue lo scoring dell'output di un modello Yolov5
+      /// Score the Inception image classification model
       /// </summary>
-      /// <param name="catalog">Catalogo di trasformazioni</param>
-      /// <param name="options">Opzioni</param>
-      /// <returns>L'estimatore</returns>
-      public static Yolov5Estimator ScoreYolov5(this TransformsCatalog catalog, Yolov5Transformer.Options options) => new(catalog, options);
+      /// <param name="catalog">Transforms catalog</param>
+      /// <param name="options">Options</param>
+      /// <returns>The estimator</returns>
+      public static InceptionScorerEstimator ScoreInception(this TransformsCatalog catalog, InceptionScorerEstimator.Options options) => new(catalog.GetEnvironment(), options);
+      /// <summary>
+      /// Score a standard TensorFlow object detection model
+      /// </summary>
+      /// <param name="catalog">Transforms catalog</param>
+      /// <param name="options">Options</param>
+      /// <returns>The estimator</returns>
+      public static TFStandardODScorerEstimator ScoreTensorFlowStandardObjectDetection(this TransformsCatalog catalog, TFStandardODScorerEstimator.Options options) => new(catalog.GetEnvironment(), options);
+      /// <summary>
+      /// Score a standard TensorFlow object detection model
+      /// </summary>
+      /// <param name="catalog">Transforms catalog</param>
+      /// <param name="outputClassesColumnName">Output column with detection classes</param>
+      /// <param name="outputScoresColumnName">Output column with detection scores</param>
+      /// <param name="outputBoxesColumnName">Output column with detection boxes in format left, top, right, bottom from 0 to 1</param>
+      /// <param name="outputLabelsColumnName">Output column with detection labels</param>
+      /// <param name="inputClassesColumnName">Input column with detection classes</param>
+      /// <param name="inputScoresColumnName">Input column with detection scores</param>
+      /// <param name="inputBoxesColumnName">Input column with detection boxes in format left, top, right, bottom from 0 to 1</param>
+      /// <param name="minScore">Minimum score for detection</param>
+      /// <param name="labels">Set of the labels associate with the model</param>
+      /// <returns>The estimator</returns>
+      public static TFStandardODScorerEstimator ScoreTensorFlowStandardObjectDetection(
+         this TransformsCatalog catalog,
+         string outputClassesColumnName = TFStandardODScorerEstimator.Options.DefaultClassesColumnName,
+         string outputScoresColumnName = TFStandardODScorerEstimator.Options.DefaultScoresColumnName,
+         string outputBoxesColumnName = TFStandardODScorerEstimator.Options.DefaultBoxesColumnName,
+         string outputLabelsColumnName = TFStandardODScorerEstimator.Options.DefaultLabelsColumnName,
+         string inputClassesColumnName = TFStandardODScorerEstimator.Options.DefaultClassesColumnName,
+         string inputScoresColumnName = TFStandardODScorerEstimator.Options.DefaultScoresColumnName,
+         string inputBoxesColumnName = TFStandardODScorerEstimator.Options.DefaultBoxesColumnName,
+         float minScore = TFStandardODScorerEstimator.Options.DefaultMinScore,
+         IEnumerable<string> labels = null) => ScoreTensorFlowStandardObjectDetection(
+            catalog,
+            new TFStandardODScorerEstimator.Options
+            {
+               InputBoxesColumnName = inputBoxesColumnName,
+               InputClassesColumnName = inputClassesColumnName,
+               InputScoresColumnName = inputScoresColumnName,
+               OutputClassesColumnName = outputClassesColumnName,
+               OutputScoresColumnName = outputScoresColumnName,
+               OutputBoxesColumnName = outputBoxesColumnName,
+               OutputLabelsColumnName = outputLabelsColumnName,
+               MinScore = minScore,
+               Labels = labels
+            });
+      /// <summary>
+      /// Score the Yolo V5 model
+      /// </summary>
+      /// <param name="catalog">Transforms catalog</param>
+      /// <param name="options">Options</param>
+      /// <returns>The estimator</returns>
+      public static YoloV5ScorerEstimator ScoreYoloV5(this TransformsCatalog catalog, YoloV5ScorerEstimator.Options options) => new(catalog.GetEnvironment(), options);
+      /// <summary>
+      /// Score the Yolo V5 model
+      /// </summary>
+      /// <param name="catalog">Transforms catalog</param>
+      /// <param name="outputClassesColumnName">Output column with detection classes</param>
+      /// <param name="outputScoresColumnName">Output column with detection scores</param>
+      /// <param name="outputBoxesColumnName">Output column with detection boxes in format left, top, right, bottom from 0 to 1</param>
+      /// <param name="outputLabelsColumnName">Output column with detection labels</param>
+      /// <param name="inputScoresColumnName">Name of the input column (the output of the Yolo model)</param>
+      /// <param name="minScoreConfidence">Minimum score confidence for each single cell</param>
+      /// <param name="minPerCategoryConfidence">Minimum score confidence for each category</param>
+      /// <param name="imageWidth">The width of the model image</param>
+      /// <param name="imageHeight">The height of the model image</param>
+      /// <param name="labels">Set of the labels associate with the model</param>
+      /// <returns>The estimator</returns>
+      public static YoloV5ScorerEstimator ScoreYoloV5(
+         this TransformsCatalog catalog,
+         string outputClassesColumnName = YoloV5ScorerEstimator.Options.DefaultClassesColumnName,
+         string outputScoresColumnName = YoloV5ScorerEstimator.Options.DefaultScoresColumnName,
+         string outputBoxesColumnName = YoloV5ScorerEstimator.Options.DefaultBoxesColumnName,
+         string outputLabelsColumnName = YoloV5ScorerEstimator.Options.DefaultLabelsColumnName,
+         string inputScoresColumnName = YoloV5ScorerEstimator.Options.DefaultInputColumnName,
+         float minScoreConfidence = YoloV5ScorerEstimator.Options.DefaultMinScoreConfidence,
+         float minPerCategoryConfidence = YoloV5ScorerEstimator.Options.DefaultMinPerCategoryConfidence,
+         int imageWidth = YoloV5ScorerEstimator.Options.DefaultImageWidth,
+         int imageHeight = YoloV5ScorerEstimator.Options.DefaultImageHeight,
+         IEnumerable<string> labels = null) => ScoreYoloV5(
+            catalog,
+            new YoloV5ScorerEstimator.Options
+            {
+               InputScoresColumnName = inputScoresColumnName,
+               OutputClassesColumnName = outputClassesColumnName,
+               OutputScoresColumnName = outputScoresColumnName,
+               OutputBoxesColumnName = outputBoxesColumnName,
+               OutputLabelsColumnName = outputLabelsColumnName,
+               MinScoreConfidence = minScoreConfidence,
+               MinPerCategoryConfidence = minPerCategoryConfidence,
+               ImageWidth = imageWidth,
+               ImageHeight = imageHeight,
+               Labels = labels
+            });
       #endregion
    }
 }

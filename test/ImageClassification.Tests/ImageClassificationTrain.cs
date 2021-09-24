@@ -1,4 +1,4 @@
-using ImageRecognition.Test;
+using ImageClassification.Tests;
 using MachineLearning.Data;
 using MachineLearning.Model;
 using System;
@@ -10,7 +10,7 @@ using Xunit.Abstractions;
 
 namespace MachineLearning.ModelZoo.Tests
 {
-   [Collection("ImageRecognition")]
+   [Collection("ImageClassification")]
    public class ImageClassificationTrain : TestEnv
    {
       #region Methods
@@ -31,11 +31,11 @@ namespace MachineLearning.ModelZoo.Tests
          var testImagesPerCategory = 5;
          var crossValidationFolds = 5;
          // Copy in the train folder a subset of train images just for test speed reason
-         var trainImagesFolder = Path.Combine("Data", "Land", "TrainImages");
+         var trainImagesFolder = Path.Combine(DataFolder, "Land", "TrainImages");
          if (Directory.Exists(trainImagesFolder))
             Directory.Delete(trainImagesFolder, true);
          var rnd = new Random(0);
-         var folders = Directory.GetDirectories(GetImagesFolder("EuroSAT").Path).OrderBy(f => rnd.Next()).ToArray();
+         var folders = Directory.GetDirectories(GetImagesFolder("EuroSAT").Get()).OrderBy(f => rnd.Next()).ToArray();
          var categories = new string[numCategories][];
          for (var i = 0; i < numCategories; i++) {
             categories[i] = Directory.GetFiles(folders[i], "*.jpg").OrderBy(f => rnd.Next()).Take(trainImagesPerCategory + testImagesPerCategory).ToArray();

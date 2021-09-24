@@ -104,7 +104,7 @@ namespace MachineLearning.ModelZoo
       public Prediction GetPrediction(string imagePath, CancellationToken cancel = default)
       {
          var schema = InputSchema;
-         return new(Model, Model.GetPredictionData(schema.Select(c => c.Name == Model.ImagePathColumnName ? imagePath : null).ToArray(), cancel));
+         return new(Model.GetPredictionData(schema.Select(c => c.Name == Model.ImagePathColumnName ? imagePath : null).ToArray(), cancel));
       }
       /// <summary>
       /// Get a set of training data from a list of files
@@ -290,10 +290,6 @@ namespace MachineLearning.ModelZoo
       {
          #region Fields
          /// <summary>
-         /// Reference dictionary for detection data types -> output column number
-         /// </summary>
-         private readonly Dictionary<string, int> dataKindToColumn = new();
-         /// <summary>
          /// Path of the last exported model
          /// </summary>
          [NonSerialized]
@@ -328,7 +324,7 @@ namespace MachineLearning.ModelZoo
          /// Model configuration
          /// </summary>
          [field: NonSerialized]
-         internal ODModelConfig Config { get; private set; }
+         internal ModelConfig Config { get; private set; }
          /// <summary>
          /// Data storage
          /// </summary>
@@ -407,29 +403,6 @@ namespace MachineLearning.ModelZoo
             base.Dispose(disposing);
          }
          /// <summary>
-         /// Return the column's index of the requested data kind
-         /// </summary>
-         /// <param name="dataKind">Data kind</param>
-         /// <returns>The column index</returns>
-         internal int GetColumnIndex(string dataKind)
-         {
-            lock (dataKindToColumn) {
-               if (dataKindToColumn.Count == 0) {
-                  // Schema di outputput del modello
-                  var outputSchema = GetOutputSchema(_owner.InputSchema);
-                  // Rileva con un dizionario intelligente gli indici delle colonne di uscita
-                  var sd = new SmartDictionary<string>(from c in outputSchema select new KeyValuePair<string, string>(c.Name, c.Name));
-                  // Aggiorna il dizionario di corrispondenze
-                  new KeyValuePair<string, int>[] {
-                     new(nameof(Prediction.DetectionBoxes), outputSchema[sd.Similar["detection boxes"]].Index),
-                     new(nameof(Prediction.DetectionClasses), outputSchema[sd.Similar["detection classes"]].Index),
-                     new(nameof(Prediction.DetectionScores), outputSchema[sd.Similar["detection scores"]].Index),
-                  }.ToList().ForEach(item => dataKindToColumn.Add(item.Key, item.Value));
-               }
-               return dataKindToColumn.TryGetValue(dataKind, out var index) ? index : -1;
-            }
-         }
-         /// <summary>
          /// Get the training pipes of the model
          /// </summary>
          /// <returns>The pipes</returns>
@@ -440,20 +413,23 @@ namespace MachineLearning.ModelZoo
          /// <param name="config">Model configuration</param>
          /// <param name="modelFilePath">Path of the model file. The one in config if null</param>
          /// <returns>The pipes</returns>
-         private ModelPipes GetPipesInternal(ODModelConfig config, string modelFilePath = null)
+         private ModelPipes GetPipesInternal(ModelConfig config, string modelFilePath = null)
          {
             // Path of the model
             modelFilePath ??= config.ModelFilePath;
+            var inputClassesColumnName = config.GetColumnName(ModelConfig.ColumnTypes.Classes);
+            var inputScoresColumnName = config.GetColumnName(ModelConfig.ColumnTypes.Scores);
+            var inputBoxesColumnName = config.GetColumnName(ModelConfig.ColumnTypes.Boxes);
             // Check if it's a Yolo model
-            var isYolo = config.ModelType.ToLower().Contains("yolo");
+            var isYolo = inputClassesColumnName == inputScoresColumnName && inputBoxesColumnName == inputScoresColumnName;
             // Dimensions to use with the input tensor if not defined in the model
             var resize = new Size(
                config.ImageSize.Width > 0 ? config.ImageSize.Width : _owner.DefaultImageResize.Width > 0 ? _owner.DefaultImageResize.Width : 640,
                config.ImageSize.Height > 0 ? config.ImageSize.Height : _owner.DefaultImageResize.Height > 0 ? _owner.DefaultImageResize.Height : 640);
             var shapeDims = new List<int>();
-            if (config.Inputs[0].Dim[0] < 0)
-               shapeDims.Add(config.Inputs[0].Dim[0]);
-            shapeDims.AddRange(!isYolo ? new[] { resize.Width, resize.Height } : new[] { resize.Height, resize.Width });
+            if (config.GetTensor(ModelConfig.ColumnTypes.Input).Dim[0] < 0)
+               shapeDims.Add(config.GetTensor(ModelConfig.ColumnTypes.Input).Dim[0]);
+            shapeDims.AddRange(new[] { resize.Width, resize.Height });
             var shapes = new Queue<int>(shapeDims);
             // Create the output pipeline
             var outputEstimators = new EstimatorList();
@@ -461,30 +437,44 @@ namespace MachineLearning.ModelZoo
             // Yolo models output mapping
             if (isYolo) {
                // Transform Yolov5 output to a standard output
-               var inputColumnName = config.Outputs.Where(o => o.Dim.Length == 3).FirstOrDefault()?.ColumnName ?? "detection";
-               outputEstimators.Add(Context.Transforms.ScoreYolov5(inputColumnName: inputColumnName));
-               // Remove Yolo model's output columns
-               (from c in config.Outputs select c.ColumnName).ToList().ForEach(c => dropColumns.Add(c));
+               outputEstimators.Add(Context.Transforms.ScoreYoloV5(
+                  outputClassesColumnName: nameof(Prediction.DetectionClasses),
+                  outputScoresColumnName: nameof(Prediction.DetectionScores),
+                  outputBoxesColumnName: nameof(Prediction.DetectionBoxes),
+                  outputLabelsColumnName: nameof(Prediction.DetectionLabels),
+                  inputScoresColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Scores),
+                  labels: config.Labels));
             }
-            // Column to transform if the name of the tensor in the model doesn't match the relative ML.NET column
-            var columnNameTransform = (
-               from g in new[] { config.Inputs, config.Outputs }
-               from c in g
-               where c.Name != c.ColumnName
-               select c).ToArray();
-            // Reneame the columns
-            foreach (var c in columnNameTransform)
-               outputEstimators.Add(Context.Transforms.CopyColumns(inputColumnName: c.ColumnName, outputColumnName: c.Name));
-            // Add the column to remove at the end of the set
-            columnNameTransform.ToList().ForEach(c => dropColumns.Add(c.ColumnName));
+            else {
+               outputEstimators.Add(Context.Transforms.ScoreTensorFlowStandardObjectDetection(
+                  outputClassesColumnName: nameof(Prediction.DetectionClasses),
+                  outputScoresColumnName: nameof(Prediction.DetectionScores),
+                  outputBoxesColumnName: nameof(Prediction.DetectionBoxes),
+                  outputLabelsColumnName: nameof(Prediction.DetectionLabels),
+                  inputClassesColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Classes),
+                  inputScoresColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Scores),
+                  inputBoxesColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Boxes),
+                  minScore: 0.2f,
+                  labels: config.Labels));
+            }
             dropColumns.Add("Image");
             dropColumns.Add("ResizedImage");
             config.Inputs.ToList().ForEach(c => dropColumns.Add(c.ColumnName));
+            //var scorerOutputs = new[] @@@ Can't drop columns of a tensorflow model. Bug under investigation
+            //{
+            //   nameof(Prediction.DetectionClasses),
+            //   nameof(Prediction.DetectionScores),
+            //   nameof(Prediction.DetectionBoxes),
+            //   nameof(Prediction.DetectionLabels),
+            //};
+            //config.Outputs.ToList().ForEach(c =>
+            //{
+            //   if (!scorerOutputs.Any(output => output == c.ColumnName))
+            //      dropColumns.Add(c.ColumnName);
+            //});
             // Drop the colums
             if (dropColumns.Count > 0)
                outputEstimators.Add(Context.Transforms.DropColumns(dropColumns.ToArray()));
-            // Add the labels
-            outputEstimators.Add(Context.Transforms.AddConst("Labels", $"\"{string.Join("\n", config.Labels)}\""));
             // Return the three pipelines
             return new()
             {
@@ -502,32 +492,32 @@ namespace MachineLearning.ModelZoo
                      resizing: ImageResizingEstimator.ResizingKind.Fill))
                   .Append(Context.Transforms.ExtractPixels(
                      inputColumnName: "ResizedImage",
-                     outputColumnName: config.Inputs[0].ColumnName,
-                     scaleImage: !isYolo ? 1f : 1f / 255f,
+                     outputColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Input),
+                     scaleImage: config.ScaleImage,
                      interleavePixelColors: !isYolo,
-                     outputAsFloatArray: config.Inputs[0].DataType == typeof(float))),
+                     outputAsFloatArray: config.GetTensor(ModelConfig.ColumnTypes.Input).DataType == typeof(float))),
                // Model inference pipe
                Trainer =
                   config.Format switch
                   {
                      // Onnx
-                     ODModelConfig.ModelFormat.Onnx =>
+                     ModelConfig.ModelFormat.Onnx =>
                         Context.Transforms.ApplyOnnxModel(
-                           inputColumnNames: new[] { config.Inputs[0].ColumnName },
+                           inputColumnNames: new[] { config.GetColumnName(ModelConfig.ColumnTypes.Input) },
                            outputColumnNames: (from c in config.Outputs select c.ColumnName).ToArray(),
                            modelFile: modelFilePath,
                            shapeDictionary: new Dictionary<string, int[]>()
                            {
                               {
-                                 config.Inputs[0].ColumnName,
-                                 config.Inputs[0].Dim.Select(d => d > 0 ? d : shapes.Dequeue()).ToArray()
+                                 config.GetColumnName(ModelConfig.ColumnTypes.Input),
+                                 config.GetTensor(ModelConfig.ColumnTypes.Input).Dim.Select(d => d > 0 ? d : shapes.Dequeue()).ToArray()
                               }
                            },
                            recursionLimit: 100),
                      // saved_model o frozen graph TensorFlow
-                     var tf when tf == ODModelConfig.ModelFormat.TF2SavedModel || tf == ODModelConfig.ModelFormat.TFFrozenGraph =>
+                     var tf when tf == ModelConfig.ModelFormat.TF2SavedModel || tf == ModelConfig.ModelFormat.TFFrozenGraph =>
                         Context.Model.LoadTensorFlowModel(modelFilePath).ScoreTensorFlowModel(
-                           inputColumnNames: new[] { config.Inputs[0].ColumnName },
+                           inputColumnNames: new[] { config.GetColumnName(ModelConfig.ColumnTypes.Input) },
                            outputColumnNames: (from c in config.Outputs select c.ColumnName).ToArray()),
                      _ => throw new FormatException("Unknown model format")
                   },
@@ -789,9 +779,9 @@ namespace MachineLearning.ModelZoo
             if (ev != 0)
                return null;
             // Load the model configuration
-            var config = ODModelConfig.Load(Path.Combine(trainerOpt.ExportFolder, trainerOpt.OnnxModelFileName));
+            var config = ModelConfig.Load(Path.Combine(trainerOpt.ExportFolder, trainerOpt.OnnxModelFileName));
             // Check the model
-            if (config.Format == ODModelConfig.ModelFormat.Unknown)
+            if (config.Format == ModelConfig.ModelFormat.Unknown)
                return null;
             // Create a copy of the model file
             var exportedModelPath = Path.Combine(trainerOpt.TrainFolder, Guid.NewGuid().ToString() + ".export.onnx");
@@ -822,9 +812,9 @@ namespace MachineLearning.ModelZoo
             if (string.IsNullOrEmpty(modelStorage.ImportPath) || !File.Exists(modelStorage.ImportPath))
                return null;
             // Load the model configuration
-            Config = ODModelConfig.Load(modelStorage.ImportPath);
+            Config = ModelConfig.Load(modelStorage.ImportPath);
             // Check if it's a known model type
-            if (Config.Format == ODModelConfig.ModelFormat.Unknown)
+            if (Config.Format == ModelConfig.ModelFormat.Unknown)
                return null;
             // Check if the ML.NET format model is more recent than the model to import
             if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTimeUtc(Config.ModelFilePath))
@@ -855,8 +845,6 @@ namespace MachineLearning.ModelZoo
                if (e.Evaluator.Model == null) {
                   _pipes?.Dispose();
                   _pipes = null;
-                  lock (dataKindToColumn)
-                     dataKindToColumn.Clear();
                }
                try {
                   if (!string.IsNullOrEmpty(_lastExportedModelPath)) {
@@ -957,7 +945,11 @@ namespace MachineLearning.ModelZoo
          /// <summary>
          /// Output per le classi di previsione
          /// </summary>
-         public float[] DetectionClasses { get; }
+         public int[] DetectionClasses { get; }
+         /// <summary>
+         /// Detection labels
+         /// </summary>
+         public string[] DetectionLabels { get; }
          /// <summary>
          /// Output per gli scores
          /// </summary>
@@ -966,29 +958,22 @@ namespace MachineLearning.ModelZoo
          /// Path dell'immagine
          /// </summary>
          public string ImagePath { get; }
-         /// <summary>
-         /// Labels
-         /// </summary>
-         public ReadOnlyCollection<string> Labels { get; }
          #endregion
          #region Methods
          /// <summary>
          /// Constructor
          /// </summary>
          /// <param name="data">Prediction data</param>
-         internal Prediction(Mdl owner, IDataAccess data)
+         internal Prediction(IDataAccess data)
          {
             // Cgeate the result data grid
             var grid = data.ToDataViewGrid();
             // Store results of prediction
             ImagePath = grid[0]["ImagePath"];
-            DetectionBoxes = grid[0][owner.GetColumnIndex(nameof(DetectionBoxes))];
-            DetectionClasses = grid[0][owner.GetColumnIndex(nameof(DetectionClasses))];
-            DetectionScores = grid[0][owner.GetColumnIndex(nameof(DetectionScores))];
-            // Store the labels
-            if (owner.Labels == null)
-               owner.Labels = ((string)grid[0]["Labels"]).Split('\n').ToList().AsReadOnly();
-            Labels = owner.Labels;
+            DetectionBoxes = grid[0][nameof(DetectionBoxes)];
+            DetectionClasses = grid[0][nameof(DetectionClasses)];
+            DetectionLabels = grid[0][nameof(DetectionLabels)];
+            DetectionScores = grid[0][nameof(DetectionScores)];
          }
          /// <summary>
          /// Return the filtered bounding boxes
@@ -1007,7 +992,7 @@ namespace MachineLearning.ModelZoo
                var detectionClass = (int)DetectionClasses[i] - startId;
                result.Add(new Box(
                   detectionClass,
-                  detectionClass > -1 && detectionClass < Labels.Count ? Labels[detectionClass] : detectionClass.ToString(),
+                  DetectionLabels[i],
                   DetectionScores[i],
                   DetectionBoxes[i * 4 + 1],
                   DetectionBoxes[i * 4 + 0],

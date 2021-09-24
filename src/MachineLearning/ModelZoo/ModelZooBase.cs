@@ -237,12 +237,14 @@ namespace MachineLearning.ModelZoo
          using (eventWaitHandle = new ManualResetEvent(false)) {
             try {
                ModelChanged += WaitEvent;
+               TrainingEnded += WaitEvent;
                while (!eventWaitHandle.WaitOne(500))
                   cancellation.ThrowIfCancellationRequested();
                cancellation.ThrowIfCancellationRequested();
             }
             finally {
                ModelChanged -= WaitEvent;
+               TrainingEnded -= WaitEvent;
             }
          }
       }
@@ -277,12 +279,14 @@ namespace MachineLearning.ModelZoo
          using (eventWaitHandle = new ManualResetEvent(false)) {
             try {
                TrainingCycleStarted += WaitEvent;
+               TrainingEnded += WaitEvent;
                while (!eventWaitHandle.WaitOne(500))
                   cancellation.ThrowIfCancellationRequested();
                cancellation.ThrowIfCancellationRequested();
             }
             finally {
                TrainingCycleStarted -= WaitEvent;
+               TrainingEnded -= WaitEvent;
             }
          }
       }
@@ -297,12 +301,14 @@ namespace MachineLearning.ModelZoo
          using (eventWaitHandle = new ManualResetEvent(false)) {
             try {
                TrainingStarted += WaitEvent;
+               TrainingEnded += WaitEvent;
                while (!eventWaitHandle.WaitOne(500))
                   cancellation.ThrowIfCancellationRequested();
                cancellation.ThrowIfCancellationRequested();
             }
             finally {
                TrainingStarted -= WaitEvent;
+               TrainingEnded -= WaitEvent;
             }
          }
       }

@@ -1,5 +1,6 @@
 ﻿using MachineLearning.Data;
 using MachineLearning.Model;
+using MachineLearning.Util;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using System;
@@ -129,6 +130,11 @@ namespace MachineLearning.ModelZoo
          #endregion
          #region Properties
          /// <summary>
+         /// Model configuration
+         /// </summary>
+         [field: NonSerialized]
+         internal ModelConfig Config { get; private set; }
+         /// <summary>
          /// Storage di dati
          /// </summary>
          public IDataStorage DataStorage => ((IDataStorageProvider)_owner).DataStorage;
@@ -210,7 +216,25 @@ namespace MachineLearning.ModelZoo
          /// <returns>Le pipe</returns>
          public sealed override ModelPipes GetPipes()
          {
-            // Pipe di training
+            // Training pipes
+            if (!string.IsNullOrEmpty(Config?.ModelType)) {
+               var inputTensor = Config.GetTensor(ModelConfig.ColumnTypes.Input);
+               var inputColumnName = Config.GetColumnName(ModelConfig.ColumnTypes.Input);
+               var outputColumnName = Config.GetColumnName(ModelConfig.ColumnTypes.Scores);
+               var scale = Config.ScaleImage;
+               var offset = Config.OffsetImage;
+               return _pipes ??= new ModelPipes
+               {
+                  Input =
+                     Context.Transforms.LoadImages(outputColumnName: "Image", imageFolder: "", inputColumnName: ImagePathColumnName)
+                     .Append(Context.Transforms.ResizeImages(inputColumnName: "Image", outputColumnName: "ResizedImage", imageWidth: Config.ImageSize.Width, imageHeight: Config.ImageSize.Height))
+                     .Append(Context.Transforms.ExtractPixels(inputColumnName: "ResizedImage", outputColumnName: inputColumnName, scaleImage: scale, offsetImage: offset, interleavePixelColors: true)),
+                  Trainer =
+                     Context.Model.LoadTensorFlowModel(Config.ModelFilePath)
+                     .ScoreTensorFlowModel(inputColumnNames: new[] { inputColumnName }, outputColumnNames: new[] { outputColumnName }, addBatchDimensionInput: inputTensor.Dim?.Length < 1)
+                     .Append(Context.Transforms.ScoreInception(inputColumnName: outputColumnName, labels: Config.Labels))
+               };
+            }
             return _pipes ??= new ModelPipes
             {
                Input =
@@ -257,6 +281,41 @@ namespace MachineLearning.ModelZoo
                cancellation.ThrowIfCancellationRequested();
             }
             return dataGrid;
+         }
+         /// <summary>
+         /// Import an external model
+         /// </summary>
+         /// <param name="modelStorage">Storage of the model</param>
+         /// <param name="schema">The model's schema</param>
+         /// <returns>null</returns>
+         public sealed override IDataTransformer ImportModel(IModelStorage modelStorage, out DataSchema schema)
+         {
+            // Initialize the schema to null
+            schema = null;
+            // Check if the importing model exists
+            if (string.IsNullOrEmpty(modelStorage.ImportPath) || !File.Exists(modelStorage.ImportPath))
+               return null;
+            // Load the model configuration
+            Config = ModelConfig.Load(modelStorage.ImportPath);
+            // Check if it's a known model type
+            if (Config.Format == ModelConfig.ModelFormat.Unknown)
+               return null;
+            // Check if the ML.NET format model is more recent than the model to import
+            if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTimeUtc(Config.ModelFilePath))
+               return null;
+            // Get the pipes
+            _pipes?.Dispose();
+            _pipes = null;
+            var pipelines = GetPipes();
+            // Create the model
+            var dataView = DataViewGrid.Create(this, _owner.InputSchema);
+            var model = pipelines.Merged.Fit(dataView);
+            schema = _owner.InputSchema;
+            var result = new DataTransformer<MLContext>(this, model);
+            // Save the model.
+            SaveModel(modelStorage, result, schema);
+            result.Dispose();
+            return null;
          }
          /// <summary>
          /// Funzione di start del training
@@ -369,15 +428,19 @@ namespace MachineLearning.ModelZoo
       {
          #region Properties
          /// <summary>
-         /// Significato
+         /// Image identifier
+         /// </summary>
+         public int Id { get; }
+         /// <summary>
+         /// Image kind
          /// </summary>
          public string Kind { get; }
          /// <summary>
-         /// Punteggio per il tipo previsto
+         /// Score for the image
          /// </summary>
          public float Score { get; }
          /// <summary>
-         /// Punteggi per label
+         /// Scores for each kind
          /// </summary>
          public KeyValuePair<string, float>[] Scores { get; }
          #endregion
@@ -391,9 +454,19 @@ namespace MachineLearning.ModelZoo
             var grid = data.ToDataViewGrid();
             Kind = grid[0]["PredictedLabel"];
             var scores = (float[])grid[0]["Score"];
-            var slotNames = grid.Schema["Score"].GetSlotNames();
-            Scores = slotNames.Zip(scores).Select(item => new KeyValuePair<string, float>(item.First, item.Second)).ToArray();
-            Score = Scores.FirstOrDefault(s => s.Key == Kind).Value;
+            var slotNames = data.Schema["Score"].HasSlotNames() ? data.Schema["Score"].GetSlotNames() : Enumerable.Range(1, scores.Length).Select(i => i.ToString());
+            var score = 0f;
+            var id = 0;
+            Scores = slotNames.Zip(scores).Select((item, ix) =>
+            {
+               if (item.First == Kind) {
+                  score = item.Second;
+                  id = ix + 1;
+               }
+               return new KeyValuePair<string, float>(item.First, item.Second);
+            }).ToArray();
+            Score = score;
+            Id = id;
          }
          #endregion
       }

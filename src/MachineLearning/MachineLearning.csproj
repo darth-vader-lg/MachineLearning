@@ -53,6 +53,13 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Resources\ModelConfigs.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>ModelConfigs.json</TargetPath>
+    </None>
+  </ItemGroup>
+
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="rem powershell -ExecutionPolicy Unrestricted -file BuildDependencies.ps1 -configuration $(ConfigurationName) -platform $(PlatformName)" />
   </Target>
