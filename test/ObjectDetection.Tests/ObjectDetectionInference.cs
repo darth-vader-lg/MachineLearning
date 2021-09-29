@@ -27,6 +27,20 @@ namespace MachineLearning.ModelZoo.Tests
          }
          IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
       }
+      /// <summary>
+      /// PyTorch models
+      /// </summary>
+      internal class PyTorchSet : IEnumerable<object[]>
+      {
+         public IEnumerator<object[]> GetEnumerator()
+         {
+            foreach (var multithread in new[] { false, true }) {
+               foreach (var model in Models.Where(m => m.Name.ToLower().Contains("pytorch")))
+                  yield return new object[] { multithread, model.Name };
+            }
+         }
+         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+      }
       #endregion
       #region class TF2ModelZooSet
       /// <summary>
@@ -56,6 +70,12 @@ namespace MachineLearning.ModelZoo.Tests
       [Theory, ClassData(typeof(OnnxSet)), Trait("Category", "Inference")]
       public void Onnx(bool multithread, string model) =>
          Inference(model, 0.5, new[] { "banana", "hotdog", "apples" }, new[] { "banana", "hot dog", "apple" }, multithread);
+      /// <summary>
+      /// Import and inference with PyTorch models
+      /// </summary>
+      [Theory, ClassData(typeof(PyTorchSet)), Trait("Category", "Inference")]
+      public void YoloV5(bool multithread, string model) =>
+         Inference(model, 0.5, new[] { "bus and persons", "bus and persons", "zidane" }, new[] { "bus", "person", "person" }, multithread);
       /// <summary>
       /// Import and inference with TensorFlow2 model zoo (saved_model)
       /// </summary>

@@ -414,7 +414,9 @@ namespace MachineLearning.Transforms
                   input.GetGetter<VBuffer<float>>(input.Schema[mapper.inputColumnIndex]).Invoke(ref yoloOutput);
                   var values = yoloOutput.GetValues().ToArray();
                   // Loop over detection blocks
-                  var characteristics = values.Length / ((80 * 80 + 40 * 40 + 20 * 20) * 3);
+                  var characteristics = input.Schema[mapper.inputColumnIndex].Type is VectorDataViewType v && v.Dimensions.Length >= 3 ?
+                     v.Dimensions[2] :
+                     values.Length / ((80 * 80 + 40 * 40 + 20 * 20) * 3);
                   var numClasses = characteristics - 5;
                   var results = new List<(RectangleF Box, float Class, float Score, bool Valid)>();
                   for (int i = 0; i < values.Length; i += characteristics) {

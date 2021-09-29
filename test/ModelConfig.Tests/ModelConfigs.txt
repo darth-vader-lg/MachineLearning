@@ -1712,8 +1712,269 @@ toilet|unknown|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
 toaster|sink|refrigerator|unknown|book|clock|vase|scissors|teddy bear|hair drier
 toothbrush
 ==============================================
-Model: Onnx YoloV5s
-File: yolov5s.onnx
+Model: PyTorch yolov5l
+File: yolov5l.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 651(651)[1,3,80,80,85]
+Single 712(712)[1,3,40,40,85]
+Single 773(773)[1,3,20,20,85]
+Single output(output)[1,25200,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5l6
+File: yolov5l6.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 816(816)[1,3,80,80,85]
+Single 877(877)[1,3,40,40,85]
+Single 938(938)[1,3,20,20,85]
+Single 999(999)[1,3,10,10,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch YOLOv5l6_CLAHE
+File: YOLOv5l6_CLAHE.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 816(816)[1,3,80,80,85]
+Single 877(877)[1,3,40,40,85]
+Single 938(938)[1,3,20,20,85]
+Single 999(999)[1,3,10,10,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5l6_CLAHE_Mish
+File: yolov5l6_CLAHE_Mish.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 1014(1014)[1,3,40,40,85]
+Single 1075(1075)[1,3,20,20,85]
+Single 1136(1136)[1,3,10,10,85]
+Single 953(953)[1,3,80,80,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5l6v6_693_CLAHE_ccm10_lrf10_lin
+File: yolov5l6v6_693_CLAHE_ccm10_lrf10_lin.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 745(745)[1,3,80,80,85]
+Single 806(806)[1,3,40,40,85]
+Single 867(867)[1,3,20,20,85]
+Single 928(928)[1,3,10,10,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5l6v6_CLAHE_ccm10_lrf10_lin
+File: yolov5l6v6_CLAHE_ccm10_lrf10_lin.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 778(778)[1,3,80,80,85]
+Single 839(839)[1,3,40,40,85]
+Single 900(900)[1,3,20,20,85]
+Single 961(961)[1,3,10,10,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5m
+File: yolov5m.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 524(524)[1,3,80,80,85]
+Single 585(585)[1,3,40,40,85]
+Single 646(646)[1,3,20,20,85]
+Single output(output)[1,25200,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5m6
+File: yolov5m6.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 658(658)[1,3,80,80,85]
+Single 719(719)[1,3,40,40,85]
+Single 780(780)[1,3,20,20,85]
+Single 841(841)[1,3,10,10,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch YOLOv5m6-Argoverse.pt
+File: YOLOv5m6-Argoverse.pt
+Model format: Onnx
+Model type: Yolo V5 Argoverse
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 658(658)[1,4,80,80,13]
+Single 719(719)[1,4,40,40,13]
+Single 780(780)[1,4,20,20,13]
+Single 841(841)[1,4,10,10,13]
+Single output(output)[1,34000,13]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|bus|truck|traffic light|stop sign
+==============================================
+Model: PyTorch yolov5s
+File: yolov5s.pt
 Model format: Onnx
 Model type: Yolo V5
 Model category: ObjectDetection
@@ -1725,12 +1986,154 @@ Outputs:
 Single 397(397)[1,3,80,80,85]
 Single 458(458)[1,3,40,40,85]
 Single 519(519)[1,3,20,20,85]
-Single 561(561)[1,25200,85]
+Single output(output)[1,25200,85]
 Column names:
-Boxes column name: 561
-Classes column name: 561
+Boxes column name: output
+Classes column name: output
 Input column name: images
-Scores column name: 561
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5s6
+File: yolov5s6.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 500(500)[1,3,80,80,85]
+Single 561(561)[1,3,40,40,85]
+Single 622(622)[1,3,20,20,85]
+Single 683(683)[1,3,10,10,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5s-VOC
+File: yolov5s-VOC.pt
+Model format: Onnx
+Model type: Yolo V5 VOC
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 397(397)[1,4,80,80,25]
+Single 458(458)[1,4,40,40,25]
+Single 519(519)[1,4,20,20,25]
+Single output(output)[1,33600,25]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+aeroplane|bicycle|bird|boat|bottle|bus|car|cat|chair|cow
+diningtable|dog|horse|motorbike|person|pottedplant|sheep|sofa|train|tvmonitor
+==============================================
+Model: PyTorch yolov5x
+File: yolov5x.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 778(778)[1,3,80,80,85]
+Single 839(839)[1,3,40,40,85]
+Single 900(900)[1,3,20,20,85]
+Single output(output)[1,25200,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov5x6
+File: yolov5x6.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 1035(1035)[1,3,40,40,85]
+Single 1096(1096)[1,3,20,20,85]
+Single 1157(1157)[1,3,10,10,85]
+Single 974(974)[1,3,80,80,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
+Labels:
+person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
+fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow
+elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee
+skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle
+wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange
+broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed
+dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven
+toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush
+==============================================
+Model: PyTorch yolov601l-1280
+File: yolov601l-1280.pt
+Model format: Onnx
+Model type: Yolo V5
+Model category: ObjectDetection
+Image size: 640x640
+Scale image: 0.003921569
+Inputs:
+Single images(images)[1,3,640,640]
+Outputs:
+Single 1002(1002)[1,3,10,10,85]
+Single 819(819)[1,3,80,80,85]
+Single 880(880)[1,3,40,40,85]
+Single 941(941)[1,3,20,20,85]
+Single output(output)[1,25500,85]
+Column names:
+Boxes column name: output
+Classes column name: output
+Input column name: images
+Scores column name: output
 Labels:
 person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light
 fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow

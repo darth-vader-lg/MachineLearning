@@ -396,14 +396,11 @@ namespace MachineLearning.ModelZoo
             if (IsDisposed)
                return;
             if (disposing) {
-               try {
-                  _pipes?.Dispose();
-               }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-               }
+               _pipes.SafeDispose();
+               Config.SafeDispose();
             }
             _pipes = null;
+            Config = null;
             base.Dispose(disposing);
          }
          /// <summary>
@@ -795,7 +792,7 @@ namespace MachineLearning.ModelZoo
             if (ev != 0)
                return null;
             // Load the model configuration
-            var config = ModelConfig.Load(Path.Combine(trainerOpt.ExportFolder, trainerOpt.OnnxModelFileName));
+            var config = ModelConfig.Load(Path.Combine(trainerOpt.ExportFolder, trainerOpt.OnnxModelFileName), modelCategory: "ObjectDetection");
             // Check the model
             if (config.Format == ModelConfig.ModelFormat.Unknown)
                return null;
@@ -832,14 +829,8 @@ namespace MachineLearning.ModelZoo
             // Temporary file for convertions
             var tmpFile = default(string);
             try {
-               // Convert PyTorch models
-               if (Path.GetExtension(importPath).ToLower() == ".pt") {
-                  tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".onnx");
-                  Converter.Convert(importPath, tmpFile, Converter.Formats.PyTorch, Converter.Formats.Onnx);
-                  importPath = tmpFile;
-               }
                // Load the model configuration
-               Config = ModelConfig.Load(importPath);
+               Config = ModelConfig.Load(importPath, modelCategory: "ObjectDetection");
                // Check if it's a known model type
                if (Config.Format == ModelConfig.ModelFormat.Unknown)
                   return null;

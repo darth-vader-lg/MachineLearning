@@ -34,19 +34,71 @@
       "ScaleImage": 0.0039215686274509803921568627451,
       "Fingerprint": [
         "Single images(images)[1,3,640,640]",
-        "Single detections(detection)[1,25200,?]",
-        "Single grid80x80(grid80x80)[1,3,80,80,?]",
-        "Single grid40x40(grid40x40)[1,3,40,40,?]",
-        "Single grid20x20(grid20x20)[1,3,20,20,?]"
+        "Single output(output)[1,25200,85]",
+        "Single output(output)[1,25500,85]",
+        "Single [1,?,80,80,?]",
+        "Single [1,?,40,40,?]",
+        "Single [1,?,20,20,?]",
+        "Single [1,?,10,10,?]"
       ],
       "ColumnType": {
         "Input": "Single images(images)[1,3,640,640]",
-        "Classes": "Single detections(detection)[1,25200,?]",
-        "Scores": "Single detections(detection)[1,25200,?]",
-        "Boxes": "Single detections(detection)[1,25200,?]"
+        "Classes": "Single output(output)[1,?,85]",
+        "Scores": "Single output(output)[1,?,85]",
+        "Boxes": "Single output(output)[1,?,85]"
       },
       "Scorer": "Yolov5",
       "Labels": "Yolo 80"
+    },
+    {
+      "Type": "Yolo V5 Argoverse",
+      "Category": "ObjectDetection",
+      "ImageSize": [
+        640,
+        640
+      ],
+      "ScaleImage": 0.0039215686274509803921568627451,
+      "Fingerprint": [
+        "Single images(images)[3,640,640]",
+        "Single output(output)[1,34000,13]",
+        "Single [1,4,80,80,13]",
+        "Single [1,4,40,40,13]",
+        "Single [1,4,20,20,13]",
+        "Single [1,4,10,10,13]"
+      ],
+      "ColumnType": {
+        "Input": "Single images(images)[3,640,640]",
+        "Classes": "Single output(output)[1,34000,13]",
+        "Scores": "Single output(output)[1,34000,13]",
+        "Boxes": "Single output(output)[1,34000,13]"
+      },
+      "Scorer": "Yolov5",
+      "Labels": "Yolo Argoverse"
+    },
+    {
+      "Type": "Yolo V5 VOC",
+      "Category": "ObjectDetection",
+      "ImageSize": [
+        640,
+        640
+      ],
+      "ScaleImage": 0.0039215686274509803921568627451,
+      "Fingerprint": [
+        "Single images(images)[1,3,640,640]",
+        "Single output(output)[1,33600,25]",
+        "Single [1,4,80,80,25]",
+        "Single [1,4,40,40,25]",
+        "Single [1,4,20,20,25]",
+        "Single [1,4,10,10,25]"
+      ],
+      "ColumnType": {
+        "Input": "Single images(images)[1,3,640,640]",
+        "Classes": "Single output(output)[1,4,33600,25]",
+        "Scores": "Single output(output)[1,4,33600,25]",
+        "Boxes": "Single output(output)[1,4,33600,25]"
+      },
+      "Scorer": "Yolov5",
+      "Labels": "Yolo VOC"
     },
     {
       "Type": "CenterNet",
@@ -191,6 +243,38 @@
       "teddy bear",
       "hair drier",
       "toothbrush"
+    ],
+    "Yolo Argoverse": [
+      "person",
+      "bicycle",
+      "car",
+      "motorcycle",
+      "bus",
+      "truck",
+      "traffic light",
+      "stop sign"
+    ],
+    "Yolo VOC": [
+      "aeroplane",
+      "bicycle",
+      "bird",
+      "boat",
+      "bottle",
+      "bus",
+      "car",
+      "cat",
+      "chair",
+      "cow",
+      "diningtable",
+      "dog",
+      "horse",
+      "motorbike",
+      "person",
+      "pottedplant",
+      "sheep",
+      "sofa",
+      "train",
+      "tvmonitor"
     ],
     "TF2 ModelZoo standard 90": [
       "background",

@@ -69,7 +69,7 @@ namespace ModelConfig.Tests
          var modelHeader = $"Model: {model}";
          sb.AppendLine(modelHeader);
          sb.AppendLine($"File: {Path.GetFileName(modelFile.Get())}");
-         var cfg = MachineLearning.Model.ModelConfig.Load(modelFile.Get());
+         using var cfg = MachineLearning.Model.ModelConfig.Load(modelFile.Get());
          sb.AppendLine($"Model format: {cfg.Format}");
          sb.AppendLine($"Model type: {cfg.ModelType}");
          sb.AppendLine($"Model category: {cfg.ModelCategory}");

@@ -17,9 +17,11 @@ namespace ObjectDetection.Tests
       /// </summary>
       public static TestData[] Images { get; } = new[]
       {
-         TestData.File("apples", Path.Combine(DataFolder, "Images"), "apples.jpg"),
-         TestData.File("banana", Path.Combine(DataFolder, "Images"), "banana.jpg", "https://github.com/darth-vader-lg/ML-NET/raw/056c60479304a3b5dbdf129c9bc6e853322bb090/test/data/images/banana.jpg"),
-         TestData.File("hotdog", Path.Combine(DataFolder, "Images"), "hotdog.jpg", "https://github.com/darth-vader-lg/ML-NET/raw/056c60479304a3b5dbdf129c9bc6e853322bb090/test/data/images/hotdog.jpg")
+         TestData.File("apples",          Path.Combine(DataFolder, "Images"), "apples.jpg"),
+         TestData.File("banana",          Path.Combine(DataFolder, "Images"), "banana.jpg",  "https://github.com/darth-vader-lg/ML-NET/raw/056c60479304a3b5dbdf129c9bc6e853322bb090/test/data/images/banana.jpg"),
+         TestData.File("bus and persons", Path.Combine(DataFolder, "Images"), "bus.jpg",     "https://github.com/darth-vader-lg/yolov5/raw/4821d076e2a35e874c6dac9acca6adc13c1082e5/data/images/bus.jpg"),
+         TestData.File("hotdog",          Path.Combine(DataFolder, "Images"), "hotdog.jpg",  "https://github.com/darth-vader-lg/ML-NET/raw/056c60479304a3b5dbdf129c9bc6e853322bb090/test/data/images/hotdog.jpg"),
+         TestData.File("zidane",          Path.Combine(DataFolder, "Images"), "zidane.jpg",  "https://github.com/darth-vader-lg/yolov5/raw/4821d076e2a35e874c6dac9acca6adc13c1082e5/data/images/zidane.jpg"),
       };
       /// <summary>
       /// Image folders
@@ -188,7 +190,7 @@ namespace ObjectDetection.Tests
          TestData.File(
             "TF Faster R-CNN ResNet152 V1 640x640",
             Path.Combine(DataFolder, "Models", "ObjectDetection"),
-            Path.Combine("faster_rcnn_resnet101_v1_640x640_coco17_tpu-8", "saved_model", "saved_model.pb"),
+            Path.Combine("faster_rcnn_resnet152_v1_640x640_coco17_tpu-8", "saved_model", "saved_model.pb"),
             "http://download.tensorflow.org/models/object_detection/tf2/20200711/faster_rcnn_resnet152_v1_640x640_coco17_tpu-8.tar.gz"),
          TestData.File(
             "TF Faster R-CNN ResNet152 V1 1024x1024",
@@ -221,11 +223,82 @@ namespace ObjectDetection.Tests
             Path.Combine(DataFolder, "Models", "ObjectDetection"),
             "ssd_mobilenet_v1_10.onnx",
             "https://github.com/onnx/models/raw/2c4732abf3bb4890faed986b21853f7034f9979d/vision/object_detection_segmentation/ssd-mobilenetv1/model/ssd_mobilenet_v1_10.onnx"),
+         // PyTorch
          TestData.File(
-            "Onnx YoloV5s",
+            "PyTorch yolov5l",
             Path.Combine(DataFolder, "Models", "ObjectDetection"),
-            "yolov5s.onnx",
-            "https://github.com/nihevix/yolov5-net-master/raw/6d8d690f04342f9fb38b7b4390338968e702bdf1/src/Yolov5Net.App/Assets/Weights/yolov5s.onnx"),
+            Path.Combine("yolov5l.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5l.pt"),
+         TestData.File(
+            "PyTorch yolov5l6",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5l6.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5l6.pt"),
+         TestData.File(
+            "PyTorch yolov5l6v6_693_CLAHE_ccm10_lrf10_lin",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5l6v6_693_CLAHE_ccm10_lrf10_lin.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5l6v6_693_CLAHE_ccm10_lrf10_lin.pt"),
+         TestData.File(
+            "PyTorch yolov5l6v6_CLAHE_ccm10_lrf10_lin",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5l6v6_CLAHE_ccm10_lrf10_lin.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5l6v6_CLAHE_ccm10_lrf10_lin.pt"),
+         TestData.File(
+            "PyTorch YOLOv5l6_CLAHE",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("YOLOv5l6_CLAHE.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/YOLOv5l6_CLAHE.pt"),
+         TestData.File(
+            "PyTorch yolov5l6_CLAHE_Mish",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5l6_CLAHE_Mish.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5l6_CLAHE_Mish.pt"),
+         TestData.File(
+            "PyTorch yolov5m",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5m.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5m.pt"),
+         TestData.File(
+            "PyTorch YOLOv5m6-Argoverse.pt",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("YOLOv5m6-Argoverse.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/YOLOv5m6-Argoverse.pt"),
+         TestData.File(
+            "PyTorch yolov5m6",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5m6.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5m6.pt"),
+         TestData.File(
+            "PyTorch yolov5s-VOC",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5s-VOC.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5s-VOC.pt"),
+         TestData.File(
+            "PyTorch yolov5s",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5s.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5s.pt"),
+         TestData.File(
+            "PyTorch yolov5s6",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5s6.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5s6.pt"),
+         TestData.File(
+            "PyTorch yolov5x",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5x.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5x.pt"),
+         TestData.File(
+            "PyTorch yolov5x6",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov5x6.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov5x6.pt"),
+         TestData.File(
+            "PyTorch yolov601l-1280",
+            Path.Combine(DataFolder, "Models", "ObjectDetection"),
+            Path.Combine("yolov601l-1280.pt"),
+            "https://github.com/ultralytics/yolov5/releases/download/v5.0/yolov601l-1280.pt"),
       };
       #endregion
       #region Methods

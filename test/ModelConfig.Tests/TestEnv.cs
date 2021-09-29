@@ -22,7 +22,7 @@ namespace ModelConfig.Tests
       /// Object detection models
       /// </summary>
       public static TestData[] ObjectDetectionModels { get; } = (from m in ObjectDetection.Tests.TestEnv.Models
-                                                                 where new[] { ".pb", ".onnx" }.Any(ext => ext == Path.GetExtension(m.FullPath).ToLower())
+                                                                 where new[] { ".pb", ".onnx", ".pt" }.Any(ext => ext == Path.GetExtension(m.FullPath).ToLower())
                                                                  select m).ToArray();
       /// <summary>
       /// All pretrained models

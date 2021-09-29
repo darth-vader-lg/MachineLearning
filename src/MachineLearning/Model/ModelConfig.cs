@@ -21,9 +21,13 @@ namespace MachineLearning.Model
    /// <summary>
    /// Class to infer automatically the type of a model
    /// </summary>
-   internal partial class ModelConfig
+   internal partial class ModelConfig : IDisposable
    {
       #region Fields
+      /// <summary>
+      /// Disposed object
+      /// </summary>
+      private bool disposedValue;
       /// <summary>
       /// Pixel colors interleaving required
       /// </summary>
@@ -131,6 +135,10 @@ namespace MachineLearning.Model
       /// </summary>
       public float OffsetImage => offsetImage ?? 0f;
       /// <summary>
+      /// Original model file path
+      /// </summary>
+      public string OriginalFilePath { get; private set; }
+      /// <summary>
       /// Model outputs
       /// </summary>
       public ReadOnlyCollection<Tensor> Outputs { get; private set; } = new List<Tensor>().AsReadOnly();
@@ -144,6 +152,49 @@ namespace MachineLearning.Model
       public string Scorer { get; set; } = default;
       #endregion
       #region Methods
+      /// <summary>
+      /// Finalizer
+      /// </summary>
+      ~ModelConfig() =>
+         Dispose(disposing: false);
+      /// <summary>
+      /// Convert a model from PyTorch to Onnx
+      /// </summary>
+      /// <param name="src">PyTorch file name</param>
+      /// <returns>The path of the converted model</returns>
+      private static string ConvertFromPyTorchToOnnx(string src)
+      {
+         var dst = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".onnx");
+         ODModelBuilderTF.Converter.Convert(src, dst, ODModelBuilderTF.Converter.Formats.PyTorch, ODModelBuilderTF.Converter.Formats.Onnx);
+         return dst;
+      }
+      /// <summary>
+      /// Dispose
+      /// </summary>
+      public void Dispose()
+      {
+         Dispose(disposing: true);
+         GC.SuppressFinalize(this);
+      }
+      /// <summary>
+      /// Dispose
+      /// </summary>
+      /// <param name="disposing">tru if called by the program</param>
+      protected virtual void Dispose(bool disposing)
+      {
+         if (disposedValue)
+            return;
+         if (disposing) {
+            // Free managed resources
+         }
+         try {
+            if (!string.IsNullOrEmpty(ModelFilePath) && string.Compare(ModelFilePath, OriginalFilePath, true) != 0)
+               File.Delete(ModelFilePath);
+         }
+         catch { }
+         tensorsDictionary = null;
+         disposedValue = true;
+      }
       /// <summary>
       /// Return the name of the requested column type
       /// </summary>
@@ -196,15 +247,22 @@ namespace MachineLearning.Model
                modelConfigsDictionary = ModelConfig.modelConfigsDictionary;
          }
          // Configuration
-         var config = new ModelConfig();
+         var config = new ModelConfig() { OriginalFilePath = Path.GetFullPath(path) };
          if (Directory.GetDirectories(Path.GetDirectoryName(path)).FirstOrDefault(item => Path.GetFileName(item).ToLower() == "variables") != default)
             config.Format = ModelFormat.TF2SavedModel;
          else if (Path.GetExtension(path).ToLower() == ".pb")
             config.Format = ModelFormat.TFFrozenGraph;
          else if (Path.GetExtension(path).ToLower() == ".onnx")
             config.Format = ModelFormat.Onnx;
-         else
-            throw new Exception("Unknown model type");
+         else if (Path.GetExtension(path).ToLower() == ".pt") {
+            try {
+               path = ConvertFromPyTorchToOnnx(path);
+               config.Format = ModelFormat.Onnx;
+            }
+            catch (Exception exc) {
+               throw new InvalidOperationException("Cannot convert from PyTorch", exc);
+            }
+         }
          var configFile = path + ".config";
          // Read config data
          config.ReadInfoFromConfig(configFile, modelType, modelCategory);

@@ -200,14 +200,11 @@ namespace MachineLearning.ModelZoo
             if (IsDisposed)
                return;
             if (disposing) {
-               try {
-                  _pipes?.Dispose();
-               }
-               catch (Exception exc) {
-                  Trace.WriteLine(exc);
-               }
+               _pipes.SafeDispose();
+               Config.SafeDispose();
             }
             _pipes = null;
+            Config = null;
             base.Dispose(disposing);
          }
          /// <summary>
