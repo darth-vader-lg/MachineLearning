@@ -824,30 +824,50 @@ namespace MachineLearning.ModelZoo
          {
             // Initialize the schema to null
             schema = null;
+            // Import path
+            var importPath = modelStorage.ImportPath;
             // Check if the importing model exists
-            if (string.IsNullOrEmpty(modelStorage.ImportPath) || !File.Exists(modelStorage.ImportPath))
+            if (string.IsNullOrEmpty(importPath) || !File.Exists(importPath))
                return null;
-            // Load the model configuration
-            Config = ModelConfig.Load(modelStorage.ImportPath);
-            // Check if it's a known model type
-            if (Config.Format == ModelConfig.ModelFormat.Unknown)
+            // Temporary file for convertions
+            var tmpFile = default(string);
+            try {
+               // Convert PyTorch models
+               if (Path.GetExtension(importPath).ToLower() == ".pt") {
+                  tmpFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".onnx");
+                  Converter.Convert(importPath, tmpFile, Converter.Formats.PyTorch, Converter.Formats.Onnx);
+                  importPath = tmpFile;
+               }
+               // Load the model configuration
+               Config = ModelConfig.Load(importPath);
+               // Check if it's a known model type
+               if (Config.Format == ModelConfig.ModelFormat.Unknown)
+                  return null;
+               // Check if the ML.NET format model is more recent than the model to import
+               if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTimeUtc(Config.ModelFilePath))
+                  return null;
+               // Get the pipes
+               _pipes?.Dispose();
+               _pipes = null;
+               var pipelines = GetPipes();
+               // Create the model
+               var dataView = DataViewGrid.Create(this, _owner.InputSchema);
+               var model = pipelines.Merged.Fit(dataView);
+               schema = _owner.InputSchema;
+               var result = new DataTransformer<MLContext>(this, model);
+               // Save the model.
+               SaveModel(modelStorage, result, schema);
+               result.Dispose();
                return null;
-            // Check if the ML.NET format model is more recent than the model to import
-            if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTimeUtc(Config.ModelFilePath))
-               return null;
-            // Get the pipes
-            _pipes?.Dispose();
-            _pipes = null;
-            var pipelines = GetPipes();
-            // Create the model
-            var dataView = DataViewGrid.Create(this, _owner.InputSchema);
-            var model = pipelines.Merged.Fit(dataView);
-            schema = _owner.InputSchema;
-            var result = new DataTransformer<MLContext>(this, model);
-            // Save the model.
-            SaveModel(modelStorage, result, schema);
-            result.Dispose();
-            return null;
+            }
+            finally {
+               // Delete the temporary convertion file
+               try {
+                  if (!string.IsNullOrEmpty(tmpFile) && File.Exists(tmpFile))
+                     File.Delete(tmpFile);
+               }
+               catch { }
+            }
          }
          /// <summary>
          /// Model changed function
