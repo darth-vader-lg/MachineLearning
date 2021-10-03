@@ -1,12 +1,12 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Text;
 using Xunit;
 using Xunit.Abstractions;
-using System.Linq;
-using System;
-using System.Text;
-using System.Collections.Generic;
-using System.Collections;
-using System.Globalization;
 
 namespace ModelConfig.Tests
 {
@@ -69,7 +69,7 @@ namespace ModelConfig.Tests
          var modelHeader = $"Model: {model}";
          sb.AppendLine(modelHeader);
          sb.AppendLine($"File: {Path.GetFileName(modelFile.Get())}");
-         var cfg = MachineLearning.Util.ModelConfig.Load(modelFile.Get());
+         var cfg = MachineLearning.Model.ModelConfig.Load(modelFile.Get());
          sb.AppendLine($"Model format: {cfg.Format}");
          sb.AppendLine($"Model type: {cfg.ModelType}");
          sb.AppendLine($"Model category: {cfg.ModelCategory}");
@@ -94,9 +94,9 @@ namespace ModelConfig.Tests
          }
          if (cfg.Inputs.Count > 0 && cfg.Outputs.Count > 0) {
             sb.AppendLine("Column names:");
-            foreach (var c in Enum.GetNames<MachineLearning.Util.ModelConfig.ColumnTypes>()) {
+            foreach (var c in Enum.GetNames<MachineLearning.Model.ModelConfig.ColumnTypes>()) {
                try {
-                  sb.AppendLine($"{c} column name: {cfg.GetColumnName(Enum.Parse<MachineLearning.Util.ModelConfig.ColumnTypes>(c))}");
+                  sb.AppendLine($"{c} column name: {cfg.GetColumnName(Enum.Parse<MachineLearning.Model.ModelConfig.ColumnTypes>(c))}");
                }
                catch (Exception) {
                }

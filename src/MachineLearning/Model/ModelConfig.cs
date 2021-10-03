@@ -16,7 +16,7 @@ using System.Text;
 using System.Text.Json;
 using Tensorflow;
 
-namespace MachineLearning.Util
+namespace MachineLearning.Model
 {
    /// <summary>
    /// Class to infer automatically the type of a model
