@@ -798,7 +798,8 @@ namespace MachineLearning.ModelZoo
                return null;
             // Create a copy of the model file
             var exportedModelPath = Path.Combine(trainerOpt.TrainFolder, Guid.NewGuid().ToString() + ".export.onnx");
-            File.Copy(Path.Combine(trainerOpt.ExportFolder, trainerOpt.OnnxModelFileName), exportedModelPath);
+            File.Copy(config.ModelFilePath, exportedModelPath);
+            File.SetLastWriteTimeUtc(exportedModelPath, File.GetLastWriteTimeUtc(config.ModelFilePath));
             // Get the pipes
             var pipelines = GetPipesInternal(config, exportedModelPath);
             // Create the model

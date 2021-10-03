@@ -166,6 +166,7 @@ namespace MachineLearning.Model
       {
          var dst = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".onnx");
          ODModelBuilderTF.Converter.Convert(src, dst, ODModelBuilderTF.Converter.Formats.PyTorch, ODModelBuilderTF.Converter.Formats.Onnx);
+         File.SetLastWriteTimeUtc(dst, File.GetLastWriteTimeUtc(src));
          return dst;
       }
       /// <summary>
