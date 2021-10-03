@@ -827,39 +827,23 @@ namespace MachineLearning.ModelZoo
             // Check if the importing model exists
             if (string.IsNullOrEmpty(importPath) || !File.Exists(importPath))
                return null;
-            // Temporary file for convertions
-            var tmpFile = default(string);
-            try {
-               // Load the model configuration
-               Config = ModelConfig.Load(importPath, modelCategory: "ObjectDetection");
-               // Check if it's a known model type
-               if (Config.Format == ModelConfig.ModelFormat.Unknown)
-                  return null;
-               // Check if the ML.NET format model is more recent than the model to import
-               if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTimeUtc(Config.ModelFilePath))
-                  return null;
-               // Get the pipes
-               _pipes?.Dispose();
-               _pipes = null;
-               var pipelines = GetPipes();
-               // Create the model
-               var dataView = DataViewGrid.Create(this, _owner.InputSchema);
-               var model = pipelines.Merged.Fit(dataView);
-               schema = _owner.InputSchema;
-               var result = new DataTransformer<MLContext>(this, model);
-               // Save the model.
-               SaveModel(modelStorage, result, schema);
-               result.Dispose();
+            // Load the model configuration
+            Config = ModelConfig.Load(importPath, modelCategory: "ObjectDetection");
+            // Check if it's a known model type
+            if (Config.Format == ModelConfig.ModelFormat.Unknown)
                return null;
-            }
-            finally {
-               // Delete the temporary convertion file
-               try {
-                  if (!string.IsNullOrEmpty(tmpFile) && File.Exists(tmpFile))
-                     File.Delete(tmpFile);
-               }
-               catch { }
-            }
+            // Check if the ML.NET format model is more recent than the model to import
+            if (modelStorage is IDataTimestamp modelTimestamp && modelTimestamp.DataTimestamp >= File.GetLastWriteTimeUtc(Config.ModelFilePath))
+               return null;
+            // Get the pipes
+            _pipes?.Dispose();
+            _pipes = null;
+            var pipelines = GetPipes();
+            // Create the model
+            var dataView = DataViewGrid.Create(this, _owner.InputSchema);
+            var model = pipelines.Merged.Fit(dataView);
+            schema = _owner.InputSchema;
+            return new DataTransformer<MLContext>(this, model);
          }
          /// <summary>
          /// Model changed function

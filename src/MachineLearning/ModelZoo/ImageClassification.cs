@@ -308,11 +308,7 @@ namespace MachineLearning.ModelZoo
             var dataView = DataViewGrid.Create(this, _owner.InputSchema);
             var model = pipelines.Merged.Fit(dataView);
             schema = _owner.InputSchema;
-            var result = new DataTransformer<MLContext>(this, model);
-            // Save the model.
-            SaveModel(modelStorage, result, schema);
-            result.Dispose();
-            return null;
+            return new DataTransformer<MLContext>(this, model);
          }
          /// <summary>
          /// Funzione di start del training
