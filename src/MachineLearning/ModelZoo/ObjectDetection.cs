@@ -309,6 +309,10 @@ namespace MachineLearning.ModelZoo
          [NonSerialized]
          private ModelPipes _pipes;
          /// <summary>
+         /// Dictionary of scorers
+         /// </summary>
+         private static readonly SmartDictionary<int> _scorers = new();
+         /// <summary>
          /// Train folder
          /// </summary>
          [NonSerialized]
@@ -420,8 +424,6 @@ namespace MachineLearning.ModelZoo
             var inputClassesColumnName = config.GetColumnName(ModelConfig.ColumnTypes.Classes);
             var inputScoresColumnName = config.GetColumnName(ModelConfig.ColumnTypes.Scores);
             var inputBoxesColumnName = config.GetColumnName(ModelConfig.ColumnTypes.Boxes);
-            // Check if it's a Yolo model
-            var isYolo = inputClassesColumnName == inputScoresColumnName && inputBoxesColumnName == inputScoresColumnName;
             // Dimensions to use with the input tensor if not defined in the model
             var resize = new Size(
                config.ImageSize.Width > 0 ? config.ImageSize.Width : _owner.DefaultImageResize.Width > 0 ? _owner.DefaultImageResize.Width : 640,
@@ -434,28 +436,42 @@ namespace MachineLearning.ModelZoo
             // Create the output pipeline
             var outputEstimators = new EstimatorList();
             var dropColumns = new HashSet<string>();
-            // Yolo models output mapping
-            if (isYolo) {
-               // Transform Yolov5 output to a standard output
-               outputEstimators.Add(Context.Transforms.ScoreYoloV5(
-                  outputClassesColumnName: nameof(Prediction.DetectionClasses),
-                  outputScoresColumnName: nameof(Prediction.DetectionScores),
-                  outputBoxesColumnName: nameof(Prediction.DetectionBoxes),
-                  outputLabelsColumnName: nameof(Prediction.DetectionLabels),
-                  inputScoresColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Scores),
-                  labels: config.Labels));
+            // Select the scorer
+            const int tfStandardScorer = 0;
+            const int yolov5Scorer = 2;
+            lock (_scorers) {
+               if (_scorers.Count == 0) {
+                  _scorers["TFStandard"] = tfStandardScorer;
+                  _scorers["Yolov5"] = yolov5Scorer;
+               }
             }
-            else {
-               outputEstimators.Add(Context.Transforms.ScoreTensorFlowStandardObjectDetection(
-                  outputClassesColumnName: nameof(Prediction.DetectionClasses),
-                  outputScoresColumnName: nameof(Prediction.DetectionScores),
-                  outputBoxesColumnName: nameof(Prediction.DetectionBoxes),
-                  outputLabelsColumnName: nameof(Prediction.DetectionLabels),
-                  inputClassesColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Classes),
-                  inputScoresColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Scores),
-                  inputBoxesColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Boxes),
-                  minScore: 0.2f,
-                  labels: config.Labels));
+            var scorer =
+               _scorers[!string.IsNullOrEmpty(config.Scorer) ?
+               config.Scorer :
+               inputClassesColumnName == inputScoresColumnName && inputBoxesColumnName == inputScoresColumnName ? "Yolov5" : "TFStandard"];
+            switch (scorer) {
+               default:
+               case tfStandardScorer:
+                  outputEstimators.Add(Context.Transforms.ScoreTensorFlowStandardObjectDetection(
+                     outputClassesColumnName: nameof(Prediction.DetectionClasses),
+                     outputScoresColumnName: nameof(Prediction.DetectionScores),
+                     outputBoxesColumnName: nameof(Prediction.DetectionBoxes),
+                     outputLabelsColumnName: nameof(Prediction.DetectionLabels),
+                     inputClassesColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Classes),
+                     inputScoresColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Scores),
+                     inputBoxesColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Boxes),
+                     minScore: 0.2f,
+                     labels: config.Labels));
+                  break;
+               case yolov5Scorer:
+                  outputEstimators.Add(Context.Transforms.ScoreYoloV5(
+                     outputClassesColumnName: nameof(Prediction.DetectionClasses),
+                     outputScoresColumnName: nameof(Prediction.DetectionScores),
+                     outputBoxesColumnName: nameof(Prediction.DetectionBoxes),
+                     outputLabelsColumnName: nameof(Prediction.DetectionLabels),
+                     inputScoresColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Scores),
+                     labels: config.Labels));
+                  break;
             }
             dropColumns.Add("Image");
             dropColumns.Add("ResizedImage");
@@ -494,7 +510,7 @@ namespace MachineLearning.ModelZoo
                      inputColumnName: "ResizedImage",
                      outputColumnName: config.GetColumnName(ModelConfig.ColumnTypes.Input),
                      scaleImage: config.ScaleImage,
-                     interleavePixelColors: !isYolo,
+                     interleavePixelColors: config.InterleavePixelColors,
                      outputAsFloatArray: config.GetTensor(ModelConfig.ColumnTypes.Input).DataType == typeof(float))),
                // Model inference pipe
                Trainer =
